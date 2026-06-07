@@ -33,7 +33,7 @@ struct ContentView: View {
                     .zIndex(10)
             }
         }
-        .background(WindowInteractionConfigurator(controlsVisible: isSidebarPresented))
+        .background(WindowInteractionConfigurator())
         .background(
             MouseMoveMonitor(
                 isSidebarVisible: $isSidebarVisible,
@@ -218,11 +218,6 @@ private struct MouseMoveMonitor: NSViewRepresentable {
 }
 
 private struct WindowInteractionConfigurator: NSViewRepresentable {
-    /// The native traffic-light buttons live in the sidebar header, so they
-    /// follow the sidebar: visible while it is shown or hover-revealed,
-    /// hidden once it slides away (matching Zen's collapse behavior).
-    var controlsVisible: Bool
-
     func makeNSView(context: Context) -> NSView {
         let view = NSView(frame: .zero)
         DispatchQueue.main.async {
@@ -244,9 +239,8 @@ private struct WindowInteractionConfigurator: NSViewRepresentable {
         window.styleMask.insert(.fullSizeContentView)
         window.isMovableByWindowBackground = false
 
-        let hidden = !controlsVisible
-        window.standardWindowButton(.closeButton)?.isHidden = hidden
-        window.standardWindowButton(.miniaturizeButton)?.isHidden = hidden
-        window.standardWindowButton(.zoomButton)?.isHidden = hidden
+        window.standardWindowButton(.closeButton)?.isHidden = true
+        window.standardWindowButton(.miniaturizeButton)?.isHidden = true
+        window.standardWindowButton(.zoomButton)?.isHidden = true
     }
 }

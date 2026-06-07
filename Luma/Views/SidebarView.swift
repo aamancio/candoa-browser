@@ -8,7 +8,7 @@ struct SidebarView: View {
 
     private let leadingInset: CGFloat = 12
     private let trailingInset: CGFloat = 10
-    private let nativeWindowControlsWidth: CGFloat = 74
+    private let windowControlsWidth: CGFloat = 74
 
     /// Zen-style "Essentials" tiles: square-ish tiles that stretch to fill
     /// the row, so a few items span the full width like the reference.
@@ -51,8 +51,8 @@ struct SidebarView: View {
 
     private var sidebarHeader: some View {
         HStack(spacing: 7) {
-            Color.clear
-                .frame(width: nativeWindowControlsWidth, height: 24)
+            WindowControlsView()
+                .frame(width: windowControlsWidth, height: 24)
 
             Button {
                 onToggleSidebar()
@@ -309,6 +309,95 @@ private struct EssentialTileView: View {
             Image(systemName: tab.faviconSymbol)
                 .font(.system(size: 16))
                 .foregroundStyle(isActive ? Color.primary : Color.secondary)
+        }
+    }
+}
+
+// MARK: - Window controls
+
+private struct WindowControlsView: View {
+    @State private var window: NSWindow?
+    @State private var isHovering = false
+
+    var body: some View {
+        HStack(spacing: 8) {
+            WindowControlButton(
+                color: Color(red: 1.0, green: 0.27, blue: 0.29),
+                symbolName: "xmark",
+                accessibilityLabel: "Close",
+                isHovering: isHovering
+            ) {
+                window?.performClose(nil)
+            }
+
+            WindowControlButton(
+                color: Color(red: 1.0, green: 0.78, blue: 0.16),
+                symbolName: "minus",
+                accessibilityLabel: "Minimize",
+                isHovering: isHovering
+            ) {
+                window?.miniaturize(nil)
+            }
+
+            WindowControlButton(
+                color: Color(red: 0.20, green: 0.80, blue: 0.28),
+                symbolName: "arrow.up.left.and.arrow.down.right",
+                accessibilityLabel: "Zoom",
+                isHovering: isHovering
+            ) {
+                window?.zoom(nil)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(WindowReader(window: $window))
+        .onHover { isHovering = $0 }
+    }
+}
+
+private struct WindowControlButton: View {
+    let color: Color
+    let symbolName: String
+    let accessibilityLabel: String
+    let isHovering: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            ZStack {
+                Circle()
+                    .fill(color)
+                    .overlay {
+                        Circle()
+                            .stroke(Color.black.opacity(0.14), lineWidth: 0.5)
+                    }
+
+                Image(systemName: symbolName)
+                    .font(.system(size: 6.2, weight: .bold))
+                    .foregroundStyle(Color.black.opacity(0.58))
+                    .opacity(isHovering ? 1 : 0)
+            }
+            .frame(width: 13, height: 13)
+            .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(accessibilityLabel)
+    }
+}
+
+private struct WindowReader: NSViewRepresentable {
+    @Binding var window: NSWindow?
+
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView(frame: .zero)
+        DispatchQueue.main.async {
+            window = view.window
+        }
+        return view
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {
+        DispatchQueue.main.async {
+            window = nsView.window
         }
     }
 }
