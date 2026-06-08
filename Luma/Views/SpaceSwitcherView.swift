@@ -5,6 +5,7 @@ import UniformTypeIdentifiers
 /// pinned to the bottom of the sidebar, with a trailing "add space" control.
 struct SpaceSwitcherView: View {
     @ObservedObject var store: BrowserStore
+    @State private var isActionMenuPresented = false
     @State private var renamingSpace: BrowserSpace?
     @State private var renameDraft = ""
     @State private var deletingSpace: BrowserSpace?
@@ -33,7 +34,7 @@ struct SpaceSwitcherView: View {
             Spacer(minLength: 0)
 
             Button {
-                store.createSpace()
+                isActionMenuPresented.toggle()
             } label: {
                 Image(systemName: "plus")
                     .font(.system(size: 12, weight: .semibold))
@@ -43,6 +44,12 @@ struct SpaceSwitcherView: View {
             }
             .buttonStyle(.plain)
             .help("New Space")
+            .popover(isPresented: $isActionMenuPresented, arrowEdge: .bottom) {
+                SpaceActionMenu(
+                    store: store,
+                    isPresented: $isActionMenuPresented
+                )
+            }
         }
         .frame(height: 32)
         .alert("Rename Space", isPresented: isRenameAlertPresented) {
@@ -117,7 +124,7 @@ struct SpaceSwitcherView: View {
             Divider()
 
             Button("New Space") {
-                store.createSpace()
+                store.beginSpaceCreation()
             }
 
             Button("Delete Space", role: .destructive) {
@@ -161,7 +168,56 @@ struct SpaceSwitcherView: View {
     }
 }
 
-private extension Color {
+private struct SpaceActionMenu: View {
+    @ObservedObject var store: BrowserStore
+    @Binding var isPresented: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            menuButton("Create Space", systemImage: "square.on.square") {
+                store.beginSpaceCreation()
+            }
+
+            menuButton("Create Folder", systemImage: "folder") {}
+                .disabled(true)
+
+            Divider()
+                .padding(.vertical, 5)
+
+            menuButton("New Split", systemImage: "rectangle.split.2x1") {
+                store.toggleSplitView()
+            }
+
+            menuButton("New Tab", systemImage: "plus") {
+                store.newTab()
+                store.focusAddressBar()
+            }
+        }
+        .padding(10)
+        .frame(width: 210)
+    }
+
+    private func menuButton(
+        _ title: String,
+        systemImage: String,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button {
+            isPresented = false
+            action()
+        } label: {
+            Label(title, systemImage: systemImage)
+                .font(.system(size: 14, weight: .medium))
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 7)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+extension Color {
     init(spaceHex: String) {
         let hex = spaceHex.trimmingCharacters(in: CharacterSet(charactersIn: "#"))
         guard hex.count == 6, let value = Int(hex, radix: 16) else {

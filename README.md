@@ -23,7 +23,7 @@ This project is currently built around my personal browsing workflow. For develo
 - Native macOS SwiftUI app
 - `WKWebView`-only browsing engine
 - Sidebar-first workspace
-- Spaces
+- Spaces with name, icon, theme, and local site-data scope
 - Space switcher with rename, delete, icon, theme color, and tab move actions
 - Pinned tabs and regular tabs
 - Multiple reusable `WKWebView`-backed tabs
@@ -37,6 +37,7 @@ This project is currently built around my personal browsing workflow. For develo
 - Favicon fetching and caching
 - Session restore with local Core Data / SQLite persistence
 - Local-only history visit recording
+- Space-scoped WebKit website data stores for isolated cookies, cache, localStorage, and IndexedDB
 - `Cmd+L` focuses the address/search bar
 - `Cmd+T` opens the command/new-tab surface
 - Command palette actions and tab search across spaces
@@ -111,9 +112,9 @@ Luma/
 ## Architecture
 
 - `BrowserStore` owns browser state and exposes actions for views.
-- `PersistenceService` saves spaces, tabs, active selection, and history visits in `~/Library/Application Support/Luma Browser/Luma.sqlite`.
+- `PersistenceService` saves spaces, tabs, active selection, Space data-store identifiers, and history visits in `~/Library/Application Support/Luma Browser/Luma.sqlite`.
 - `NavigationService` normalizes URL input and search queries.
-- `WebViewCoordinator` owns and reuses `WKWebView` instances per tab.
+- `WebViewCoordinator` owns and reuses `WKWebView` instances per tab, creating them with the active Space's WebKit website data store.
 - `FaviconService` fetches page-discovered icons with a lightweight in-memory cache.
 - SwiftUI views stay thin and call store/service methods.
 
@@ -122,6 +123,7 @@ Luma/
 - Arc-parity keyboard shortcut audit
 - Hidden sidebar with left-edge reveal
 - Deeper space management
+- Profile manager for assigning multiple Spaces to one data profile
 - Better split views
 - Downloads
 - History UI and search

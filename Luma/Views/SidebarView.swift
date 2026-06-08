@@ -19,23 +19,28 @@ struct SidebarView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             sidebarHeader
-            addressPill
+            
+            if store.isCreateSpacePresented {
+                CreateSpaceSidebarComposer(store: store)
+            } else {
+                addressPill
 
-            ScrollView(.vertical, showsIndicators: false) {
-                VStack(alignment: .leading, spacing: 10) {
-                    essentialsSection
-                    spaceLabel
+                ScrollView(.vertical, showsIndicators: false) {
+                    VStack(alignment: .leading, spacing: 10) {
+                        essentialsSection
+                        spaceLabel
 
-                    Divider()
-                        .padding(.vertical, 2)
+                        Divider()
+                            .padding(.vertical, 2)
 
-                    newTabButton
-                    tabsSection
+                        newTabButton
+                        tabsSection
+                    }
+                    .padding(.top, 2)
                 }
-                .padding(.top, 2)
-            }
 
-            Spacer(minLength: 6)
+                Spacer(minLength: 6)
+            }
 
             SpaceSwitcherView(store: store)
         }
@@ -244,6 +249,214 @@ struct SidebarView: View {
     }
 }
 
+private struct CreateSpaceSidebarComposer: View {
+    @ObservedObject var store: BrowserStore
+
+    @State private var name = ""
+    @State private var symbolName = "sparkle"
+    @State private var themeColorHex = "#6E8BFF"
+    @State private var dataMode = SpaceDataMode.isolated
+    @State private var isThemeEditorPresented = false
+
+    private let symbols = [
+        "sparkle",
+        "briefcase",
+        "house",
+        "paintpalette",
+        "graduationcap",
+        "bolt",
+        "leaf",
+        "terminal"
+    ]
+
+    private let themeOptions: [(name: String, hex: String)] = [
+        ("Blue", "#6E8BFF"),
+        ("Green", "#66BFA3"),
+        ("Gold", "#E0A84F"),
+        ("Red", "#DA6A72"),
+        ("Violet", "#9B7BE5"),
+        ("Cyan", "#5CA8D8"),
+        ("Pink", "#D17FB3"),
+        ("Olive", "#8E9A5B")
+    ]
+
+    private var trimmedName: String {
+        name.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .center, spacing: 5) {
+                Text("Create a Space")
+                    .font(.system(size: 14, weight: .semibold))
+
+                Text("Spaces organize tabs and sessions.")
+                    .font(.system(size: 10.5))
+                    .foregroundStyle(.tertiary)
+                    .multilineTextAlignment(.center)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.top, 20)
+            .padding(.bottom, 26)
+
+            HStack(spacing: 7) {
+                Button {
+                    cycleSymbol()
+                } label: {
+                    Image(systemName: symbolName)
+                        .font(.system(size: 13, weight: .medium))
+                        .frame(width: 22, height: 22)
+                        .foregroundStyle(Color(spaceHex: themeColorHex))
+                        .background(
+                            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                .fill(Color(spaceHex: themeColorHex).opacity(0.16))
+                        )
+                }
+                .buttonStyle(.plain)
+                .help("Change Icon")
+
+                TextField("Space Name", text: $name)
+                    .textFieldStyle(.plain)
+                    .font(.system(size: 12.5, weight: .medium))
+            }
+            .padding(.horizontal, 8)
+            .frame(height: 30)
+            .background(Color.primary.opacity(0.06))
+            .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+
+            HStack(spacing: 8) {
+                Text("Profile")
+                    .font(.system(size: 11.5, weight: .medium))
+
+                Spacer()
+
+                Picker("Profile", selection: $dataMode) {
+                    ForEach(SpaceDataMode.allCases) { mode in
+                        Text(mode.title).tag(mode)
+                    }
+                }
+                .labelsHidden()
+                .frame(width: 106)
+            }
+            .padding(.horizontal, 8)
+            .frame(height: 28)
+            .background(Color.primary.opacity(0.05))
+            .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+
+            Button {
+                withAnimation(.easeOut(duration: 0.14)) {
+                    isThemeEditorPresented.toggle()
+                }
+            } label: {
+                HStack {
+                    Circle()
+                        .fill(Color(spaceHex: themeColorHex))
+                        .frame(width: 12, height: 12)
+
+                    Text("Edit Theme")
+                        .font(.system(size: 11.5, weight: .medium))
+
+                    Spacer()
+                }
+                .padding(.horizontal, 8)
+                .frame(height: 28)
+                .background(Color.primary.opacity(0.05))
+                .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+            }
+            .buttonStyle(.plain)
+
+            if isThemeEditorPresented {
+                LazyVGrid(columns: Array(repeating: GridItem(.fixed(21), spacing: 7), count: 6), spacing: 7) {
+                    ForEach(themeOptions, id: \.hex) { option in
+                        Button {
+                            themeColorHex = option.hex
+                        } label: {
+                            Circle()
+                                .fill(Color(spaceHex: option.hex))
+                                .frame(width: 18, height: 18)
+                                .overlay {
+                                    Circle()
+                                        .strokeBorder(Color.primary.opacity(themeColorHex == option.hex ? 0.58 : 0), lineWidth: 2)
+                                }
+                        }
+                        .buttonStyle(.plain)
+                        .help(option.name)
+                    }
+                }
+                .padding(.horizontal, 4)
+            }
+
+            Spacer(minLength: 0)
+
+            Button {
+                createSpace()
+            } label: {
+                Text("Create Space")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.plain)
+            .font(.system(size: 11.5, weight: .medium))
+            .foregroundStyle(.primary)
+            .frame(height: 26)
+            .background(Color.primary.opacity(trimmedName.isEmpty ? 0.08 : 0.18))
+            .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+            .disabled(trimmedName.isEmpty)
+
+            Button("Cancel") {
+                store.isCreateSpacePresented = false
+            }
+            .buttonStyle(.plain)
+            .font(.system(size: 11.5, weight: .medium))
+            .frame(maxWidth: .infinity)
+            .padding(.bottom, 2)
+        }
+    }
+
+    private func createSpace() {
+        let dataStoreID: UUID
+        switch dataMode {
+        case .isolated:
+            dataStoreID = UUID()
+        case .shareCurrent:
+            dataStoreID = store.activeSpace?.dataStoreID ?? UUID()
+        }
+
+        store.createSpace(
+            name: trimmedName,
+            symbolName: symbolName,
+            themeColorHex: themeColorHex,
+            dataStoreID: dataStoreID
+        )
+        store.isCreateSpacePresented = false
+        store.focusAddressBar()
+    }
+
+    private func cycleSymbol() {
+        guard let index = symbols.firstIndex(of: symbolName) else {
+            symbolName = symbols[0]
+            return
+        }
+
+        symbolName = symbols[(index + 1) % symbols.count]
+    }
+}
+
+private enum SpaceDataMode: String, CaseIterable, Identifiable {
+    case isolated
+    case shareCurrent
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .isolated:
+            return "New"
+        case .shareCurrent:
+            return "Current"
+        }
+    }
+}
+
 private struct SidebarLoadingBar: View {
     let progress: Double
 
@@ -254,11 +467,11 @@ private struct SidebarLoadingBar: View {
     var body: some View {
         GeometryReader { proxy in
             Rectangle()
-                .fill(Color.accentColor.opacity(0.46))
-                .frame(width: proxy.size.width * clampedProgress, height: 0.5)
+                .fill(Color.accentColor.opacity(0.58))
+                .frame(width: proxy.size.width * clampedProgress, height: 1)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .frame(height: 0.5)
+        .frame(height: 1)
         .allowsHitTesting(false)
     }
 }

@@ -88,6 +88,12 @@ struct CommandPaletteView: View {
             }
             .shadow(color: .black.opacity(0.30), radius: 46, y: 24)
         }
+        .background(
+            CommandPaletteKeyMonitor(
+                isProviderChipDeletable: selectedSearchProvider != nil && query.isEmpty,
+                onDeleteProviderChip: deleteSelectedSearchProvider
+            )
+        )
         .onAppear {
             query = store.commandPaletteInitialText
             selectedSearchProvider = nil
@@ -239,7 +245,7 @@ struct CommandPaletteView: View {
             symbolName: "google",
             searchText: "google search",
             style: .provider(NavigationService.searchProviders[0]),
-            action: .activateSearchProvider(NavigationService.searchProviders[0])
+            action: .navigate(NavigationService.searchProviders[0].homeURL.absoluteString)
         )
     }
 
@@ -247,11 +253,11 @@ struct CommandPaletteView: View {
         NavigationService.searchProviders.map { provider in
             PaletteCommand(
                 title: provider.name,
-                detail: "Press Tab",
+                detail: "Open Site",
                 symbolName: provider.id == "google" ? "google" : provider.symbolName,
                 searchText: ([provider.name] + provider.aliases).joined(separator: " "),
                 style: .provider(provider),
-                action: .activateSearchProvider(provider)
+                action: .navigate(provider.homeURL.absoluteString)
             )
         }
     }
@@ -271,10 +277,10 @@ struct CommandPaletteView: View {
     private var tabCommands: [PaletteCommand] {
         store.tabs
             .sorted {
-                if $0.spaceID == $1.spaceID {
+                if $0.lastAccessedAt == $1.lastAccessedAt {
                     return $0.sortOrder < $1.sortOrder
                 }
-                return spaceName(for: $0.spaceID) < spaceName(for: $1.spaceID)
+                return $0.lastAccessedAt > $1.lastAccessedAt
             }
             .map {
                 let spaceName = spaceName(for: $0.spaceID)
@@ -335,14 +341,12 @@ struct CommandPaletteView: View {
         fieldFocusRequestID = UUID()
     }
 
-    private func run(_ command: PaletteCommand) {
-        if case .activateSearchProvider(let provider) = command.action {
-            selectedSearchProvider = provider
-            query = ""
-            fieldFocusRequestID = UUID()
-            return
-        }
+    private func deleteSelectedSearchProvider() {
+        selectedSearchProvider = nil
+        fieldFocusRequestID = UUID()
+    }
 
+    private func run(_ command: PaletteCommand) {
         store.isCommandPalettePresented = false
 
         switch command.action {
@@ -358,8 +362,7 @@ struct CommandPaletteView: View {
         case .toggleSplitView:
             store.toggleSplitView()
         case .createSpace:
-            store.createSpace()
-            store.focusAddressBar()
+            store.beginSpaceCreation()
         case .focusAddressBar:
             store.focusAddressBar()
         case .navigate(let input):
@@ -367,8 +370,6 @@ struct CommandPaletteView: View {
         case .searchProvider(let provider, let input):
             guard let url = store.navigationService.searchURL(provider: provider, query: input) else { return }
             store.navigateActiveTab(to: url)
-        case .activateSearchProvider:
-            break
         case .switchTab(let id):
             store.switchTab(to: id)
         case .switchSpace(let id):
@@ -391,6 +392,69 @@ private struct PaletteBackground: View {
             Color(red: 0.08, green: 0.08, blue: 0.09)
             VisualEffectView(material: .hudWindow, blendingMode: .behindWindow)
                 .opacity(0.68)
+        }
+    }
+}
+
+private struct CommandPaletteKeyMonitor: NSViewRepresentable {
+    let isProviderChipDeletable: Bool
+    let onDeleteProviderChip: () -> Void
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(
+            isProviderChipDeletable: isProviderChipDeletable,
+            onDeleteProviderChip: onDeleteProviderChip
+        )
+    }
+
+    func makeNSView(context: Context) -> NSView {
+        context.coordinator.installMonitorIfNeeded()
+        return NSView(frame: .zero)
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {
+        context.coordinator.isProviderChipDeletable = isProviderChipDeletable
+        context.coordinator.onDeleteProviderChip = onDeleteProviderChip
+        context.coordinator.installMonitorIfNeeded()
+    }
+
+    final class Coordinator {
+        var isProviderChipDeletable: Bool
+        var onDeleteProviderChip: () -> Void
+        private var monitor: Any?
+
+        init(isProviderChipDeletable: Bool, onDeleteProviderChip: @escaping () -> Void) {
+            self.isProviderChipDeletable = isProviderChipDeletable
+            self.onDeleteProviderChip = onDeleteProviderChip
+        }
+
+        func installMonitorIfNeeded() {
+            guard monitor == nil else { return }
+
+            monitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown]) { [weak self] event in
+                guard
+                    let self,
+                    isProviderChipDeletable,
+                    Self.isPlainDelete(event)
+                else {
+                    return event
+                }
+
+                onDeleteProviderChip()
+                return nil
+            }
+        }
+
+        private static func isPlainDelete(_ event: NSEvent) -> Bool {
+            let modifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+            guard modifiers.subtracting(.capsLock).isEmpty else { return false }
+            return event.keyCode == 51 || event.keyCode == 117
+        }
+
+        deinit {
+            if let monitor {
+                NSEvent.removeMonitor(monitor)
+            }
         }
     }
 }
@@ -901,7 +965,6 @@ private enum PaletteAction {
     case createSpace
     case focusAddressBar
     case navigate(String)
-    case activateSearchProvider(SearchProvider)
     case searchProvider(SearchProvider, String)
     case switchTab(UUID)
     case switchSpace(UUID)
@@ -936,8 +999,28 @@ private extension SearchProvider {
             return Color(red: 0.32, green: 0.28, blue: 0.86)
         case "bing":
             return Color(red: 0.07, green: 0.48, blue: 0.60)
+        case "ecosia":
+            return Color(red: 0.10, green: 0.55, blue: 0.30)
+        case "perplexity":
+            return Color(red: 0.12, green: 0.62, blue: 0.65)
+        case "kagi":
+            return Color(red: 0.95, green: 0.45, blue: 0.22)
+        case "yandex":
+            return Color(red: 0.92, green: 0.14, blue: 0.12)
         case "github":
             return Color(red: 0.36, green: 0.36, blue: 0.40)
+        case "reddit":
+            return Color(red: 1.00, green: 0.33, blue: 0.13)
+        case "x":
+            return Color(red: 0.12, green: 0.12, blue: 0.14)
+        case "spotify":
+            return Color(red: 0.12, green: 0.72, blue: 0.32)
+        case "chatgpt":
+            return Color(red: 0.08, green: 0.58, blue: 0.45)
+        case "claude":
+            return Color(red: 0.72, green: 0.36, blue: 0.20)
+        case "gemini":
+            return Color(red: 0.34, green: 0.43, blue: 0.93)
         case "wikipedia":
             return Color(red: 0.25, green: 0.25, blue: 0.27)
         default:

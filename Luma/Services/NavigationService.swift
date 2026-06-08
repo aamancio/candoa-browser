@@ -5,6 +5,7 @@ struct SearchProvider: Identifiable, Equatable {
     let name: String
     let aliases: [String]
     let symbolName: String
+    let homeURL: URL
     let baseURL: URL
     let queryItemName: String
 
@@ -52,6 +53,7 @@ struct NavigationService {
             name: "Google",
             aliases: ["g", "search", "google.com", "www.google.com"],
             symbolName: "magnifyingglass",
+            homeURL: URL(string: "https://www.google.com")!,
             baseURL: URL(string: "https://www.google.com/search")!,
             queryItemName: "q"
         ),
@@ -60,6 +62,7 @@ struct NavigationService {
             name: "YouTube",
             aliases: ["yt", "video", "videos", "youtube.com", "www.youtube.com"],
             symbolName: "play.rectangle.fill",
+            homeURL: URL(string: "https://www.youtube.com")!,
             baseURL: URL(string: "https://www.youtube.com/results")!,
             queryItemName: "search_query"
         ),
@@ -68,14 +71,16 @@ struct NavigationService {
             name: "Amazon",
             aliases: ["amz", "shop", "shopping", "amazon.com", "www.amazon.com"],
             symbolName: "shippingbox.fill",
+            homeURL: URL(string: "https://www.amazon.com")!,
             baseURL: URL(string: "https://www.amazon.com/s")!,
             queryItemName: "k"
         ),
         SearchProvider(
             id: "duckduckgo",
             name: "DuckDuckGo",
-            aliases: ["duck", "ddg"],
+            aliases: ["duck", "ddg", "duckduckgo.com"],
             symbolName: "scope",
+            homeURL: URL(string: "https://duckduckgo.com")!,
             baseURL: URL(string: "https://duckduckgo.com/")!,
             queryItemName: "q"
         ),
@@ -84,15 +89,107 @@ struct NavigationService {
             name: "Bing",
             aliases: ["b", "ben"],
             symbolName: "b.circle.fill",
+            homeURL: URL(string: "https://www.bing.com")!,
             baseURL: URL(string: "https://www.bing.com/search")!,
             queryItemName: "q"
+        ),
+        SearchProvider(
+            id: "ecosia",
+            name: "Ecosia",
+            aliases: ["eco", "ecosia.org", "ecosia.com"],
+            symbolName: "leaf.fill",
+            homeURL: URL(string: "https://www.ecosia.org")!,
+            baseURL: URL(string: "https://www.ecosia.org/search")!,
+            queryItemName: "q"
+        ),
+        SearchProvider(
+            id: "perplexity",
+            name: "Perplexity",
+            aliases: ["pplx", "perplexity.ai"],
+            symbolName: "sparkles",
+            homeURL: URL(string: "https://www.perplexity.ai")!,
+            baseURL: URL(string: "https://www.perplexity.ai/search")!,
+            queryItemName: "q"
+        ),
+        SearchProvider(
+            id: "kagi",
+            name: "Kagi",
+            aliases: ["k", "kagi.com"],
+            symbolName: "bolt.fill",
+            homeURL: URL(string: "https://kagi.com")!,
+            baseURL: URL(string: "https://kagi.com/search")!,
+            queryItemName: "q"
+        ),
+        SearchProvider(
+            id: "yandex",
+            name: "Yandex",
+            aliases: ["ya", "yandex.com", "yandex.ru"],
+            symbolName: "y.circle.fill",
+            homeURL: URL(string: "https://yandex.com")!,
+            baseURL: URL(string: "https://yandex.com/search/")!,
+            queryItemName: "text"
         ),
         SearchProvider(
             id: "github",
             name: "GitHub",
             aliases: ["gh", "code"],
             symbolName: "chevron.left.forwardslash.chevron.right",
+            homeURL: URL(string: "https://github.com")!,
             baseURL: URL(string: "https://github.com/search")!,
+            queryItemName: "q"
+        ),
+        SearchProvider(
+            id: "reddit",
+            name: "Reddit",
+            aliases: ["r", "reddit.com", "www.reddit.com"],
+            symbolName: "bubble.left.fill",
+            homeURL: URL(string: "https://www.reddit.com")!,
+            baseURL: URL(string: "https://www.reddit.com/search/")!,
+            queryItemName: "q"
+        ),
+        SearchProvider(
+            id: "x",
+            name: "X",
+            aliases: ["twitter", "tw", "x.com", "twitter.com"],
+            symbolName: "at",
+            homeURL: URL(string: "https://x.com")!,
+            baseURL: URL(string: "https://x.com/search")!,
+            queryItemName: "q"
+        ),
+        SearchProvider(
+            id: "spotify",
+            name: "Spotify",
+            aliases: ["sp", "music", "spotify.com", "open.spotify.com"],
+            symbolName: "music.note",
+            homeURL: URL(string: "https://open.spotify.com")!,
+            baseURL: URL(string: "https://open.spotify.com/search")!,
+            queryItemName: "q"
+        ),
+        SearchProvider(
+            id: "chatgpt",
+            name: "ChatGPT",
+            aliases: ["gpt", "openai", "chat.openai.com", "chatgpt.com"],
+            symbolName: "sparkles",
+            homeURL: URL(string: "https://chatgpt.com")!,
+            baseURL: URL(string: "https://chatgpt.com/")!,
+            queryItemName: "q"
+        ),
+        SearchProvider(
+            id: "claude",
+            name: "Claude",
+            aliases: ["anthropic", "claude code", "claude.ai"],
+            symbolName: "text.bubble.fill",
+            homeURL: URL(string: "https://claude.ai")!,
+            baseURL: URL(string: "https://claude.ai/new")!,
+            queryItemName: "q"
+        ),
+        SearchProvider(
+            id: "gemini",
+            name: "Gemini",
+            aliases: ["bard", "google ai", "gemini.google.com"],
+            symbolName: "diamond.fill",
+            homeURL: URL(string: "https://gemini.google.com")!,
+            baseURL: URL(string: "https://gemini.google.com/app")!,
             queryItemName: "q"
         ),
         SearchProvider(
@@ -100,6 +197,7 @@ struct NavigationService {
             name: "Wikipedia",
             aliases: ["wiki", "w"],
             symbolName: "book.closed.fill",
+            homeURL: URL(string: "https://en.wikipedia.org")!,
             baseURL: URL(string: "https://en.wikipedia.org/w/index.php")!,
             queryItemName: "search"
         )
@@ -117,6 +215,10 @@ struct NavigationService {
 
         if looksLikeHost(input), let url = URL(string: "https://\(input)") {
             return url
+        }
+
+        if let provider = Self.searchProviders.first(where: { $0.exactlyMatches(input) }) {
+            return provider.homeURL
         }
 
         var components = URLComponents(url: searchBaseURL, resolvingAgainstBaseURL: false)

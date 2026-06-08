@@ -13,6 +13,7 @@ final class BrowserStore: ObservableObject {
     @Published var commandPaletteInitialText = ""
     @Published var commandPaletteResumeQuery = ""
     @Published var commandPaletteSessionID = UUID()
+    @Published var isCreateSpacePresented = false
     @Published var addressFocusRequestID = UUID()
     @Published private(set) var canGoBack = false
     @Published private(set) var canGoForward = false
@@ -20,6 +21,9 @@ final class BrowserStore: ObservableObject {
 
     let navigationService: NavigationService
     let webCoordinator: WebViewCoordinator
+
+    private static let defaultHomeURL = URL(string: "https://www.google.com")!
+    private static let defaultHomeTitle = "Google"
 
     private let persistenceService: PersistenceService
     private let faviconService: FaviconService
@@ -101,7 +105,7 @@ final class BrowserStore: ObservableObject {
             isSplitViewEnabled = restoredState.isSplitViewEnabled && splitTabID != nil && splitTabID != activeTabID
         } else {
             let defaultSpace = BrowserSpace(name: "Personal", symbolName: "circle.grid.2x2")
-            let defaultTab = BrowserTab(spaceID: defaultSpace.id)
+            let defaultTab = Self.homeTab(spaceID: defaultSpace.id)
             spaces = [defaultSpace]
             tabs = [defaultTab]
             activeSpaceID = defaultSpace.id
@@ -133,14 +137,30 @@ final class BrowserStore: ObservableObject {
         isCommandPalettePresented = true
     }
 
+    func beginSpaceCreation() {
+        isCommandPalettePresented = false
+        isCreateSpacePresented = true
+    }
+
     @discardableResult
-    func createSpace(name: String? = nil) -> BrowserSpace {
+    func dataStoreID(for spaceID: UUID) -> UUID {
+        spaces.first(where: { $0.id == spaceID })?.dataStoreID ?? spaceID
+    }
+
+    @discardableResult
+    func createSpace(
+        name: String? = nil,
+        symbolName: String? = nil,
+        themeColorHex: String? = nil,
+        dataStoreID: UUID? = nil
+    ) -> BrowserSpace {
         let spaceNumber = spaces.count + 1
         let paletteIndex = spaces.count % spaceSymbols.count
         let space = BrowserSpace(
             name: name ?? "Space \(spaceNumber)",
-            symbolName: spaceSymbols[paletteIndex],
-            themeColorHex: spaceThemeColors[paletteIndex]
+            symbolName: symbolName ?? spaceSymbols[paletteIndex],
+            themeColorHex: themeColorHex ?? spaceThemeColors[paletteIndex],
+            dataStoreID: dataStoreID ?? UUID()
         )
         spaces.append(space)
         switchSpace(to: space.id)
@@ -207,7 +227,7 @@ final class BrowserStore: ObservableObject {
         tabs[tabIndex].sortOrder = nextSortOrder(spaceID: targetSpaceID, pinned: tabs[tabIndex].isPinned)
 
         if !tabs.contains(where: { $0.spaceID == sourceSpaceID }) {
-            tabs.append(BrowserTab(spaceID: sourceSpaceID, sortOrder: 0))
+            tabs.append(Self.homeTab(spaceID: sourceSpaceID, sortOrder: 0))
         }
 
         if activeTabID == tabID {
@@ -224,10 +244,11 @@ final class BrowserStore: ObservableObject {
     @discardableResult
     func newTab(url: URL? = nil, pinned: Bool = false, in spaceID: UUID? = nil) -> BrowserTab {
         let targetSpaceID = spaceID ?? activeSpaceID
+        let targetURL = url ?? Self.defaultHomeURL
         let tab = BrowserTab(
-            title: title(for: url),
-            url: url,
-            faviconSymbol: faviconService.placeholderSymbol(for: url),
+            title: title(for: targetURL),
+            url: targetURL,
+            faviconSymbol: faviconService.placeholderSymbol(for: targetURL),
             isPinned: pinned,
             spaceID: targetSpaceID,
             sortOrder: nextSortOrder(spaceID: targetSpaceID, pinned: pinned)
@@ -236,9 +257,7 @@ final class BrowserStore: ObservableObject {
         tabs.insert(tab, at: 0)
         switchTab(to: tab.id)
 
-        if let url {
-            webCoordinator.load(url, in: tab.id)
-        }
+        webCoordinator.load(targetURL, in: tab.id)
 
         return tab
     }
@@ -439,11 +458,14 @@ final class BrowserStore: ObservableObject {
 
     func recordHistoryVisit(tabID: UUID, title: String?, url: URL?) {
         guard
-            let tab = tabs.first(where: { $0.id == tabID }),
+            let index = tabs.firstIndex(where: { $0.id == tabID }),
             let url
         else {
             return
         }
+
+        tabs[index].lastAccessedAt = Date()
+        let tab = tabs[index]
 
         let resolvedTitle: String
         if let title, !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
@@ -474,6 +496,7 @@ final class BrowserStore: ObservableObject {
         tabs[index].faviconData = nil
         tabs[index].isLoading = true
         tabs[index].loadingProgress = 0.05
+        tabs[index].lastAccessedAt = Date()
     }
 
     private func title(for url: URL?) -> String {
@@ -553,6 +576,17 @@ final class BrowserStore: ObservableObject {
         visibleTabsForActiveSpace.first { $0.id != excludedID }
     }
 
+    private static func homeTab(spaceID: UUID, sortOrder: Double = 0, pinned: Bool = false) -> BrowserTab {
+        BrowserTab(
+            title: defaultHomeTitle,
+            url: defaultHomeURL,
+            faviconSymbol: "magnifyingglass",
+            isPinned: pinned,
+            spaceID: spaceID,
+            sortOrder: sortOrder
+        )
+    }
+
     private func repairSessionState() {
         if spaces.isEmpty {
             spaces = [BrowserSpace(name: "Personal", symbolName: "circle.grid.2x2")]
@@ -561,8 +595,15 @@ final class BrowserStore: ObservableObject {
         let spaceIDs = Set(spaces.map(\.id))
         tabs = tabs.filter { spaceIDs.contains($0.spaceID) }
 
+        for index in tabs.indices where Self.isHomePlaceholderURL(tabs[index].url) {
+            tabs[index].url = Self.defaultHomeURL
+            tabs[index].title = Self.defaultHomeTitle
+            tabs[index].faviconSymbol = faviconService.placeholderSymbol(for: Self.defaultHomeURL)
+            tabs[index].faviconData = nil
+        }
+
         for space in spaces where !tabs.contains(where: { $0.spaceID == space.id }) {
-            tabs.append(BrowserTab(spaceID: space.id, sortOrder: 0))
+            tabs.append(Self.homeTab(spaceID: space.id, sortOrder: 0))
         }
 
         if !spaceIDs.contains(activeSpaceID) {
@@ -579,6 +620,11 @@ final class BrowserStore: ObservableObject {
             splitTabID = nil
             isSplitViewEnabled = false
         }
+    }
+
+    private static func isHomePlaceholderURL(_ url: URL?) -> Bool {
+        guard let url else { return true }
+        return url.absoluteString == "about:blank"
     }
 
     private func normalizeSortOrder() {

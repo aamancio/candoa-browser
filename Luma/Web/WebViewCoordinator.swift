@@ -20,6 +20,7 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate {
         let configuration = WKWebViewConfiguration()
         configuration.allowsAirPlayForMediaPlayback = true
         configuration.defaultWebpagePreferences.allowsContentJavaScript = true
+        configuration.websiteDataStore = WKWebsiteDataStore(forIdentifier: store?.dataStoreID(for: tab.spaceID) ?? tab.spaceID)
 
         let webView = WKWebView(frame: .zero, configuration: configuration)
         webView.navigationDelegate = self

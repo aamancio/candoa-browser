@@ -22,6 +22,8 @@ struct ContentView: View {
             WebViewContainer(store: store)
                 .ignoresSafeArea(.container, edges: .top)
                 .padding(.leading, isSidebarVisible ? sidebarTotalWidth : 0)
+                .blur(radius: store.isCreateSpacePresented ? 7 : 0)
+                .animation(.easeOut(duration: 0.16), value: store.isCreateSpacePresented)
 
             sidebarLayout
                 .offset(x: isSidebarPresented ? 0 : -sidebarTotalWidth)

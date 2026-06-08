@@ -5,6 +5,7 @@ struct BrowserSpace: Identifiable, Codable, Hashable {
     var name: String
     var symbolName: String
     var themeColorHex: String
+    var dataStoreID: UUID
     var createdAt: Date
 
     init(
@@ -12,12 +13,14 @@ struct BrowserSpace: Identifiable, Codable, Hashable {
         name: String,
         symbolName: String = "sparkle",
         themeColorHex: String = "#6E8BFF",
+        dataStoreID: UUID? = nil,
         createdAt: Date = Date()
     ) {
         self.id = id
         self.name = name
         self.symbolName = symbolName
         self.themeColorHex = themeColorHex
+        self.dataStoreID = dataStoreID ?? id
         self.createdAt = createdAt
     }
 
@@ -26,6 +29,7 @@ struct BrowserSpace: Identifiable, Codable, Hashable {
         case name
         case symbolName
         case themeColorHex
+        case dataStoreID
         case createdAt
     }
 
@@ -35,6 +39,7 @@ struct BrowserSpace: Identifiable, Codable, Hashable {
         name = try container.decodeIfPresent(String.self, forKey: .name) ?? "Space"
         symbolName = try container.decodeIfPresent(String.self, forKey: .symbolName) ?? "sparkle"
         themeColorHex = try container.decodeIfPresent(String.self, forKey: .themeColorHex) ?? "#6E8BFF"
+        dataStoreID = try container.decodeIfPresent(UUID.self, forKey: .dataStoreID) ?? id
         createdAt = try container.decodeIfPresent(Date.self, forKey: .createdAt) ?? Date()
     }
 }

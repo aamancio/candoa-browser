@@ -167,6 +167,7 @@ struct PersistenceService {
             object.setValue(space.name, forKey: Key.name)
             object.setValue(space.symbolName, forKey: Key.symbolName)
             object.setValue(space.themeColorHex, forKey: Key.themeColorHex)
+            object.setValue(space.dataStoreID, forKey: Key.dataStoreID)
             object.setValue(space.createdAt, forKey: Key.createdAt)
         }
 
@@ -192,6 +193,7 @@ struct PersistenceService {
             name: object.string(for: Key.name) ?? "Space",
             symbolName: object.string(for: Key.symbolName) ?? "sparkle",
             themeColorHex: object.string(for: Key.themeColorHex) ?? "#6E8BFF",
+            dataStoreID: object.uuid(for: Key.dataStoreID) ?? id,
             createdAt: object.date(for: Key.createdAt) ?? Date()
         )
     }
@@ -253,6 +255,7 @@ struct PersistenceService {
                 attribute(Key.name, .stringAttributeType, optional: false),
                 attribute(Key.symbolName, .stringAttributeType, optional: false),
                 attribute(Key.themeColorHex, .stringAttributeType, optional: false),
+                attribute(Key.dataStoreID, .UUIDAttributeType),
                 attribute(Key.createdAt, .dateAttributeType, optional: false)
             ]
         )
@@ -326,6 +329,7 @@ private enum Key {
     static let name = "name"
     static let symbolName = "symbolName"
     static let themeColorHex = "themeColorHex"
+    static let dataStoreID = "dataStoreID"
     static let createdAt = "createdAt"
     static let title = "title"
     static let urlString = "urlString"
