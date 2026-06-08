@@ -96,10 +96,8 @@ struct SidebarView: View {
         .foregroundStyle(Color(nsColor: .tertiaryLabelColor))
         .frame(height: 28)
         .overlay(alignment: .bottom) {
-            ProgressView(value: store.activeTab?.loadingProgress ?? 0)
-                .progressViewStyle(.linear)
+            SidebarLoadingBar(progress: store.activeTab?.loadingProgress ?? 0)
                 .opacity(store.activeTab?.isLoading == true ? 1 : 0)
-                .frame(height: 2)
                 .offset(y: 5)
         }
     }
@@ -243,6 +241,25 @@ struct SidebarView: View {
         .padding(.horizontal, 9)
         .padding(.vertical, 7)
         .contentShape(Rectangle())
+    }
+}
+
+private struct SidebarLoadingBar: View {
+    let progress: Double
+
+    private var clampedProgress: CGFloat {
+        CGFloat(min(max(progress, 0), 1))
+    }
+
+    var body: some View {
+        GeometryReader { proxy in
+            Rectangle()
+                .fill(Color.accentColor.opacity(0.46))
+                .frame(width: proxy.size.width * clampedProgress, height: 0.5)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .frame(height: 0.5)
+        .allowsHitTesting(false)
     }
 }
 

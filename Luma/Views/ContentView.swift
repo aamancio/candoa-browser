@@ -29,6 +29,7 @@ struct ContentView: View {
 
             if store.isCommandPalettePresented {
                 CommandPaletteView(store: store)
+                    .id(store.commandPaletteSessionID)
                     .transition(.scale(scale: 0.98).combined(with: .opacity))
                     .zIndex(10)
             }
@@ -40,6 +41,11 @@ struct ContentView: View {
                 isSidebarHoverRevealed: $isSidebarHoverRevealed,
                 isSidebarRevealSuppressed: $isSidebarRevealSuppressed
             )
+        )
+        .background(
+            KeyboardShortcutMonitor {
+                store.openCommandPalette()
+            }
         )
         .animation(.easeOut(duration: 0.14), value: store.isCommandPalettePresented)
         .animation(.easeOut(duration: 0.18), value: isSidebarPresented)
@@ -107,6 +113,61 @@ struct ContentView: View {
         }
     }
 
+}
+
+private struct KeyboardShortcutMonitor: NSViewRepresentable {
+    let onCommandT: () -> Void
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(onCommandT: onCommandT)
+    }
+
+    func makeNSView(context: Context) -> NSView {
+        context.coordinator.installMonitorIfNeeded()
+        return NSView(frame: .zero)
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {
+        context.coordinator.onCommandT = onCommandT
+        context.coordinator.installMonitorIfNeeded()
+    }
+
+    final class Coordinator {
+        var onCommandT: () -> Void
+        private var monitor: Any?
+
+        init(onCommandT: @escaping () -> Void) {
+            self.onCommandT = onCommandT
+        }
+
+        func installMonitorIfNeeded() {
+            guard monitor == nil else { return }
+
+            monitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown]) { [weak self] event in
+                guard
+                    let self,
+                    Self.isCommandT(event)
+                else {
+                    return event
+                }
+
+                onCommandT()
+                return nil
+            }
+        }
+
+        private static func isCommandT(_ event: NSEvent) -> Bool {
+            let modifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+            return modifiers == .command &&
+                event.charactersIgnoringModifiers?.lowercased() == "t"
+        }
+
+        deinit {
+            if let monitor {
+                NSEvent.removeMonitor(monitor)
+            }
+        }
+    }
 }
 
 private struct MouseMoveMonitor: NSViewRepresentable {

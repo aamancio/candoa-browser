@@ -50,7 +50,7 @@ struct NavigationService {
         SearchProvider(
             id: "google",
             name: "Google",
-            aliases: ["g", "search"],
+            aliases: ["g", "search", "google.com", "www.google.com"],
             symbolName: "magnifyingglass",
             baseURL: URL(string: "https://www.google.com/search")!,
             queryItemName: "q"
@@ -58,7 +58,7 @@ struct NavigationService {
         SearchProvider(
             id: "youtube",
             name: "YouTube",
-            aliases: ["yt", "video", "videos"],
+            aliases: ["yt", "video", "videos", "youtube.com", "www.youtube.com"],
             symbolName: "play.rectangle.fill",
             baseURL: URL(string: "https://www.youtube.com/results")!,
             queryItemName: "search_query"
@@ -66,7 +66,7 @@ struct NavigationService {
         SearchProvider(
             id: "amazon",
             name: "Amazon",
-            aliases: ["amz", "shop", "shopping"],
+            aliases: ["amz", "shop", "shopping", "amazon.com", "www.amazon.com"],
             symbolName: "shippingbox.fill",
             baseURL: URL(string: "https://www.amazon.com/s")!,
             queryItemName: "k"
@@ -134,6 +134,34 @@ struct NavigationService {
 
     func searchURL(provider: SearchProvider, query: String) -> URL? {
         provider.searchURL(for: query)
+    }
+
+    func searchQuery(from url: URL) -> String? {
+        guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
+              let host = components.host?.lowercased(),
+              let queryItems = components.queryItems else {
+            return nil
+        }
+
+        for provider in Self.searchProviders {
+            guard let providerComponents = URLComponents(url: provider.baseURL, resolvingAgainstBaseURL: false),
+                  let providerHost = providerComponents.host?.lowercased(),
+                  host == providerHost || host.hasSuffix(".\(providerHost)"),
+                  components.path == providerComponents.path else {
+                continue
+            }
+
+            let query = queryItems
+                .first { $0.name == provider.queryItemName }?
+                .value?
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+
+            if let query, !query.isEmpty {
+                return query
+            }
+        }
+
+        return nil
     }
 
     private func directURL(from input: String) -> URL? {

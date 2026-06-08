@@ -110,6 +110,7 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate {
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         updateStore(from: webView, isLoading: false)
+        recordHistoryVisit(for: webView)
         refreshFavicon(for: webView)
     }
 
@@ -138,6 +139,17 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate {
             canGoBack: webView.canGoBack,
             canGoForward: webView.canGoForward
         )
+    }
+
+    private func recordHistoryVisit(for webView: WKWebView) {
+        guard
+            let tabIDString = tabIDsByWebView.object(forKey: webView) as String?,
+            let tabID = UUID(uuidString: tabIDString)
+        else {
+            return
+        }
+
+        store?.recordHistoryVisit(tabID: tabID, title: webView.title, url: webView.url)
     }
 
     private func observe(_ webView: WKWebView, tabID: UUID) {

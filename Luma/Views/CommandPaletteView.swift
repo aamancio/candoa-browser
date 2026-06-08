@@ -6,6 +6,11 @@ struct CommandPaletteView: View {
     @State private var query = ""
     @State private var selectedSearchProvider: SearchProvider?
     @State private var fieldFocusRequestID = UUID()
+    @FocusState private var isSearchFocused: Bool
+
+    private var activeTint: Color {
+        selectedSearchProvider?.paletteColor ?? Color(red: 0.26, green: 0.27, blue: 0.88)
+    }
 
     var body: some View {
         ZStack {
@@ -20,22 +25,32 @@ struct CommandPaletteView: View {
                     PaletteIconView(
                         symbolName: leadingSymbolName,
                         isSelected: false,
-                        size: 24
+                        size: 24,
+                        provider: headerSearchProvider
                     )
 
                     if let selectedSearchProvider {
                         SearchProviderChip(provider: selectedSearchProvider)
                     }
 
-                    PaletteSearchField(
-                        text: $query,
-                        placeholder: placeholderText,
-                        focusRequestID: fieldFocusRequestID,
-                        onSubmit: performFirstCommand,
-                        onTab: activateSearchProviderFromQuery,
-                        onCancel: { store.isCommandPalettePresented = false }
-                    )
-                    .frame(height: 30)
+                    searchField
+
+                    if let headerSearchProvider {
+                        Spacer(minLength: 12)
+
+                        Text("Search \(headerSearchProvider.name)")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(Color.white.opacity(0.36))
+                            .lineLimit(1)
+
+                        Text("Tab")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundStyle(Color.white.opacity(0.66))
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 5)
+                            .background(Color.white.opacity(0.08))
+                            .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
+                    }
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 20)
@@ -50,7 +65,11 @@ struct CommandPaletteView: View {
                             Button {
                                 run(command)
                             } label: {
-                                PaletteCommandRow(command: command, isSelected: index == 0)
+                                PaletteCommandRow(
+                                    command: command,
+                                    isSelected: index == 0,
+                                    selectedTint: activeTint
+                                )
                             }
                             .buttonStyle(.plain)
                         }
@@ -60,7 +79,7 @@ struct CommandPaletteView: View {
                 }
                 .frame(maxHeight: 320)
             }
-            .frame(width: 760)
+            .frame(width: 860)
             .background(PaletteBackground())
             .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
             .overlay {
@@ -73,15 +92,45 @@ struct CommandPaletteView: View {
             query = store.commandPaletteInitialText
             selectedSearchProvider = nil
             fieldFocusRequestID = UUID()
+            focusSearchField()
         }
         .onExitCommand {
             store.isCommandPalettePresented = false
         }
+        .onChange(of: fieldFocusRequestID) { _, _ in
+            focusSearchField()
+        }
+    }
+
+    private var searchField: some View {
+        TextField("", text: $query, prompt: Text(placeholderText).foregroundStyle(Color.white.opacity(0.52)))
+            .textFieldStyle(.plain)
+            .font(.system(size: 17, weight: .medium))
+            .foregroundStyle(Color.white.opacity(0.86))
+            .focused($isSearchFocused)
+            .onSubmit(performFirstCommand)
+            .onKeyPress(.tab) {
+                activateSearchProviderFromQuery()
+                return .handled
+            }
+            .frame(height: 30)
+    }
+
+    private func focusSearchField() {
+        DispatchQueue.main.async {
+            isSearchFocused = true
+
+            guard shouldSelectCurrentURL else { return }
+
+            DispatchQueue.main.async {
+                NSApp.sendAction(#selector(NSText.selectAll(_:)), to: nil, from: nil)
+            }
+        }
     }
 
     private var filteredCommands: [PaletteCommand] {
-        let trimmedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        let commands = commandCandidates(for: trimmedQuery)
+        let trimmedQuery = commandQueryText.trimmingCharacters(in: .whitespacesAndNewlines)
+        let commands = commandCandidates(for: trimmedQuery, isResumingSearchURL: isResumingSearchURL)
         guard !trimmedQuery.isEmpty else { return commands }
         return commands.filter {
             $0.title.localizedCaseInsensitiveContains(trimmedQuery) ||
@@ -91,30 +140,44 @@ struct CommandPaletteView: View {
     }
 
     private var leadingSymbolName: String {
-        if selectedSearchProvider != nil {
-            return "magnifyingglass"
-        }
+        isResumingSearchURL ? "globe" : "magnifyingglass"
+    }
 
-        return !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            ? "globe"
-            : "google"
+    private var headerSearchProvider: SearchProvider? {
+        guard selectedSearchProvider == nil, !isResumingSearchURL else { return nil }
+        return store.navigationService.searchProvider(matching: query)
     }
 
     private var placeholderText: String {
         selectedSearchProvider == nil ? "Search or Enter URL..." : "Search..."
     }
 
-    private func commandCandidates(for trimmedQuery: String) -> [PaletteCommand] {
+    private var isResumingSearchURL: Bool {
+        !store.commandPaletteResumeQuery.isEmpty &&
+            !store.commandPaletteInitialText.isEmpty &&
+            query == store.commandPaletteInitialText
+    }
+
+    private var commandQueryText: String {
+        isResumingSearchURL ? store.commandPaletteResumeQuery : query
+    }
+
+    private var shouldSelectCurrentURL: Bool {
+        !store.commandPaletteInitialText.isEmpty && query == store.commandPaletteInitialText
+    }
+
+    private func commandCandidates(for trimmedQuery: String, isResumingSearchURL: Bool = false) -> [PaletteCommand] {
         let commands = tabCommands + spaceCommands + baseCommands
 
         if let selectedSearchProvider {
             guard !trimmedQuery.isEmpty else { return commands }
 
             let providerSearchCommand = PaletteCommand(
-                title: "Search \(selectedSearchProvider.name) for \"\(trimmedQuery)\"",
-                detail: "Open in current tab",
-                symbolName: selectedSearchProvider.symbolName,
+                title: trimmedQuery,
+                detail: nil,
+                symbolName: "magnifyingglass",
                 searchText: "\(selectedSearchProvider.name) \(trimmedQuery)",
+                style: .providerSearch(selectedSearchProvider),
                 action: .searchProvider(selectedSearchProvider, trimmedQuery)
             )
 
@@ -123,15 +186,31 @@ struct CommandPaletteView: View {
 
         guard !trimmedQuery.isEmpty else { return defaultSuggestions }
 
-        let navigateCommand = PaletteCommand(
-            title: "Search or Go to \"\(trimmedQuery)\"",
-            detail: "Open in current tab",
-            symbolName: "globe",
-            searchText: trimmedQuery,
-            action: .navigate(trimmedQuery)
-        )
+        let navigateCommand: PaletteCommand
+        if isResumingSearchURL {
+            navigateCommand = PaletteCommand(
+                title: trimmedQuery,
+                detail: nil,
+                symbolName: "globe",
+                searchText: "\(trimmedQuery) \(query)",
+                action: .navigate(trimmedQuery)
+            )
+        } else {
+            navigateCommand = PaletteCommand(
+                title: "Search or Go to \"\(trimmedQuery)\"",
+                detail: "Open in current tab",
+                symbolName: "globe",
+                searchText: trimmedQuery,
+                action: .navigate(trimmedQuery)
+            )
+        }
 
-        return [navigateCommand] + searchProviderCommands + commands
+        if let provider = store.navigationService.searchProvider(matching: trimmedQuery) {
+            let matchingProviders = searchProviderCommands.filter { $0.provider == provider }
+            return matchingProviders + [navigateCommand] + commands
+        }
+
+        return [navigateCommand] + commands
     }
 
     private var defaultSuggestions: [PaletteCommand] {
@@ -145,6 +224,7 @@ struct CommandPaletteView: View {
                     detail: tab.url?.host(percentEncoded: false),
                     symbolName: tab.faviconSymbol,
                     searchText: "\(tab.title) \(tab.url?.absoluteString ?? "")",
+                    style: .tab,
                     action: .switchTab(tab.id)
                 )
             }
@@ -158,6 +238,7 @@ struct CommandPaletteView: View {
             detail: nil,
             symbolName: "google",
             searchText: "google search",
+            style: .provider(NavigationService.searchProviders[0]),
             action: .activateSearchProvider(NavigationService.searchProviders[0])
         )
     }
@@ -169,6 +250,7 @@ struct CommandPaletteView: View {
                 detail: "Press Tab",
                 symbolName: provider.id == "google" ? "google" : provider.symbolName,
                 searchText: ([provider.name] + provider.aliases).joined(separator: " "),
+                style: .provider(provider),
                 action: .activateSearchProvider(provider)
             )
         }
@@ -202,6 +284,7 @@ struct CommandPaletteView: View {
                     detail: urlText.isEmpty ? spaceName : hostDisplayText(for: $0.url),
                     symbolName: $0.faviconSymbol,
                     searchText: "\($0.title) \(spaceName) \(urlText)",
+                    style: .tab,
                     action: .switchTab($0.id)
                 )
             }
@@ -220,7 +303,7 @@ struct CommandPaletteView: View {
     }
 
     private func performFirstCommand() {
-        let trimmedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedQuery = commandQueryText.trimmingCharacters(in: .whitespacesAndNewlines)
         if let selectedSearchProvider, !trimmedQuery.isEmpty {
             run(
                 PaletteCommand(
@@ -242,7 +325,7 @@ struct CommandPaletteView: View {
             return
         }
 
-        guard let provider = store.navigationService.searchProvider(matching: query) else {
+        guard let provider = store.navigationService.searchProvider(matching: commandQueryText) else {
             fieldFocusRequestID = UUID()
             return
         }
@@ -315,10 +398,24 @@ private struct PaletteBackground: View {
 private struct PaletteCommandRow: View {
     let command: PaletteCommand
     let isSelected: Bool
+    let selectedTint: Color
+
+    private var backgroundColor: Color {
+        if isSelected {
+            return command.selectedColor ?? selectedTint
+        }
+
+        return Color.clear
+    }
 
     var body: some View {
         HStack(spacing: 12) {
-            PaletteIconView(symbolName: command.symbolName, isSelected: isSelected, size: 24)
+            PaletteIconView(
+                symbolName: command.symbolName,
+                isSelected: isSelected,
+                size: 24,
+                provider: command.provider
+            )
 
             Text(command.title)
                 .foregroundStyle(isSelected ? .white : Color.white.opacity(0.82))
@@ -331,12 +428,28 @@ private struct PaletteCommandRow: View {
             }
 
             Spacer(minLength: 12)
+
+            if command.showsSwitchToTab {
+                Text("Switch to Tab")
+                    .foregroundStyle(isSelected ? Color.white.opacity(0.92) : Color.white.opacity(0.34))
+                    .lineLimit(1)
+
+                ZStack {
+                    RoundedRectangle(cornerRadius: 4, style: .continuous)
+                        .fill(isSelected ? Color.white.opacity(0.94) : Color.white.opacity(0.08))
+
+                    Image(systemName: "arrow.right")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(isSelected ? backgroundColor : Color.white.opacity(0.56))
+                }
+                .frame(width: 24, height: 24)
+            }
         }
         .font(.system(size: 13.5, weight: .semibold))
         .padding(.horizontal, 12)
         .frame(height: 46)
         .contentShape(Rectangle())
-        .background(isSelected ? Color(red: 0.26, green: 0.27, blue: 0.88) : Color.clear)
+        .background(backgroundColor)
         .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
     }
 }
@@ -345,15 +458,14 @@ private struct PaletteIconView: View {
     let symbolName: String
     let isSelected: Bool
     let size: CGFloat
+    var provider: SearchProvider? = nil
 
     var body: some View {
         Group {
-            if symbolName == "google" {
+            if let provider {
+                providerIcon(provider)
+            } else if symbolName == "google" {
                 googleIcon
-            } else if symbolName == "play.rectangle.fill" {
-                youtubeIcon
-            } else if symbolName == "shippingbox.fill" {
-                amazonIcon
             } else {
                 Image(systemName: symbolName)
                     .font(.system(size: size * 0.68, weight: .medium))
@@ -364,44 +476,358 @@ private struct PaletteIconView: View {
     }
 
     private var googleIcon: some View {
-        Text("G")
-            .font(.system(size: size * 0.58, weight: .bold))
-            .foregroundStyle(
-                LinearGradient(
-                    colors: [
-                        Color(red: 0.26, green: 0.52, blue: 0.96),
-                        Color(red: 0.93, green: 0.20, blue: 0.16),
-                        Color(red: 0.98, green: 0.74, blue: 0.18),
-                        Color(red: 0.20, green: 0.66, blue: 0.33)
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-            )
+        GoogleGMark()
+            .frame(width: size * 0.72, height: size * 0.72)
             .frame(width: size, height: size)
             .background(Color.white)
             .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
     }
 
-    private var youtubeIcon: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 4, style: .continuous)
-                .fill(isSelected ? Color.white.opacity(0.76) : Color.white.opacity(0.50))
-                .frame(width: size * 0.92, height: size * 0.68)
+    @ViewBuilder
+    private func providerIcon(_ provider: SearchProvider) -> some View {
+        switch provider.id {
+        case "google":
+            googleIcon
+        case "youtube":
+            ZStack {
+                RoundedRectangle(cornerRadius: 4, style: .continuous)
+                    .fill(Color(red: 1.0, green: 0.0, blue: 0.0))
+                    .frame(width: size * 0.95, height: size * 0.68)
 
-            Image(systemName: "play.fill")
-                .font(.system(size: size * 0.30, weight: .bold))
-                .foregroundStyle(Color.black.opacity(0.56))
-                .offset(x: 1)
+                Image(systemName: "play.fill")
+                    .font(.system(size: size * 0.31, weight: .bold))
+                    .foregroundStyle(.white)
+                    .offset(x: 1)
+            }
+            .frame(width: size, height: size)
+        case "amazon":
+            AmazonBrandMark()
+                .fill(Color(red: 1.0, green: 0.60, blue: 0.0))
+                .frame(width: size, height: size)
+            .frame(width: size, height: size)
+        default:
+            Image(systemName: provider.symbolName)
+                .font(.system(size: size * 0.68, weight: .medium))
+                .foregroundStyle(isSelected ? Color.white.opacity(0.82) : Color.white.opacity(0.56))
+                .frame(width: size, height: size)
         }
-        .frame(width: size, height: size)
+    }
+}
+
+private struct AmazonBrandMark: Shape {
+    private static let pathData = "M.045 18.02c.072-.116.187-.124.348-.022 3.636 2.11 7.594 3.166 11.87 3.166 2.852 0 5.668-.533 8.447-1.595l.315-.14c.138-.06.234-.1.293-.13.226-.088.39-.046.525.13.12.174.09.336-.12.48-.256.19-.6.41-1.006.654-1.244.743-2.64 1.316-4.185 1.726a17.617 17.617 0 01-10.951-.577 17.88 17.88 0 01-5.43-3.35c-.1-.074-.151-.15-.151-.22 0-.047.021-.09.051-.13zm6.565-6.218c0-1.005.247-1.863.743-2.577.495-.71 1.17-1.25 2.04-1.615.796-.335 1.756-.575 2.912-.72.39-.046 1.033-.103 1.92-.174v-.37c0-.93-.105-1.558-.3-1.875-.302-.43-.78-.65-1.44-.65h-.182c-.48.046-.896.196-1.246.46-.35.27-.575.63-.675 1.096-.06.3-.206.465-.435.51l-2.52-.315c-.248-.06-.372-.18-.372-.39 0-.046.007-.09.022-.15.247-1.29.855-2.25 1.82-2.88.976-.616 2.1-.975 3.39-1.05h.54c1.65 0 2.957.434 3.888 1.29.135.15.27.3.405.48.12.165.224.314.283.45.075.134.15.33.195.57.06.254.105.42.135.51.03.104.062.3.076.615.01.313.02.493.02.553v5.28c0 .376.06.72.165 1.036.105.313.21.54.315.674l.51.674c.09.136.136.256.136.36 0 .12-.06.226-.18.314-1.2 1.05-1.86 1.62-1.963 1.71-.165.135-.375.15-.63.045a6.062 6.062 0 01-.526-.496l-.31-.347a9.391 9.391 0 01-.317-.42l-.3-.435c-.81.886-1.603 1.44-2.4 1.665-.494.15-1.093.227-1.83.227-1.11 0-2.04-.343-2.76-1.034-.72-.69-1.08-1.665-1.08-2.94l-.05-.076zm3.753-.438c0 .566.14 1.02.425 1.364.285.34.675.512 1.155.512.045 0 .106-.007.195-.02.09-.016.134-.023.166-.023.614-.16 1.08-.553 1.424-1.178.165-.28.285-.58.36-.91.09-.32.12-.59.135-.8.015-.195.015-.54.015-1.005v-.54c-.84 0-1.484.06-1.92.18-1.275.36-1.92 1.17-1.92 2.43l-.035-.02zm9.162 7.027c.03-.06.075-.11.132-.17.362-.243.714-.41 1.05-.5a8.094 8.094 0 011.612-.24c.14-.012.28 0 .41.03.65.06 1.05.168 1.172.33.063.09.099.228.099.39v.15c0 .51-.149 1.11-.424 1.8-.278.69-.664 1.248-1.156 1.68-.073.06-.14.09-.197.09-.03 0-.06 0-.09-.012-.09-.044-.107-.12-.064-.24.54-1.26.806-2.143.806-2.64 0-.15-.03-.27-.087-.344-.145-.166-.55-.257-1.224-.257-.243 0-.533.016-.87.046-.363.045-.7.09-1 .135-.09 0-.148-.014-.18-.044-.03-.03-.036-.047-.02-.077 0-.017.006-.03.02-.063v-.06z"
+
+    func path(in rect: CGRect) -> Path {
+        SVGPathData(pathData: Self.pathData).path(in: rect)
+    }
+}
+
+private struct GoogleGMark: View {
+    var body: some View {
+        ZStack {
+            GoogleGPath(path: blueGooglePath)
+                .fill(Color(red: 0.26, green: 0.52, blue: 0.96))
+            GoogleGPath(path: greenGooglePath)
+                .fill(Color(red: 0.20, green: 0.66, blue: 0.33))
+            GoogleGPath(path: yellowGooglePath)
+                .fill(Color(red: 0.98, green: 0.74, blue: 0.02))
+            GoogleGPath(path: redGooglePath)
+                .fill(Color(red: 0.92, green: 0.26, blue: 0.21))
+        }
     }
 
-    private var amazonIcon: some View {
-        Image(systemName: "cube.box.fill")
-            .font(.system(size: size * 0.70, weight: .medium))
-            .foregroundStyle(isSelected ? Color.white.opacity(0.76) : Color.white.opacity(0.50))
-            .frame(width: size, height: size)
+    private var blueGooglePath: Path {
+        var path = Path()
+        path.move(to: CGPoint(x: 22.56, y: 12.25))
+        path.addCurve(to: CGPoint(x: 22.36, y: 10), control1: CGPoint(x: 22.56, y: 11.47), control2: CGPoint(x: 22.49, y: 10.72))
+        path.addLine(to: CGPoint(x: 12, y: 10))
+        path.addLine(to: CGPoint(x: 12, y: 14.26))
+        path.addLine(to: CGPoint(x: 17.92, y: 14.26))
+        path.addCurve(to: CGPoint(x: 15.71, y: 17.57), control1: CGPoint(x: 17.66, y: 15.63), control2: CGPoint(x: 16.88, y: 16.79))
+        path.addLine(to: CGPoint(x: 15.71, y: 20.34))
+        path.addLine(to: CGPoint(x: 19.28, y: 20.34))
+        path.addCurve(to: CGPoint(x: 22.56, y: 12.25), control1: CGPoint(x: 21.36, y: 18.42), control2: CGPoint(x: 22.56, y: 15.6))
+        path.closeSubpath()
+        return path
+    }
+
+    private var greenGooglePath: Path {
+        var path = Path()
+        path.move(to: CGPoint(x: 12, y: 23))
+        path.addCurve(to: CGPoint(x: 19.28, y: 20.34), control1: CGPoint(x: 14.97, y: 23), control2: CGPoint(x: 17.46, y: 22.02))
+        path.addLine(to: CGPoint(x: 15.71, y: 17.57))
+        path.addCurve(to: CGPoint(x: 12, y: 18.63), control1: CGPoint(x: 14.73, y: 18.23), control2: CGPoint(x: 13.48, y: 18.63))
+        path.addCurve(to: CGPoint(x: 5.84, y: 14.1), control1: CGPoint(x: 9.14, y: 18.63), control2: CGPoint(x: 6.71, y: 16.7))
+        path.addLine(to: CGPoint(x: 2.18, y: 14.1))
+        path.addLine(to: CGPoint(x: 2.18, y: 16.94))
+        path.addCurve(to: CGPoint(x: 12, y: 23), control1: CGPoint(x: 3.99, y: 20.53), control2: CGPoint(x: 7.7, y: 23))
+        path.closeSubpath()
+        return path
+    }
+
+    private var yellowGooglePath: Path {
+        var path = Path()
+        path.move(to: CGPoint(x: 5.84, y: 14.09))
+        path.addCurve(to: CGPoint(x: 5.49, y: 12), control1: CGPoint(x: 5.62, y: 13.43), control2: CGPoint(x: 5.49, y: 12.73))
+        path.addCurve(to: CGPoint(x: 5.84, y: 9.91), control1: CGPoint(x: 5.49, y: 11.27), control2: CGPoint(x: 5.62, y: 10.57))
+        path.addLine(to: CGPoint(x: 5.84, y: 7.07))
+        path.addLine(to: CGPoint(x: 2.18, y: 7.07))
+        path.addCurve(to: CGPoint(x: 1, y: 12), control1: CGPoint(x: 1.43, y: 8.55), control2: CGPoint(x: 1, y: 10.22))
+        path.addCurve(to: CGPoint(x: 2.18, y: 16.93), control1: CGPoint(x: 1, y: 13.78), control2: CGPoint(x: 1.43, y: 15.45))
+        path.addLine(to: CGPoint(x: 5.03, y: 14.71))
+        path.addLine(to: CGPoint(x: 5.84, y: 14.09))
+        path.closeSubpath()
+        return path
+    }
+
+    private var redGooglePath: Path {
+        var path = Path()
+        path.move(to: CGPoint(x: 12, y: 5.38))
+        path.addCurve(to: CGPoint(x: 16.21, y: 7.02), control1: CGPoint(x: 13.62, y: 5.38), control2: CGPoint(x: 15.06, y: 5.94))
+        path.addLine(to: CGPoint(x: 19.36, y: 3.87))
+        path.addCurve(to: CGPoint(x: 12, y: 1), control1: CGPoint(x: 17.45, y: 2.09), control2: CGPoint(x: 14.97, y: 1))
+        path.addCurve(to: CGPoint(x: 2.18, y: 7.07), control1: CGPoint(x: 7.7, y: 1), control2: CGPoint(x: 3.99, y: 3.47))
+        path.addLine(to: CGPoint(x: 5.84, y: 9.91))
+        path.addCurve(to: CGPoint(x: 12, y: 5.38), control1: CGPoint(x: 6.71, y: 7.31), control2: CGPoint(x: 9.14, y: 5.38))
+        path.closeSubpath()
+        return path
+    }
+}
+
+private struct GoogleGPath: Shape {
+    let path: Path
+
+    func path(in rect: CGRect) -> Path {
+        let scale = min(rect.width, rect.height) / 24
+        let xOffset = rect.midX - 12 * scale
+        let yOffset = rect.midY - 12 * scale
+        return path.applying(CGAffineTransform(a: scale, b: 0, c: 0, d: scale, tx: xOffset, ty: yOffset))
+    }
+}
+
+private struct SVGPathData {
+    let pathData: String
+
+    func path(in rect: CGRect) -> Path {
+        var parser = Parser(pathData)
+        let basePath = parser.parse()
+        let scale = min(rect.width, rect.height) / 24
+        let xOffset = rect.midX - 12 * scale
+        let yOffset = rect.midY - 12 * scale
+        return basePath.applying(CGAffineTransform(a: scale, b: 0, c: 0, d: scale, tx: xOffset, ty: yOffset))
+    }
+
+    private struct Parser {
+        let data: String
+        var index: String.Index
+
+        init(_ data: String) {
+            self.data = data
+            self.index = data.startIndex
+        }
+
+        mutating func parse() -> Path {
+            var path = Path()
+            var command: Character?
+            var currentPoint = CGPoint.zero
+            var subpathStart = CGPoint.zero
+
+            while !isAtEnd {
+                skipSeparators()
+                guard !isAtEnd else { break }
+                let commandStartIndex = index
+
+                if let next = peek, next.isSVGPathCommand {
+                    command = readCharacter()
+                }
+
+                guard let command else { break }
+
+                switch command {
+                case "M", "m":
+                    var isFirstPoint = true
+                    while let point = readPoint(relativeTo: command == "m" ? currentPoint : nil) {
+                        if isFirstPoint {
+                            path.move(to: point)
+                            subpathStart = point
+                            isFirstPoint = false
+                        } else {
+                            path.addLine(to: point)
+                        }
+                        currentPoint = point
+                        if nextTokenIsCommand { break }
+                    }
+                case "L", "l":
+                    while let point = readPoint(relativeTo: command == "l" ? currentPoint : nil) {
+                        path.addLine(to: point)
+                        currentPoint = point
+                        if nextTokenIsCommand { break }
+                    }
+                case "H", "h":
+                    while let x = readNumber() {
+                        let point = CGPoint(x: command == "h" ? currentPoint.x + x : x, y: currentPoint.y)
+                        path.addLine(to: point)
+                        currentPoint = point
+                        if nextTokenIsCommand { break }
+                    }
+                case "V", "v":
+                    while let y = readNumber() {
+                        let point = CGPoint(x: currentPoint.x, y: command == "v" ? currentPoint.y + y : y)
+                        path.addLine(to: point)
+                        currentPoint = point
+                        if nextTokenIsCommand { break }
+                    }
+                case "C", "c":
+                    while let control1 = readPoint(relativeTo: command == "c" ? currentPoint : nil),
+                          let control2 = readPoint(relativeTo: command == "c" ? currentPoint : nil),
+                          let point = readPoint(relativeTo: command == "c" ? currentPoint : nil) {
+                        path.addCurve(to: point, control1: control1, control2: control2)
+                        currentPoint = point
+                        if nextTokenIsCommand { break }
+                    }
+                case "A", "a":
+                    while let point = readArcEndpoint(relativeTo: command == "a" ? currentPoint : nil) {
+                        path.addLine(to: point)
+                        currentPoint = point
+                        if nextTokenIsCommand { break }
+                    }
+                case "Z", "z":
+                    path.closeSubpath()
+                    currentPoint = subpathStart
+                default:
+                    return path
+                }
+
+                if index == commandStartIndex {
+                    return path
+                }
+            }
+
+            return path
+        }
+
+        private var isAtEnd: Bool {
+            index >= data.endIndex
+        }
+
+        private var peek: Character? {
+            isAtEnd ? nil : data[index]
+        }
+
+        private var nextTokenIsCommand: Bool {
+            var copy = self
+            copy.skipSeparators()
+            return copy.peek?.isSVGPathCommand == true
+        }
+
+        private mutating func readCharacter() -> Character {
+            let character = data[index]
+            index = data.index(after: index)
+            return character
+        }
+
+        private mutating func readPoint(relativeTo origin: CGPoint?) -> CGPoint? {
+            guard let x = readNumber(), let y = readNumber() else { return nil }
+            if let origin {
+                return CGPoint(x: origin.x + x, y: origin.y + y)
+            }
+            return CGPoint(x: x, y: y)
+        }
+
+        private mutating func readArcEndpoint(relativeTo origin: CGPoint?) -> CGPoint? {
+            let start = index
+            guard
+                readNumber() != nil,
+                readNumber() != nil,
+                readNumber() != nil,
+                readArcFlag() != nil,
+                readArcFlag() != nil,
+                let x = readNumber(),
+                let y = readNumber()
+            else {
+                index = start
+                return nil
+            }
+
+            if let origin {
+                return CGPoint(x: origin.x + x, y: origin.y + y)
+            }
+            return CGPoint(x: x, y: y)
+        }
+
+        private mutating func readArcFlag() -> Int? {
+            skipSeparators()
+            guard let flag = peek, flag == "0" || flag == "1" else { return nil }
+            _ = readCharacter()
+            return flag == "1" ? 1 : 0
+        }
+
+        private mutating func readNumber() -> CGFloat? {
+            skipSeparators()
+            let start = index
+
+            if peek == "-" || peek == "+" {
+                _ = readCharacter()
+            }
+
+            var hasDigit = false
+            while let character = peek, character.isNumber {
+                hasDigit = true
+                _ = readCharacter()
+            }
+
+            if peek == "." {
+                _ = readCharacter()
+                while let character = peek, character.isNumber {
+                    hasDigit = true
+                    _ = readCharacter()
+                }
+            }
+
+            if peek == "e" || peek == "E" {
+                let exponentStart = index
+                _ = readCharacter()
+
+                if peek == "-" || peek == "+" {
+                    _ = readCharacter()
+                }
+
+                var hasExponentDigit = false
+                while let character = peek, character.isNumber {
+                    hasExponentDigit = true
+                    _ = readCharacter()
+                }
+
+                if !hasExponentDigit {
+                    index = exponentStart
+                }
+            }
+
+            guard hasDigit else {
+                index = start
+                return nil
+            }
+
+            guard let value = Double(String(data[start..<index])) else { return nil }
+            return CGFloat(value)
+        }
+
+        private mutating func skipSeparators() {
+            while let character = peek, character == "," || character.isWhitespace {
+                _ = readCharacter()
+            }
+        }
+    }
+}
+
+private extension Character {
+    var isSVGPathCommand: Bool {
+        switch self {
+        case "M", "m", "L", "l", "H", "h", "V", "v", "C", "c", "A", "a", "Z", "z":
+            true
+        default:
+            false
+        }
     }
 }
 
@@ -429,7 +855,41 @@ private struct PaletteCommand: Identifiable {
     var detail: String?
     let symbolName: String
     var searchText = ""
+    var style: PaletteCommandStyle = .generic
     let action: PaletteAction
+
+    var provider: SearchProvider? {
+        switch style {
+        case .provider(let provider), .providerSearch(let provider):
+            return provider
+        case .generic, .tab:
+            return nil
+        }
+    }
+
+    var selectedColor: Color? {
+        switch style {
+        case .provider(let provider), .providerSearch(let provider):
+            return provider.paletteColor
+        case .generic, .tab:
+            return nil
+        }
+    }
+
+    var showsSwitchToTab: Bool {
+        if case .tab = style {
+            return true
+        }
+
+        return false
+    }
+}
+
+private enum PaletteCommandStyle {
+    case generic
+    case tab
+    case provider(SearchProvider)
+    case providerSearch(SearchProvider)
 }
 
 private enum PaletteAction {
@@ -452,104 +912,22 @@ private struct SearchProviderChip: View {
 
     var body: some View {
         Text(provider.name)
-            .font(.system(size: 12, weight: .semibold))
+            .font(.system(size: 14, weight: .bold))
             .foregroundStyle(.white)
             .lineLimit(1)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
+            .padding(.horizontal, 11)
+            .padding(.vertical, 6)
             .background(provider.paletteColor)
             .clipShape(Capsule())
-    }
-}
-
-private struct PaletteSearchField: NSViewRepresentable {
-    @Binding var text: String
-    let placeholder: String
-    let focusRequestID: UUID
-    let onSubmit: () -> Void
-    let onTab: () -> Void
-    let onCancel: () -> Void
-
-    func makeCoordinator() -> Coordinator {
-        Coordinator(text: $text)
-    }
-
-    func makeNSView(context: Context) -> NSTextField {
-        let textField = NSTextField()
-        textField.delegate = context.coordinator
-        textField.isBordered = false
-        textField.drawsBackground = false
-        textField.focusRingType = .none
-        textField.usesSingleLineMode = true
-        textField.lineBreakMode = .byTruncatingTail
-        textField.font = NSFont.systemFont(ofSize: 17, weight: .medium)
-        textField.textColor = NSColor.white.withAlphaComponent(0.86)
-        textField.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
-        return textField
-    }
-
-    func updateNSView(_ textField: NSTextField, context: Context) {
-        context.coordinator.onSubmit = onSubmit
-        context.coordinator.onTab = onTab
-        context.coordinator.onCancel = onCancel
-
-        if textField.stringValue != text {
-            textField.stringValue = text
-        }
-
-        textField.placeholderAttributedString = NSAttributedString(
-            string: placeholder,
-            attributes: [
-                .foregroundColor: NSColor.white.withAlphaComponent(0.52),
-                .font: NSFont.systemFont(ofSize: 17, weight: .medium)
-            ]
-        )
-
-        guard context.coordinator.lastFocusRequestID != focusRequestID else { return }
-        context.coordinator.lastFocusRequestID = focusRequestID
-
-        DispatchQueue.main.async {
-            textField.window?.makeFirstResponder(textField)
-        }
-    }
-
-    final class Coordinator: NSObject, NSTextFieldDelegate {
-        var text: Binding<String>
-        var onSubmit: () -> Void = {}
-        var onTab: () -> Void = {}
-        var onCancel: () -> Void = {}
-        var lastFocusRequestID: UUID?
-
-        init(text: Binding<String>) {
-            self.text = text
-        }
-
-        func controlTextDidChange(_ notification: Notification) {
-            guard let textField = notification.object as? NSTextField else { return }
-            text.wrappedValue = textField.stringValue
-        }
-
-        func control(_ control: NSControl, textView: NSTextView, doCommandBy commandSelector: Selector) -> Bool {
-            switch commandSelector {
-            case #selector(NSResponder.insertNewline(_:)):
-                onSubmit()
-                return true
-            case #selector(NSResponder.insertTab(_:)):
-                onTab()
-                return true
-            case #selector(NSResponder.cancelOperation(_:)):
-                onCancel()
-                return true
-            default:
-                return false
-            }
-        }
+            .shadow(color: provider.paletteColor.opacity(0.42), radius: 14, y: 2)
     }
 }
 
 private extension SearchProvider {
     var paletteColor: Color {
         switch id {
+        case "google":
+            return Color(red: 0.26, green: 0.52, blue: 0.96)
         case "youtube":
             return Color(red: 0.94, green: 0.05, blue: 0.05)
         case "amazon":

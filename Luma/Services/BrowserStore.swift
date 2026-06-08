@@ -11,6 +11,8 @@ final class BrowserStore: ObservableObject {
     @Published var isSplitViewEnabled = false
     @Published var isCommandPalettePresented = false
     @Published var commandPaletteInitialText = ""
+    @Published var commandPaletteResumeQuery = ""
+    @Published var commandPaletteSessionID = UUID()
     @Published var addressFocusRequestID = UUID()
     @Published private(set) var canGoBack = false
     @Published private(set) var canGoForward = false
@@ -22,6 +24,26 @@ final class BrowserStore: ObservableObject {
     private let persistenceService: PersistenceService
     private let faviconService: FaviconService
     private var saveCancellable: AnyCancellable?
+    private let spaceSymbols = [
+        "circle.grid.2x2",
+        "sparkle",
+        "briefcase",
+        "house",
+        "paintpalette",
+        "graduationcap",
+        "bolt",
+        "leaf"
+    ]
+    private let spaceThemeColors = [
+        "#6E8BFF",
+        "#66BFA3",
+        "#E0A84F",
+        "#DA6A72",
+        "#9B7BE5",
+        "#5CA8D8",
+        "#D17FB3",
+        "#8E9A5B"
+    ]
 
     var activeSpace: BrowserSpace? {
         spaces.first { $0.id == activeSpaceID }
@@ -96,24 +118,107 @@ final class BrowserStore: ObservableObject {
     }
 
     func focusAddressBar() {
-        commandPaletteInitialText = activeTab?.url?.absoluteString ?? ""
+        let activeURL = activeTab?.url
+        commandPaletteInitialText = activeURL?.absoluteString ?? ""
+        commandPaletteResumeQuery = activeURL.flatMap(navigationService.searchQuery(from:)) ?? ""
+        commandPaletteSessionID = UUID()
         isCommandPalettePresented = true
         addressFocusRequestID = UUID()
     }
 
     func openCommandPalette() {
         commandPaletteInitialText = ""
+        commandPaletteResumeQuery = ""
+        commandPaletteSessionID = UUID()
         isCommandPalettePresented = true
     }
 
     @discardableResult
     func createSpace(name: String? = nil) -> BrowserSpace {
         let spaceNumber = spaces.count + 1
-        let space = BrowserSpace(name: name ?? "Space \(spaceNumber)", symbolName: "square.grid.2x2")
+        let paletteIndex = spaces.count % spaceSymbols.count
+        let space = BrowserSpace(
+            name: name ?? "Space \(spaceNumber)",
+            symbolName: spaceSymbols[paletteIndex],
+            themeColorHex: spaceThemeColors[paletteIndex]
+        )
         spaces.append(space)
         switchSpace(to: space.id)
         _ = newTab()
         return space
+    }
+
+    func renameSpace(_ id: UUID, to name: String) {
+        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedName.isEmpty, let index = spaces.firstIndex(where: { $0.id == id }) else { return }
+        spaces[index].name = trimmedName
+    }
+
+    func updateSpaceTheme(_ id: UUID, colorHex: String) {
+        guard let index = spaces.firstIndex(where: { $0.id == id }) else { return }
+        spaces[index].themeColorHex = colorHex
+    }
+
+    func cycleSpaceIcon(_ id: UUID) {
+        guard let index = spaces.firstIndex(where: { $0.id == id }) else { return }
+        let currentSymbolIndex = spaceSymbols.firstIndex(of: spaces[index].symbolName) ?? -1
+        let nextSymbolIndex = (currentSymbolIndex + 1 + spaceSymbols.count) % spaceSymbols.count
+        spaces[index].symbolName = spaceSymbols[nextSymbolIndex]
+    }
+
+    func deleteSpace(_ id: UUID) {
+        guard spaces.count > 1, let deletedSpaceIndex = spaces.firstIndex(where: { $0.id == id }) else { return }
+
+        let removedTabIDs = tabs.filter { $0.spaceID == id }.map(\.id)
+        tabs.removeAll { $0.spaceID == id }
+        removedTabIDs.forEach { webCoordinator.removeWebView(for: $0) }
+
+        spaces.remove(at: deletedSpaceIndex)
+
+        if activeSpaceID == id {
+            let replacementIndex = min(deletedSpaceIndex, spaces.count - 1)
+            activeSpaceID = spaces[replacementIndex].id
+            activeTabID = visibleTabsForActiveSpace.first?.id
+        } else if removedTabIDs.contains(where: { $0 == activeTabID }) {
+            activeTabID = visibleTabsForActiveSpace.first?.id
+        }
+
+        if let splitTabID, removedTabIDs.contains(splitTabID) {
+            self.splitTabID = nil
+            isSplitViewEnabled = false
+        }
+
+        repairSessionState()
+        updateNavigationState()
+    }
+
+    func moveTab(_ tabID: UUID, toSpace targetSpaceID: UUID) {
+        guard
+            spaces.contains(where: { $0.id == targetSpaceID }),
+            let tabIndex = tabs.firstIndex(where: { $0.id == tabID })
+        else {
+            return
+        }
+
+        let sourceSpaceID = tabs[tabIndex].spaceID
+        guard sourceSpaceID != targetSpaceID else { return }
+
+        tabs[tabIndex].spaceID = targetSpaceID
+        tabs[tabIndex].sortOrder = nextSortOrder(spaceID: targetSpaceID, pinned: tabs[tabIndex].isPinned)
+
+        if !tabs.contains(where: { $0.spaceID == sourceSpaceID }) {
+            tabs.append(BrowserTab(spaceID: sourceSpaceID, sortOrder: 0))
+        }
+
+        if activeTabID == tabID {
+            switchTab(to: tabID)
+        } else if splitTabID == tabID {
+            splitTabID = nil
+            isSplitViewEnabled = false
+            updateNavigationState()
+        }
+
+        normalizeSortOrder()
     }
 
     @discardableResult
@@ -330,6 +435,29 @@ final class BrowserStore: ObservableObject {
     func updateFavicon(tabID: UUID, data: Data?) {
         guard let index = tabs.firstIndex(where: { $0.id == tabID }), let data else { return }
         tabs[index].faviconData = data
+    }
+
+    func recordHistoryVisit(tabID: UUID, title: String?, url: URL?) {
+        guard
+            let tab = tabs.first(where: { $0.id == tabID }),
+            let url
+        else {
+            return
+        }
+
+        let resolvedTitle: String
+        if let title, !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            resolvedTitle = title
+        } else {
+            resolvedTitle = self.title(for: url)
+        }
+
+        persistenceService.recordVisit(
+            title: resolvedTitle,
+            url: url,
+            tabID: tabID,
+            spaceID: tab.spaceID
+        )
     }
 
     func setLoading(_ isLoading: Bool, for tabID: UUID) {

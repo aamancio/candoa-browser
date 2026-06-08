@@ -2,6 +2,8 @@ import SwiftUI
 
 struct WebViewContainer: View {
     @ObservedObject var store: BrowserStore
+    private let surfaceCornerRadius: CGFloat = 12
+    private let surfacePadding: CGFloat = 6
 
     var body: some View {
         ZStack {
@@ -16,14 +18,14 @@ struct WebViewContainer: View {
                             webPane(for: splitTab, title: "Split")
                         }
                     }
-                    .padding(6)
+                    .padding(surfacePadding)
                 } else {
                     browserSurface {
                         WKWebViewRepresentable(tab: tab, store: store)
                             .id(tab.id)
                             .background(Color(nsColor: .windowBackgroundColor))
                     }
-                    .padding(6)
+                    .padding(surfacePadding)
                 }
             } else {
                 ContentUnavailableView(
@@ -39,13 +41,13 @@ struct WebViewContainer: View {
 
     private func browserSurface<Content: View>(@ViewBuilder content: () -> Content) -> some View {
         content()
-            .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: surfaceCornerRadius, style: .continuous))
             .overlay {
-                RoundedRectangle(cornerRadius: 7, style: .continuous)
+                RoundedRectangle(cornerRadius: surfaceCornerRadius, style: .continuous)
                     .stroke(Color.white.opacity(0.10), lineWidth: 1)
             }
             .background(
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                RoundedRectangle(cornerRadius: surfaceCornerRadius, style: .continuous)
                     .fill(Color(red: 0.105, green: 0.112, blue: 0.13))
             )
     }
