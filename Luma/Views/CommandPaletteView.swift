@@ -17,7 +17,7 @@ struct CommandPaletteView: View {
             Color.black.opacity(0.02)
                 .ignoresSafeArea()
                 .onTapGesture {
-                    store.isCommandPalettePresented = false
+                    store.dismissCommandPalette()
                 }
 
             VStack(spacing: 0) {
@@ -101,7 +101,7 @@ struct CommandPaletteView: View {
             focusSearchField()
         }
         .onExitCommand {
-            store.isCommandPalettePresented = false
+            store.dismissCommandPalette()
         }
         .onChange(of: fieldFocusRequestID) { _, _ in
             focusSearchField()
@@ -205,7 +205,7 @@ struct CommandPaletteView: View {
         } else {
             navigateCommand = PaletteCommand(
                 title: "Search or Go to \"\(trimmedQuery)\"",
-                detail: "Open in current tab",
+                detail: store.commandPaletteOpensNewTab ? "Open in new tab" : "Open in current tab",
                 symbolName: "globe",
                 searchText: trimmedQuery,
                 action: .navigate(trimmedQuery)
@@ -365,7 +365,8 @@ struct CommandPaletteView: View {
     }
 
     private func run(_ command: PaletteCommand) {
-        store.isCommandPalettePresented = false
+        let opensNewTab = store.consumeCommandPaletteNewTabIntent()
+        store.dismissCommandPalette()
 
         switch command.action {
         case .newTab:
@@ -384,10 +385,18 @@ struct CommandPaletteView: View {
         case .focusAddressBar:
             store.focusAddressBar()
         case .navigate(let input):
-            store.navigateActiveTab(to: input)
+            if opensNewTab {
+                store.navigateNewTab(to: input)
+            } else {
+                store.navigateActiveTab(to: input)
+            }
         case .searchProvider(let provider, let input):
             guard let url = store.navigationService.searchURL(provider: provider, query: input) else { return }
-            store.navigateActiveTab(to: url)
+            if opensNewTab {
+                store.navigateNewTab(to: url)
+            } else {
+                store.navigateActiveTab(to: url)
+            }
         case .switchTab(let id):
             store.switchTab(to: id)
         case .switchSpace(let id):

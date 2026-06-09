@@ -11,7 +11,7 @@ struct LumaApp: App {
         .commands {
             CommandGroup(replacing: .newItem) {
                 Button("New Tab") {
-                    NotificationCenter.default.post(name: .lumaOpenCommandPalette, object: nil)
+                    NotificationCenter.default.post(name: .lumaNewTab, object: nil)
                 }
                 .keyboardShortcut("t", modifiers: .command)
             }

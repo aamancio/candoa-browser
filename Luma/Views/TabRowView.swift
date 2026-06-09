@@ -13,56 +13,66 @@ struct TabRowView: View {
     @State private var isHovering = false
 
     var body: some View {
-        Button(action: onSelect) {
-            HStack(spacing: 8) {
-                ZStack {
-                    faviconImage
-                        .opacity(tab.isLoading ? 0 : 1)
+        HStack(spacing: 8) {
+            ZStack {
+                faviconImage
+                    .opacity(tab.isLoading ? 0 : 1)
 
-                    if tab.isLoading {
-                        ProgressView()
-                            .controlSize(.small)
-                            .scaleEffect(0.55)
-                    }
-                }
-                .frame(width: 16, height: 16)
-
-                Text(tab.title)
-                    .lineLimit(1)
-                    .truncationMode(.tail)
-                    .font(.system(size: 12.5, weight: .medium))
-
-                Spacer(minLength: 8)
-
-                if isSplit {
-                    Image(systemName: "rectangle.split.1x2")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-
-                if isHovering {
-                    Button(action: onClose) {
-                        Image(systemName: "xmark")
-                            .font(.caption)
-                    }
-                    .buttonStyle(.plain)
-                    .foregroundStyle(.secondary)
-                    .help("Close Tab")
+                if tab.isLoading {
+                    ProgressView()
+                        .controlSize(.small)
+                        .scaleEffect(0.55)
                 }
             }
-            .padding(.horizontal, 9)
-            .padding(.vertical, 7)
-            .contentShape(Rectangle())
-            .background(rowBackground)
-            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .frame(width: 16, height: 16)
+
+            Text(tab.title)
+                .lineLimit(1)
+                .truncationMode(.tail)
+                .font(.system(size: 12.5, weight: .medium))
+
+            Spacer(minLength: 8)
+
+            if isSplit {
+                Image(systemName: "rectangle.split.1x2")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Button(action: onClose) {
+                Image(systemName: "xmark")
+                    .font(.system(size: 10.5, weight: .semibold))
+                    .frame(width: 16, height: 16)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(.secondary)
+            .help("Close Tab")
+            .opacity(isHovering ? 1 : 0)
+            .accessibilityHidden(!isHovering)
         }
-        .buttonStyle(.plain)
+        .padding(.horizontal, 9)
+        .padding(.vertical, 7)
+        .contentShape(Rectangle())
+        .background(rowBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .onTapGesture {
+            onSelect()
+        }
         .onHover { isHovering = $0 }
         .contextMenu {
             Button("Duplicate Tab", action: onDuplicate)
             Button("Open in Split View", action: onOpenInSplit)
             Button("Close Tab", action: onClose)
         }
+        .overlay {
+            if isHovering {
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .stroke(Color.primary.opacity(0.06), lineWidth: 1)
+                    .allowsHitTesting(false)
+            }
+        }
+        .animation(.easeOut(duration: 0.10), value: isHovering)
     }
 
     private var rowBackground: Color {

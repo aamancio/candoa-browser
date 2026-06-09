@@ -52,7 +52,9 @@ struct ContentView: View {
         )
         .background(
             KeyboardShortcutMonitor {
-                store.openCommandPalette()
+                openNewTabFlow()
+            } onCommandW: {
+                closeTabOrWindow()
             } onControlTab: {
                 store.switchToNextRecentTab(keepsPreviewOpen: true)
             } onControlShiftTab: {
@@ -72,8 +74,7 @@ struct ContentView: View {
             store.openCommandPalette()
         }
         .onReceive(NotificationCenter.default.publisher(for: .lumaNewTab)) { _ in
-            store.newTab()
-            store.focusAddressBar()
+            openNewTabFlow()
         }
         .onReceive(NotificationCenter.default.publisher(for: .lumaReloadTab)) { _ in
             store.reloadActiveTab()
@@ -128,10 +129,23 @@ struct ContentView: View {
         }
     }
 
+    private func openNewTabFlow() {
+        store.openNewTabCommandPalette()
+    }
+
+    private func closeTabOrWindow() {
+        if store.visibleTabsForActiveSpace.count > 1 {
+            store.closeCurrentTab()
+        } else {
+            NSApp.keyWindow?.performClose(nil)
+        }
+    }
+
 }
 
 private struct KeyboardShortcutMonitor: NSViewRepresentable {
     let onCommandT: () -> Void
+    let onCommandW: () -> Void
     let onControlTab: () -> Void
     let onControlShiftTab: () -> Void
     let onControlReleased: () -> Void
@@ -139,6 +153,7 @@ private struct KeyboardShortcutMonitor: NSViewRepresentable {
     func makeCoordinator() -> Coordinator {
         Coordinator(
             onCommandT: onCommandT,
+            onCommandW: onCommandW,
             onControlTab: onControlTab,
             onControlShiftTab: onControlShiftTab,
             onControlReleased: onControlReleased
@@ -152,6 +167,7 @@ private struct KeyboardShortcutMonitor: NSViewRepresentable {
 
     func updateNSView(_ nsView: NSView, context: Context) {
         context.coordinator.onCommandT = onCommandT
+        context.coordinator.onCommandW = onCommandW
         context.coordinator.onControlTab = onControlTab
         context.coordinator.onControlShiftTab = onControlShiftTab
         context.coordinator.onControlReleased = onControlReleased
@@ -160,6 +176,7 @@ private struct KeyboardShortcutMonitor: NSViewRepresentable {
 
     final class Coordinator {
         var onCommandT: () -> Void
+        var onCommandW: () -> Void
         var onControlTab: () -> Void
         var onControlShiftTab: () -> Void
         var onControlReleased: () -> Void
@@ -167,11 +184,13 @@ private struct KeyboardShortcutMonitor: NSViewRepresentable {
 
         init(
             onCommandT: @escaping () -> Void,
+            onCommandW: @escaping () -> Void,
             onControlTab: @escaping () -> Void,
             onControlShiftTab: @escaping () -> Void,
             onControlReleased: @escaping () -> Void
         ) {
             self.onCommandT = onCommandT
+            self.onCommandW = onCommandW
             self.onControlTab = onControlTab
             self.onControlShiftTab = onControlShiftTab
             self.onControlReleased = onControlReleased
@@ -197,6 +216,11 @@ private struct KeyboardShortcutMonitor: NSViewRepresentable {
                     return nil
                 }
 
+                if Self.isCommandW(event) {
+                    onCommandW()
+                    return nil
+                }
+
                 if Self.isControlShiftTab(event) {
                     onControlShiftTab()
                     return nil
@@ -215,6 +239,12 @@ private struct KeyboardShortcutMonitor: NSViewRepresentable {
             let modifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
             return modifiers == .command &&
                 event.charactersIgnoringModifiers?.lowercased() == "t"
+        }
+
+        private static func isCommandW(_ event: NSEvent) -> Bool {
+            let modifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+            return modifiers == .command &&
+                event.charactersIgnoringModifiers?.lowercased() == "w"
         }
 
         private static func isControlTab(_ event: NSEvent) -> Bool {

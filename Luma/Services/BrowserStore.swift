@@ -13,6 +13,7 @@ final class BrowserStore: ObservableObject {
     @Published var commandPaletteInitialText = ""
     @Published var commandPaletteResumeQuery = ""
     @Published var commandPaletteSessionID = UUID()
+    @Published private(set) var commandPaletteOpensNewTab = false
     @Published var isCreateSpacePresented = false
     @Published var addressFocusRequestID = UUID()
     @Published private(set) var isTabSwitcherPresented = false
@@ -130,6 +131,7 @@ final class BrowserStore: ObservableObject {
         commandPaletteInitialText = activeURL?.absoluteString ?? ""
         commandPaletteResumeQuery = activeURL.flatMap(navigationService.searchQuery(from:)) ?? ""
         commandPaletteSessionID = UUID()
+        commandPaletteOpensNewTab = false
         isCommandPalettePresented = true
         addressFocusRequestID = UUID()
     }
@@ -138,11 +140,32 @@ final class BrowserStore: ObservableObject {
         commandPaletteInitialText = ""
         commandPaletteResumeQuery = ""
         commandPaletteSessionID = UUID()
+        commandPaletteOpensNewTab = false
         isCommandPalettePresented = true
+    }
+
+    func openNewTabCommandPalette() {
+        commandPaletteInitialText = ""
+        commandPaletteResumeQuery = ""
+        commandPaletteSessionID = UUID()
+        commandPaletteOpensNewTab = true
+        isCommandPalettePresented = true
+    }
+
+    func dismissCommandPalette() {
+        isCommandPalettePresented = false
+        commandPaletteOpensNewTab = false
+    }
+
+    func consumeCommandPaletteNewTabIntent() -> Bool {
+        let opensNewTab = commandPaletteOpensNewTab
+        commandPaletteOpensNewTab = false
+        return opensNewTab
     }
 
     func beginSpaceCreation() {
         isCommandPalettePresented = false
+        commandPaletteOpensNewTab = false
         isCreateSpacePresented = true
     }
 
@@ -248,11 +271,10 @@ final class BrowserStore: ObservableObject {
     @discardableResult
     func newTab(url: URL? = nil, pinned: Bool = false, in spaceID: UUID? = nil) -> BrowserTab {
         let targetSpaceID = spaceID ?? activeSpaceID
-        let targetURL = url ?? Self.defaultHomeURL
         let tab = BrowserTab(
-            title: title(for: targetURL),
-            url: targetURL,
-            faviconSymbol: faviconService.placeholderSymbol(for: targetURL),
+            title: title(for: url),
+            url: url,
+            faviconSymbol: faviconService.placeholderSymbol(for: url),
             isPinned: pinned,
             spaceID: targetSpaceID,
             sortOrder: nextSortOrder(spaceID: targetSpaceID, pinned: pinned)
@@ -261,7 +283,9 @@ final class BrowserStore: ObservableObject {
         tabs.insert(tab, at: 0)
         switchTab(to: tab.id)
 
-        webCoordinator.load(targetURL, in: tab.id)
+        if let url {
+            webCoordinator.load(url, in: tab.id)
+        }
 
         return tab
     }
@@ -425,6 +449,15 @@ final class BrowserStore: ObservableObject {
         guard let tabID = activeTabID else { return }
         setURL(url, title: title(for: url), for: tabID)
         webCoordinator.load(url, in: tabID)
+    }
+
+    func navigateNewTab(to rawInput: String) {
+        guard let url = navigationService.destinationURL(for: rawInput) else { return }
+        newTab(url: url)
+    }
+
+    func navigateNewTab(to url: URL) {
+        newTab(url: url)
     }
 
     func goBack() {
