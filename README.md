@@ -1,6 +1,6 @@
-# Luma Browser
+# Luma
 
-Luma Browser is an open-source, Arc-inspired browser workspace for macOS.
+Luma is an open-source, Arc-inspired browser workspace for macOS.
 
 The goal is to build the browser I want to use every day: a native-feeling Mac app with Arc-style navigation, a sidebar-first workspace, spaces, pinned tabs, vertical tabs, and keyboard-driven tab management. Luma is not trying to copy Arc's branding, assets, or exact visual identity. It is an independent implementation of a similar workflow.
 
@@ -86,15 +86,15 @@ Expect rough edges. The intent is to keep iterating in public while preserving t
 ## Setup
 
 1. Open `Luma.xcodeproj` in Xcode.
-2. Select the `Luma Browser` scheme.
+2. Select the `Luma` scheme.
 3. Build and run on macOS.
 
 From Terminal:
 
 ```sh
 cd ~/Projects/Candoa/Luma
-xcodebuild -project "Luma.xcodeproj" -scheme "Luma Browser" -configuration Debug -derivedDataPath build/DerivedData build
-open "build/DerivedData/Build/Products/Debug/Luma Browser.app"
+xcodebuild -project "Luma.xcodeproj" -scheme "Luma" -configuration Debug -derivedDataPath build/DerivedData build
+open "build/DerivedData/Build/Products/Debug/Luma.app"
 ```
 
 ## Folder Structure
@@ -112,7 +112,7 @@ Luma/
 ## Architecture
 
 - `BrowserStore` owns browser state and exposes actions for views.
-- `PersistenceService` saves spaces, tabs, active selection, Space data-store identifiers, and history visits in `~/Library/Application Support/Luma Browser/Luma.sqlite`.
+- `PersistenceService` saves spaces, tabs, active selection, Space data-store identifiers, and history visits in `~/Library/Application Support/Luma/Luma.sqlite`.
 - `NavigationService` normalizes URL input and search queries.
 - `WebViewCoordinator` owns and reuses `WKWebView` instances per tab, creating them with the active Space's WebKit website data store.
 - `FaviconService` fetches page-discovered icons with a lightweight in-memory cache.

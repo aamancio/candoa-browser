@@ -22,7 +22,7 @@ final class BrowserStore: ObservableObject {
     let navigationService: NavigationService
     let webCoordinator: WebViewCoordinator
 
-    private static let defaultHomeURL = URL(string: "https://www.google.com")!
+    private static let defaultHomeURL = URL(string: "https://www.google.com/?hl=en&gl=us")!
     private static let defaultHomeTitle = "Google"
 
     private let persistenceService: PersistenceService
@@ -279,7 +279,7 @@ final class BrowserStore: ObservableObject {
         }
 
         if tabs.filter({ $0.spaceID == closingTab.spaceID }).isEmpty {
-            _ = newTab(in: closingTab.spaceID)
+            _ = newInternalBlankTab(in: closingTab.spaceID)
             return
         }
 
@@ -368,7 +368,7 @@ final class BrowserStore: ObservableObject {
         if let candidateID, tabs.contains(where: { $0.id == candidateID && $0.spaceID == activeSpaceID }) {
             splitTabID = candidateID
         } else {
-            let tab = newTab(in: activeSpaceID)
+            let tab = newInternalBlankTab(in: activeSpaceID)
             self.activeTabID = activeTabID
             splitTabID = tab.id
         }
@@ -482,6 +482,10 @@ final class BrowserStore: ObservableObject {
         )
     }
 
+    func recentHistory(matching query: String = "", limit: Int = 8) -> [HistoryVisit] {
+        persistenceService.recentHistory(matching: query, limit: limit)
+    }
+
     func setLoading(_ isLoading: Bool, for tabID: UUID) {
         guard let index = tabs.firstIndex(where: { $0.id == tabID }) else { return }
         tabs[index].isLoading = isLoading
@@ -574,6 +578,17 @@ final class BrowserStore: ObservableObject {
 
     private func replacementSplitTab(excluding excludedID: UUID?) -> BrowserTab? {
         visibleTabsForActiveSpace.first { $0.id != excludedID }
+    }
+
+    private func newInternalBlankTab(in spaceID: UUID) -> BrowserTab {
+        let tab = BrowserTab(
+            spaceID: spaceID,
+            sortOrder: nextSortOrder(spaceID: spaceID, pinned: false)
+        )
+
+        tabs.insert(tab, at: 0)
+        switchTab(to: tab.id)
+        return tab
     }
 
     private static func homeTab(spaceID: UUID, sortOrder: Double = 0, pinned: Bool = false) -> BrowserTab {

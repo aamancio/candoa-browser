@@ -1,8 +1,20 @@
 import CoreData
 import Foundation
 
+struct HistoryVisit: Identifiable, Hashable {
+    let id: UUID
+    let title: String
+    let url: URL
+    let tabID: UUID
+    let spaceID: UUID
+    let visitedAt: Date
+}
+
 struct PersistenceService {
     static let shared = PersistenceService()
+
+    private static let appName = "Luma"
+    private static let legacyAppName = "Luma Browser"
 
     private let container: NSPersistentContainer
 
@@ -19,12 +31,12 @@ struct PersistenceService {
         do {
             try FileManager.default.createDirectory(at: folderURL, withIntermediateDirectories: true)
         } catch {
-            NSLog("Luma Browser failed to create persistence folder: \(error.localizedDescription)")
+            NSLog("\(Self.appName) failed to create persistence folder: \(error.localizedDescription)")
         }
 
         container.loadPersistentStores { _, error in
             if let error {
-                NSLog("Luma Browser failed to load Core Data store: \(error.localizedDescription)")
+                NSLog("\(Self.appName) failed to load Core Data store: \(error.localizedDescription)")
             }
         }
 
@@ -32,8 +44,16 @@ struct PersistenceService {
     }
 
     private static var applicationSupportURL: URL {
-        FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("Luma Browser", isDirectory: true)
+        let baseURL = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+        let currentURL = baseURL.appendingPathComponent(appName, isDirectory: true)
+        let legacyURL = baseURL.appendingPathComponent(legacyAppName, isDirectory: true)
+
+        if !FileManager.default.fileExists(atPath: currentURL.path),
+           FileManager.default.fileExists(atPath: legacyURL.path) {
+            return legacyURL
+        }
+
+        return currentURL
     }
 
     private static var legacyStateURL: URL {
@@ -64,7 +84,7 @@ struct PersistenceService {
                 try context.save()
             } catch {
                 context.rollback()
-                NSLog("Luma Browser failed to save session: \(error.localizedDescription)")
+                NSLog("\(Self.appName) failed to save session: \(error.localizedDescription)")
             }
         }
     }
@@ -85,7 +105,49 @@ struct PersistenceService {
                 try context.save()
             } catch {
                 context.rollback()
-                NSLog("Luma Browser failed to record history visit: \(error.localizedDescription)")
+                NSLog("\(Self.appName) failed to record history visit: \(error.localizedDescription)")
+            }
+        }
+    }
+
+    func recentHistory(matching rawQuery: String = "", limit: Int = 8) -> [HistoryVisit] {
+        let query = rawQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+        let context = container.viewContext
+
+        return context.performAndWait {
+            do {
+                let request = NSFetchRequest<NSManagedObject>(entityName: Entity.historyVisit)
+                request.sortDescriptors = [NSSortDescriptor(key: Key.visitedAt, ascending: false)]
+                request.fetchLimit = max(limit * 4, limit)
+
+                if !query.isEmpty {
+                    request.predicate = NSPredicate(
+                        format: "%K CONTAINS[cd] %@ OR %K CONTAINS[cd] %@",
+                        Key.title,
+                        query,
+                        Key.urlString,
+                        query
+                    )
+                }
+
+                var seenURLs = Set<String>()
+                var visits: [HistoryVisit] = []
+
+                for visit in try context.fetch(request).compactMap(Self.historyVisit(from:)) {
+                    let key = visit.url.absoluteString
+                    guard !seenURLs.contains(key) else { continue }
+                    seenURLs.insert(key)
+                    visits.append(visit)
+
+                    if visits.count == limit {
+                        break
+                    }
+                }
+
+                return visits
+            } catch {
+                NSLog("\(Self.appName) failed to load history: \(error.localizedDescription)")
+                return []
             }
         }
     }
@@ -122,7 +184,7 @@ struct PersistenceService {
                     isSplitViewEnabled: session.bool(for: Key.isSplitViewEnabled)
                 )
             } catch {
-                NSLog("Luma Browser failed to load session: \(error.localizedDescription)")
+                NSLog("\(Self.appName) failed to load session: \(error.localizedDescription)")
                 return nil
             }
         }
@@ -220,6 +282,28 @@ struct PersistenceService {
             spaceID: spaceID,
             sortOrder: object.double(for: Key.sortOrder),
             lastAccessedAt: object.date(for: Key.lastAccessedAt) ?? Date()
+        )
+    }
+
+    private static func historyVisit(from object: NSManagedObject) -> HistoryVisit? {
+        guard
+            let id = object.uuid(for: Key.id),
+            let urlString = object.string(for: Key.urlString),
+            let url = URL(string: urlString),
+            let tabID = object.uuid(for: Key.tabID),
+            let spaceID = object.uuid(for: Key.spaceID),
+            let visitedAt = object.date(for: Key.visitedAt)
+        else {
+            return nil
+        }
+
+        return HistoryVisit(
+            id: id,
+            title: object.string(for: Key.title) ?? urlString,
+            url: url,
+            tabID: tabID,
+            spaceID: spaceID,
+            visitedAt: visitedAt
         )
     }
 

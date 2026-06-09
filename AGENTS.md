@@ -2,7 +2,7 @@
 
 ## Product Direction
 
-Luma Browser is intended to be an Arc-style browser workspace clone for macOS, while still feeling native to macOS and original in its implementation details.
+Luma is intended to be an Arc-style browser workspace clone for macOS, while still feeling native to macOS and original in its implementation details.
 
 Use Arc as the primary product/interaction benchmark:
 - Sidebar-first browser workflow

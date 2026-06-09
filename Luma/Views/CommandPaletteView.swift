@@ -173,7 +173,8 @@ struct CommandPaletteView: View {
     }
 
     private func commandCandidates(for trimmedQuery: String, isResumingSearchURL: Bool = false) -> [PaletteCommand] {
-        let commands = tabCommands + spaceCommands + baseCommands
+        let historyCommands = historyCommands(for: trimmedQuery)
+        let commands = historyCommands + tabCommands + spaceCommands + baseCommands
 
         if let selectedSearchProvider {
             guard !trimmedQuery.isEmpty else { return commands }
@@ -220,6 +221,7 @@ struct CommandPaletteView: View {
     }
 
     private var defaultSuggestions: [PaletteCommand] {
+        let recentHistory = store.recentHistory(limit: 4).map(historyCommand)
         let recentTabs = store.tabs
             .filter { $0.url != nil }
             .sorted { $0.lastAccessedAt > $1.lastAccessedAt }
@@ -235,7 +237,7 @@ struct CommandPaletteView: View {
                 )
             }
 
-        return [defaultSearchCommand] + recentTabs + Array(searchProviderCommands.dropFirst().prefix(2))
+        return [defaultSearchCommand] + recentHistory + recentTabs + Array(searchProviderCommands.dropFirst().prefix(2))
     }
 
     private var defaultSearchCommand: PaletteCommand {
@@ -272,6 +274,22 @@ struct CommandPaletteView: View {
             PaletteCommand(title: "Create Space", symbolName: "square.grid.2x2", action: .createSpace),
             PaletteCommand(title: "Focus Address Bar", symbolName: "text.cursor", action: .focusAddressBar)
         ]
+    }
+
+    private func historyCommands(for query: String) -> [PaletteCommand] {
+        guard !query.isEmpty else { return [] }
+        return store.recentHistory(matching: query, limit: 8).map(historyCommand)
+    }
+
+    private func historyCommand(for visit: HistoryVisit) -> PaletteCommand {
+        PaletteCommand(
+            title: visit.title,
+            detail: hostDisplayText(for: visit.url),
+            symbolName: "clock.arrow.circlepath",
+            searchText: "\(visit.title) \(visit.url.absoluteString)",
+            style: .history,
+            action: .navigate(visit.url.absoluteString)
+        )
     }
 
     private var tabCommands: [PaletteCommand] {
@@ -569,6 +587,9 @@ private struct PaletteIconView: View {
                 .fill(Color(red: 1.0, green: 0.60, blue: 0.0))
                 .frame(width: size, height: size)
             .frame(width: size, height: size)
+        case "reddit":
+            RedditBrandMark(isSelected: isSelected, size: size)
+                .frame(width: size, height: size)
         default:
             Image(systemName: provider.symbolName)
                 .font(.system(size: size * 0.68, weight: .medium))
@@ -583,6 +604,72 @@ private struct AmazonBrandMark: Shape {
 
     func path(in rect: CGRect) -> Path {
         SVGPathData(pathData: Self.pathData).path(in: rect)
+    }
+}
+
+private struct RedditBrandMark: View {
+    let isSelected: Bool
+    let size: CGFloat
+
+    private var orange: Color {
+        Color(red: 1.00, green: 0.27, blue: 0.05)
+    }
+
+    private var markColor: Color {
+        isSelected ? .white : orange
+    }
+
+    var body: some View {
+        ZStack {
+            if !isSelected {
+                Circle()
+                    .fill(orange)
+                    .frame(width: size * 0.92, height: size * 0.92)
+            }
+
+            ZStack {
+                Circle()
+                    .fill(isSelected ? .white : Color.white)
+                    .frame(width: size * 0.54, height: size * 0.42)
+                    .offset(y: size * 0.08)
+
+                Circle()
+                    .fill(markColor)
+                    .frame(width: size * 0.08, height: size * 0.08)
+                    .offset(x: -size * 0.14, y: size * 0.06)
+
+                Circle()
+                    .fill(markColor)
+                    .frame(width: size * 0.08, height: size * 0.08)
+                    .offset(x: size * 0.14, y: size * 0.06)
+
+                Capsule()
+                    .fill(markColor)
+                    .frame(width: size * 0.18, height: size * 0.035)
+                    .offset(y: size * 0.17)
+
+                Capsule()
+                    .fill(isSelected ? .white : Color.white)
+                    .frame(width: size * 0.25, height: size * 0.07)
+                    .rotationEffect(.degrees(-28))
+                    .offset(x: size * 0.11, y: -size * 0.16)
+
+                Circle()
+                    .fill(isSelected ? .white : Color.white)
+                    .frame(width: size * 0.12, height: size * 0.12)
+                    .offset(x: size * 0.24, y: -size * 0.27)
+
+                Circle()
+                    .fill(isSelected ? .white : Color.white)
+                    .frame(width: size * 0.15, height: size * 0.15)
+                    .offset(x: -size * 0.32, y: size * 0.08)
+
+                Circle()
+                    .fill(isSelected ? .white : Color.white)
+                    .frame(width: size * 0.15, height: size * 0.15)
+                    .offset(x: size * 0.32, y: size * 0.08)
+            }
+        }
     }
 }
 
@@ -926,7 +1013,7 @@ private struct PaletteCommand: Identifiable {
         switch style {
         case .provider(let provider), .providerSearch(let provider):
             return provider
-        case .generic, .tab:
+        case .generic, .tab, .history:
             return nil
         }
     }
@@ -935,7 +1022,7 @@ private struct PaletteCommand: Identifiable {
         switch style {
         case .provider(let provider), .providerSearch(let provider):
             return provider.paletteColor
-        case .generic, .tab:
+        case .generic, .tab, .history:
             return nil
         }
     }
@@ -952,6 +1039,7 @@ private struct PaletteCommand: Identifiable {
 private enum PaletteCommandStyle {
     case generic
     case tab
+    case history
     case provider(SearchProvider)
     case providerSearch(SearchProvider)
 }
@@ -999,12 +1087,24 @@ private extension SearchProvider {
             return Color(red: 0.32, green: 0.28, blue: 0.86)
         case "bing":
             return Color(red: 0.07, green: 0.48, blue: 0.60)
+        case "brave":
+            return Color(red: 0.90, green: 0.26, blue: 0.08)
+        case "startpage":
+            return Color(red: 0.10, green: 0.36, blue: 0.92)
+        case "qwant":
+            return Color(red: 0.28, green: 0.42, blue: 0.94)
+        case "mojeek":
+            return Color(red: 0.08, green: 0.58, blue: 0.30)
+        case "swisscows":
+            return Color(red: 0.76, green: 0.18, blue: 0.38)
         case "ecosia":
             return Color(red: 0.10, green: 0.55, blue: 0.30)
         case "perplexity":
             return Color(red: 0.12, green: 0.62, blue: 0.65)
         case "kagi":
             return Color(red: 0.95, green: 0.45, blue: 0.22)
+        case "yahoo":
+            return Color(red: 0.38, green: 0.18, blue: 0.86)
         case "yandex":
             return Color(red: 0.92, green: 0.14, blue: 0.12)
         case "github":

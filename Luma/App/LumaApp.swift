@@ -1,7 +1,7 @@
 import SwiftUI
 
 @main
-struct LumaBrowserApp: App {
+struct LumaApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()

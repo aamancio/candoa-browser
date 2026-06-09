@@ -8,6 +8,27 @@ struct SearchProvider: Identifiable, Equatable {
     let homeURL: URL
     let baseURL: URL
     let queryItemName: String
+    let forwardsQueryIntoWebApp: Bool
+
+    init(
+        id: String,
+        name: String,
+        aliases: [String],
+        symbolName: String,
+        homeURL: URL,
+        baseURL: URL,
+        queryItemName: String,
+        forwardsQueryIntoWebApp: Bool = false
+    ) {
+        self.id = id
+        self.name = name
+        self.aliases = aliases
+        self.symbolName = symbolName
+        self.homeURL = homeURL
+        self.baseURL = baseURL
+        self.queryItemName = queryItemName
+        self.forwardsQueryIntoWebApp = forwardsQueryIntoWebApp
+    }
 
     func searchURL(for rawQuery: String) -> URL? {
         let query = rawQuery.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -47,14 +68,17 @@ struct SearchProvider: Identifiable, Equatable {
 struct NavigationService {
     static let shared = NavigationService()
 
+    private static let googleHomeURL = URL(string: "https://www.google.com/?hl=en&gl=us")!
+    private static let googleSearchURL = URL(string: "https://www.google.com/search?hl=en&gl=us")!
+
     static let searchProviders: [SearchProvider] = [
         SearchProvider(
             id: "google",
             name: "Google",
             aliases: ["g", "search", "google.com", "www.google.com"],
             symbolName: "magnifyingglass",
-            homeURL: URL(string: "https://www.google.com")!,
-            baseURL: URL(string: "https://www.google.com/search")!,
+            homeURL: googleHomeURL,
+            baseURL: googleSearchURL,
             queryItemName: "q"
         ),
         SearchProvider(
@@ -87,11 +111,56 @@ struct NavigationService {
         SearchProvider(
             id: "bing",
             name: "Bing",
-            aliases: ["b", "ben"],
+            aliases: ["b", "ben", "bing.com", "www.bing.com"],
             symbolName: "b.circle.fill",
             homeURL: URL(string: "https://www.bing.com")!,
             baseURL: URL(string: "https://www.bing.com/search")!,
             queryItemName: "q"
+        ),
+        SearchProvider(
+            id: "brave",
+            name: "Brave",
+            aliases: ["br", "brave search", "search.brave.com"],
+            symbolName: "shield.lefthalf.filled",
+            homeURL: URL(string: "https://search.brave.com")!,
+            baseURL: URL(string: "https://search.brave.com/search")!,
+            queryItemName: "q"
+        ),
+        SearchProvider(
+            id: "startpage",
+            name: "Startpage",
+            aliases: ["spage", "start", "startpage.com", "www.startpage.com"],
+            symbolName: "lock.fill",
+            homeURL: URL(string: "https://www.startpage.com")!,
+            baseURL: URL(string: "https://www.startpage.com/sp/search")!,
+            queryItemName: "query"
+        ),
+        SearchProvider(
+            id: "qwant",
+            name: "Qwant",
+            aliases: ["q", "qwant.com", "www.qwant.com"],
+            symbolName: "q.circle.fill",
+            homeURL: URL(string: "https://www.qwant.com")!,
+            baseURL: URL(string: "https://www.qwant.com/")!,
+            queryItemName: "q"
+        ),
+        SearchProvider(
+            id: "mojeek",
+            name: "Mojeek",
+            aliases: ["mj", "mojeek.com", "www.mojeek.com"],
+            symbolName: "m.circle.fill",
+            homeURL: URL(string: "https://www.mojeek.com")!,
+            baseURL: URL(string: "https://www.mojeek.com/search")!,
+            queryItemName: "q"
+        ),
+        SearchProvider(
+            id: "swisscows",
+            name: "Swisscows",
+            aliases: ["swiss", "scows", "swisscows.com"],
+            symbolName: "shield.fill",
+            homeURL: URL(string: "https://swisscows.com")!,
+            baseURL: URL(string: "https://swisscows.com/en/web")!,
+            queryItemName: "query"
         ),
         SearchProvider(
             id: "ecosia",
@@ -121,6 +190,15 @@ struct NavigationService {
             queryItemName: "q"
         ),
         SearchProvider(
+            id: "yahoo",
+            name: "Yahoo",
+            aliases: ["y", "yh", "yahoo.com", "www.yahoo.com"],
+            symbolName: "y.circle.fill",
+            homeURL: URL(string: "https://www.yahoo.com")!,
+            baseURL: URL(string: "https://search.yahoo.com/search")!,
+            queryItemName: "p"
+        ),
+        SearchProvider(
             id: "yandex",
             name: "Yandex",
             aliases: ["ya", "yandex.com", "yandex.ru"],
@@ -141,7 +219,7 @@ struct NavigationService {
         SearchProvider(
             id: "reddit",
             name: "Reddit",
-            aliases: ["r", "reddit.com", "www.reddit.com"],
+            aliases: ["r", "red", "subreddit", "reddit.com", "www.reddit.com"],
             symbolName: "bubble.left.fill",
             homeURL: URL(string: "https://www.reddit.com")!,
             baseURL: URL(string: "https://www.reddit.com/search/")!,
@@ -190,7 +268,8 @@ struct NavigationService {
             symbolName: "diamond.fill",
             homeURL: URL(string: "https://gemini.google.com")!,
             baseURL: URL(string: "https://gemini.google.com/app")!,
-            queryItemName: "q"
+            queryItemName: "q",
+            forwardsQueryIntoWebApp: true
         ),
         SearchProvider(
             id: "wikipedia",
@@ -203,18 +282,18 @@ struct NavigationService {
         )
     ]
 
-    private let searchBaseURL = URL(string: "https://www.google.com/search")!
+    private let searchBaseURL = Self.googleSearchURL
 
     func destinationURL(for rawInput: String) -> URL? {
         let input = rawInput.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !input.isEmpty else { return nil }
 
         if let directURL = directURL(from: input) {
-            return directURL
+            return Self.englishGoogleURLIfNeeded(directURL)
         }
 
         if looksLikeHost(input), let url = URL(string: "https://\(input)") {
-            return url
+            return Self.englishGoogleURLIfNeeded(url)
         }
 
         if let provider = Self.searchProviders.first(where: { $0.exactlyMatches(input) }) {
@@ -222,7 +301,9 @@ struct NavigationService {
         }
 
         var components = URLComponents(url: searchBaseURL, resolvingAgainstBaseURL: false)
-        components?.queryItems = [URLQueryItem(name: "q", value: input)]
+        var queryItems = components?.queryItems ?? []
+        queryItems.append(URLQueryItem(name: "q", value: input))
+        components?.queryItems = queryItems
         return components?.url
     }
 
@@ -236,6 +317,51 @@ struct NavigationService {
 
     func searchURL(provider: SearchProvider, query: String) -> URL? {
         provider.searchURL(for: query)
+    }
+
+    func preferredLocaleURL(for url: URL) -> URL {
+        Self.englishGoogleURLIfNeeded(url)
+    }
+
+    func webAppPromptForwardingTarget(for url: URL) -> (providerID: String, query: String)? {
+        guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
+              let host = components.host?.lowercased(),
+              let queryItems = components.queryItems else {
+            return nil
+        }
+
+        for provider in Self.searchProviders where provider.forwardsQueryIntoWebApp {
+            guard let providerComponents = URLComponents(url: provider.baseURL, resolvingAgainstBaseURL: false),
+                  let providerHost = providerComponents.host?.lowercased(),
+                  host == providerHost || host.hasSuffix(".\(providerHost)"),
+                  components.path == providerComponents.path else {
+                continue
+            }
+
+            let query = queryItems
+                .first { $0.name == provider.queryItemName }?
+                .value?
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+
+            if let query, !query.isEmpty {
+                return (provider.id, query)
+            }
+        }
+
+        return nil
+    }
+
+    func canForwardWebAppPrompt(to url: URL?, providerID: String) -> Bool {
+        guard let url,
+              let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
+              let host = components.host?.lowercased(),
+              let provider = Self.searchProviders.first(where: { $0.id == providerID && $0.forwardsQueryIntoWebApp }),
+              let providerComponents = URLComponents(url: provider.baseURL, resolvingAgainstBaseURL: false),
+              let providerHost = providerComponents.host?.lowercased() else {
+            return false
+        }
+
+        return host == providerHost || host.hasSuffix(".\(providerHost)")
     }
 
     func searchQuery(from url: URL) -> String? {
@@ -296,5 +422,29 @@ struct NavigationService {
         }
 
         return input.contains(".")
+    }
+
+    private static func englishGoogleURLIfNeeded(_ url: URL) -> URL {
+        guard
+            let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
+            let host = components.host?.lowercased(),
+            host == "google.com" || host == "www.google.com"
+        else {
+            return url
+        }
+
+        var localizedComponents = components
+        var queryItems = localizedComponents.queryItems ?? []
+
+        if !queryItems.contains(where: { $0.name == "hl" }) {
+            queryItems.append(URLQueryItem(name: "hl", value: "en"))
+        }
+
+        if !queryItems.contains(where: { $0.name == "gl" }) {
+            queryItems.append(URLQueryItem(name: "gl", value: "us"))
+        }
+
+        localizedComponents.queryItems = queryItems
+        return localizedComponents.url ?? url
     }
 }

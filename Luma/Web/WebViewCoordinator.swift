@@ -3,10 +3,20 @@ import WebKit
 
 @MainActor
 final class WebViewCoordinator: NSObject, WKNavigationDelegate {
+    private struct PendingWebAppPrompt {
+        let providerID: String
+        let query: String
+    }
+
+    private static let acceptLanguageHeader = "en-US,en;q=0.9"
+    private static let googleLocaleCookieNames: Set<String> = ["PREF", "NID", "SOCS"]
+
     private weak var store: BrowserStore?
     private var webViews: [UUID: WKWebView] = [:]
     private var tabIDsByWebView = NSMapTable<WKWebView, NSString>.weakToStrongObjects()
     private var observations: [UUID: [NSKeyValueObservation]] = [:]
+    private var pendingWebAppPrompts: [UUID: PendingWebAppPrompt] = [:]
+    private var cleanedLocaleCookieDataStoreIDs = Set<UUID>()
 
     func attach(store: BrowserStore) {
         self.store = store
@@ -17,10 +27,14 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate {
             return existingWebView
         }
 
+        let dataStoreID = store?.dataStoreID(for: tab.spaceID) ?? tab.spaceID
+        let dataStore = WKWebsiteDataStore(forIdentifier: dataStoreID)
+
         let configuration = WKWebViewConfiguration()
         configuration.allowsAirPlayForMediaPlayback = true
         configuration.defaultWebpagePreferences.allowsContentJavaScript = true
-        configuration.websiteDataStore = WKWebsiteDataStore(forIdentifier: store?.dataStoreID(for: tab.spaceID) ?? tab.spaceID)
+        configuration.websiteDataStore = dataStore
+        resetGoogleLocaleCookiesIfNeeded(in: dataStore, id: dataStoreID)
 
         let webView = WKWebView(frame: .zero, configuration: configuration)
         webView.navigationDelegate = self
@@ -56,8 +70,15 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate {
     }
 
     func load(_ url: URL, in tabID: UUID) {
+        let url = store?.navigationService.preferredLocaleURL(for: url) ?? url
         let webView = webViews[tabID]
         let targetWebView: WKWebView
+
+        if let target = store?.navigationService.webAppPromptForwardingTarget(for: url) {
+            pendingWebAppPrompts[tabID] = PendingWebAppPrompt(providerID: target.providerID, query: target.query)
+        } else {
+            pendingWebAppPrompts[tabID] = nil
+        }
 
         if let webView {
             targetWebView = webView
@@ -66,14 +87,16 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate {
             targetWebView = self.webView(for: BrowserTab(id: tabID, title: placeholderTab.title, url: url, spaceID: placeholderTab.spaceID))
         }
 
-        targetWebView.load(URLRequest(url: url))
+        targetWebView.load(request(for: url))
     }
 
     func removeWebView(for tabID: UUID) {
         guard let webView = webViews.removeValue(forKey: tabID) else { return }
+        pendingWebAppPrompts[tabID] = nil
         observations[tabID] = nil
-        webView.navigationDelegate = nil
         webView.stopLoading()
+        webView.navigationDelegate = nil
+        webView.loadHTMLString("", baseURL: nil)
         tabIDsByWebView.removeObject(forKey: webView)
     }
 
@@ -113,6 +136,7 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate {
         updateStore(from: webView, isLoading: false)
         recordHistoryVisit(for: webView)
         refreshFavicon(for: webView)
+        forwardWebAppPromptIfNeeded(for: webView)
     }
 
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
@@ -182,6 +206,27 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate {
         ]
     }
 
+    private func request(for url: URL) -> URLRequest {
+        var request = URLRequest(url: url)
+        request.setValue(Self.acceptLanguageHeader, forHTTPHeaderField: "Accept-Language")
+        return request
+    }
+
+    private func resetGoogleLocaleCookiesIfNeeded(in dataStore: WKWebsiteDataStore, id: UUID) {
+        guard !cleanedLocaleCookieDataStoreIDs.contains(id) else { return }
+        cleanedLocaleCookieDataStoreIDs.insert(id)
+
+        dataStore.httpCookieStore.getAllCookies { cookies in
+            let localeCookies = cookies.filter { cookie in
+                let domain = cookie.domain.lowercased()
+                let isGoogleDomain = domain == "google.com" || domain == ".google.com" || domain.hasSuffix(".google.com")
+                return isGoogleDomain && Self.googleLocaleCookieNames.contains(cookie.name)
+            }
+
+            localeCookies.forEach { dataStore.httpCookieStore.delete($0) }
+        }
+    }
+
     private func refreshFavicon(for webView: WKWebView) {
         guard
             let tabIDString = tabIDsByWebView.object(forKey: webView) as String?,
@@ -209,6 +254,141 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate {
         }
     }
 
+    private func forwardWebAppPromptIfNeeded(for webView: WKWebView) {
+        guard
+            let tabIDString = tabIDsByWebView.object(forKey: webView) as String?,
+            let tabID = UUID(uuidString: tabIDString),
+            let pendingPrompt = pendingWebAppPrompts[tabID],
+            store?.navigationService.canForwardWebAppPrompt(to: webView.url, providerID: pendingPrompt.providerID) == true
+        else {
+            return
+        }
+
+        let promptLiteral = javaScriptStringLiteral(for: pendingPrompt.query)
+        let script = """
+        (() => {
+          const prompt = \(promptLiteral);
+          const selectors = [
+            "textarea",
+            "[contenteditable='true']",
+            "[role='textbox']"
+          ];
+
+          const isVisible = (element) => {
+            const rect = element.getBoundingClientRect();
+            const style = window.getComputedStyle(element);
+            return rect.width > 0 && rect.height > 0 && style.visibility !== "hidden" && style.display !== "none";
+          };
+
+          const setPlainInputValue = (element, value) => {
+            const prototype = Object.getPrototypeOf(element);
+            const descriptor = Object.getOwnPropertyDescriptor(prototype, "value");
+            if (descriptor && descriptor.set) {
+              descriptor.set.call(element, value);
+            } else {
+              element.value = value;
+            }
+          };
+
+          const setPromptText = (element) => {
+            element.focus();
+            if (element.isContentEditable) {
+              const selection = window.getSelection();
+              const range = document.createRange();
+              range.selectNodeContents(element);
+              selection.removeAllRanges();
+              selection.addRange(range);
+              document.execCommand("insertText", false, prompt);
+            } else {
+              setPlainInputValue(element, prompt);
+            }
+
+            element.dispatchEvent(new InputEvent("input", {
+              bubbles: true,
+              cancelable: true,
+              data: prompt,
+              inputType: "insertText"
+            }));
+            element.dispatchEvent(new Event("change", { bubbles: true }));
+          };
+
+          const submitPrompt = (element) => {
+            const buttons = Array.from(document.querySelectorAll("button, [role='button']"));
+            const sendButton = buttons.find((button) => {
+              const label = [
+                button.getAttribute("aria-label"),
+                button.getAttribute("data-tooltip"),
+                button.title,
+                button.textContent
+              ].filter(Boolean).join(" ").toLowerCase();
+              return !button.disabled && !button.getAttribute("aria-disabled") && /send|submit/.test(label);
+            });
+
+            if (sendButton) {
+              sendButton.click();
+              return;
+            }
+
+            element.dispatchEvent(new KeyboardEvent("keydown", {
+              bubbles: true,
+              cancelable: true,
+              key: "Enter",
+              code: "Enter"
+            }));
+          };
+
+          const findPromptBox = () => {
+            return selectors
+              .flatMap((selector) => Array.from(document.querySelectorAll(selector)))
+              .filter(isVisible)
+              .find((element) => !element.closest("[aria-hidden='true']"));
+          };
+
+          const deadline = Date.now() + 10000;
+          return new Promise((resolve) => {
+            const attempt = () => {
+              const promptBox = findPromptBox();
+              if (!promptBox) {
+                if (Date.now() < deadline) {
+                  window.setTimeout(attempt, 250);
+                } else {
+                  resolve(false);
+                }
+                return;
+              }
+
+              setPromptText(promptBox);
+              window.setTimeout(() => {
+                submitPrompt(promptBox);
+                resolve(true);
+              }, 200);
+            };
+
+            attempt();
+          });
+        })();
+        """
+
+        webView.evaluateJavaScript(script) { [weak self] value, error in
+            Task { @MainActor in
+                self?.pendingWebAppPrompts[tabID] = nil
+            }
+        }
+    }
+
+    private func javaScriptStringLiteral(for value: String) -> String {
+        guard
+            let data = try? JSONSerialization.data(withJSONObject: [value]),
+            let arrayLiteral = String(data: data, encoding: .utf8),
+            arrayLiteral.first == "[",
+            arrayLiteral.last == "]"
+        else {
+            return "\"\""
+        }
+
+        return String(arrayLiteral.dropFirst().dropLast())
+    }
+
     private var newTabHTML: String {
         """
         <!doctype html>
@@ -234,7 +414,7 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate {
         </head>
         <body>
           <main>
-            <h1>Luma Browser</h1>
+            <h1>Luma</h1>
             <p>Search or enter a URL from the address bar.</p>
           </main>
         </body>
