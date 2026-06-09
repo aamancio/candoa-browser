@@ -15,6 +15,9 @@ final class BrowserStore: ObservableObject {
     @Published var commandPaletteSessionID = UUID()
     @Published var isCreateSpacePresented = false
     @Published var addressFocusRequestID = UUID()
+    @Published private(set) var isTabSwitcherPresented = false
+    @Published private(set) var tabSwitcherTabs: [BrowserTab] = []
+    @Published private(set) var tabSwitcherSelectedTabID: UUID?
     @Published private(set) var canGoBack = false
     @Published private(set) var canGoForward = false
     @Published var draggedTabID: UUID?
@@ -28,6 +31,7 @@ final class BrowserStore: ObservableObject {
     private let persistenceService: PersistenceService
     private let faviconService: FaviconService
     private var saveCancellable: AnyCancellable?
+    private var tabSwitcherHideWorkItem: DispatchWorkItem?
     private let spaceSymbols = [
         "circle.grid.2x2",
         "sparkle",
@@ -343,6 +347,27 @@ final class BrowserStore: ObservableObject {
         switchTab(offset: -1)
     }
 
+    func switchToNextRecentTab(keepsPreviewOpen: Bool = false) {
+        switchTabInRecentOrder(offset: 1, keepsPreviewOpen: keepsPreviewOpen)
+    }
+
+    func switchToPreviousRecentTab(keepsPreviewOpen: Bool = false) {
+        switchTabInRecentOrder(offset: -1, keepsPreviewOpen: keepsPreviewOpen)
+    }
+
+    func finishTabSwitcherInteraction() {
+        guard isTabSwitcherPresented else { return }
+
+        tabSwitcherHideWorkItem?.cancel()
+        let workItem = DispatchWorkItem { [weak self] in
+            Task { @MainActor in
+                self?.hideTabSwitcher()
+            }
+        }
+        tabSwitcherHideWorkItem = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.08, execute: workItem)
+    }
+
     func switchToNextSpace() {
         switchSpace(offset: 1)
     }
@@ -560,7 +585,81 @@ final class BrowserStore: ObservableObject {
         guard !visibleTabs.isEmpty else { return }
         let currentIndex = visibleTabs.firstIndex(where: { $0.id == activeTabID }) ?? 0
         let nextIndex = (currentIndex + offset + visibleTabs.count) % visibleTabs.count
-        switchTab(to: visibleTabs[nextIndex].id)
+        let selectedTabID = visibleTabs[nextIndex].id
+        switchTab(to: selectedTabID)
+        presentTabSwitcher(selectedTabID: selectedTabID)
+    }
+
+    private func switchTabInRecentOrder(offset: Int, keepsPreviewOpen: Bool) {
+        let recentTabs = isTabSwitcherPresented && !tabSwitcherTabs.isEmpty
+            ? tabSwitcherTabs
+            : recentTabsForActiveSpace(limit: 10)
+        guard !recentTabs.isEmpty else { return }
+        guard recentTabs.count > 1 else {
+            presentTabSwitcher(
+                candidates: recentTabs,
+                selectedTabID: activeTabID,
+                autoHide: !keepsPreviewOpen
+            )
+            return
+        }
+
+        let currentSelectionID = tabSwitcherSelectedTabID ?? activeTabID
+        let currentIndex = recentTabs.firstIndex(where: { $0.id == currentSelectionID }) ?? 0
+        let nextIndex = (currentIndex + offset + recentTabs.count) % recentTabs.count
+        let selectedTabID = recentTabs[nextIndex].id
+        switchTab(to: selectedTabID)
+        presentTabSwitcher(
+            candidates: recentTabs,
+            selectedTabID: selectedTabID,
+            autoHide: !keepsPreviewOpen
+        )
+    }
+
+    private func presentTabSwitcher(
+        candidates: [BrowserTab]? = nil,
+        selectedTabID: UUID? = nil,
+        autoHide: Bool = true
+    ) {
+        let previewTabs = Array((candidates ?? recentTabsForActiveSpace(limit: 10)).prefix(10))
+        guard !previewTabs.isEmpty else {
+            hideTabSwitcher()
+            return
+        }
+
+        tabSwitcherHideWorkItem?.cancel()
+        tabSwitcherTabs = previewTabs
+        tabSwitcherSelectedTabID = selectedTabID ?? activeTabID ?? previewTabs.first?.id
+        isTabSwitcherPresented = true
+
+        guard autoHide else { return }
+
+        let workItem = DispatchWorkItem { [weak self] in
+            Task { @MainActor in
+                self?.hideTabSwitcher()
+            }
+        }
+        tabSwitcherHideWorkItem = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.25, execute: workItem)
+    }
+
+    private func hideTabSwitcher() {
+        tabSwitcherHideWorkItem?.cancel()
+        tabSwitcherHideWorkItem = nil
+        isTabSwitcherPresented = false
+    }
+
+    private func recentTabsForActiveSpace(limit: Int) -> [BrowserTab] {
+        tabs
+            .filter { $0.spaceID == activeSpaceID }
+            .sorted {
+                if $0.lastAccessedAt == $1.lastAccessedAt {
+                    return $0.sortOrder < $1.sortOrder
+                }
+                return $0.lastAccessedAt > $1.lastAccessedAt
+            }
+            .prefix(limit)
+            .map { $0 }
     }
 
     private func switchSpace(offset: Int) {

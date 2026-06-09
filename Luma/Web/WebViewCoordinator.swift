@@ -124,6 +124,26 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate {
         return (webView.canGoBack, webView.canGoForward)
     }
 
+    func snapshotImage(for tabID: UUID, width: CGFloat, completion: @escaping (NSImage?) -> Void) {
+        guard
+            let webView = webViews[tabID],
+            !webView.bounds.isEmpty
+        else {
+            completion(nil)
+            return
+        }
+
+        let configuration = WKSnapshotConfiguration()
+        configuration.rect = CGRect(origin: .zero, size: webView.bounds.size)
+        configuration.snapshotWidth = NSNumber(value: Double(width))
+
+        webView.takeSnapshot(with: configuration) { image, _ in
+            DispatchQueue.main.async {
+                completion(image)
+            }
+        }
+    }
+
     func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
         updateStore(from: webView, isLoading: true)
     }

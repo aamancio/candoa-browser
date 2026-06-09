@@ -3,6 +3,7 @@ import SwiftUI
 
 struct ContentView: View {
     @StateObject private var store = BrowserStore()
+    @SceneStorage("luma.windowAutosaveID") private var windowAutosaveID = UUID().uuidString
     @State private var isSidebarVisible = true
     @State private var isSidebarHoverRevealed = false
     @State private var isSidebarRevealSuppressed = false
@@ -35,8 +36,13 @@ struct ContentView: View {
                     .transition(.scale(scale: 0.98).combined(with: .opacity))
                     .zIndex(10)
             }
+
+            if store.isTabSwitcherPresented {
+                TabSwitcherOverlay(store: store)
+                    .zIndex(9)
+            }
         }
-        .background(WindowInteractionConfigurator())
+        .background(WindowInteractionConfigurator(autosaveName: "Luma.BrowserWindow.\(windowAutosaveID)"))
         .background(
             MouseMoveMonitor(
                 isSidebarVisible: $isSidebarVisible,
@@ -47,9 +53,16 @@ struct ContentView: View {
         .background(
             KeyboardShortcutMonitor {
                 store.openCommandPalette()
+            } onControlTab: {
+                store.switchToNextRecentTab(keepsPreviewOpen: true)
+            } onControlShiftTab: {
+                store.switchToPreviousRecentTab(keepsPreviewOpen: true)
+            } onControlReleased: {
+                store.finishTabSwitcherInteraction()
             }
         )
         .animation(.easeOut(duration: 0.14), value: store.isCommandPalettePresented)
+        .animation(.easeOut(duration: 0.14), value: store.isTabSwitcherPresented)
         .animation(.easeOut(duration: 0.18), value: isSidebarPresented)
         .animation(.easeOut(duration: 0.18), value: isSidebarVisible)
         .onReceive(NotificationCenter.default.publisher(for: .lumaFocusAddressBar)) { _ in
@@ -119,9 +132,17 @@ struct ContentView: View {
 
 private struct KeyboardShortcutMonitor: NSViewRepresentable {
     let onCommandT: () -> Void
+    let onControlTab: () -> Void
+    let onControlShiftTab: () -> Void
+    let onControlReleased: () -> Void
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(onCommandT: onCommandT)
+        Coordinator(
+            onCommandT: onCommandT,
+            onControlTab: onControlTab,
+            onControlShiftTab: onControlShiftTab,
+            onControlReleased: onControlReleased
+        )
     }
 
     func makeNSView(context: Context) -> NSView {
@@ -131,30 +152,62 @@ private struct KeyboardShortcutMonitor: NSViewRepresentable {
 
     func updateNSView(_ nsView: NSView, context: Context) {
         context.coordinator.onCommandT = onCommandT
+        context.coordinator.onControlTab = onControlTab
+        context.coordinator.onControlShiftTab = onControlShiftTab
+        context.coordinator.onControlReleased = onControlReleased
         context.coordinator.installMonitorIfNeeded()
     }
 
     final class Coordinator {
         var onCommandT: () -> Void
+        var onControlTab: () -> Void
+        var onControlShiftTab: () -> Void
+        var onControlReleased: () -> Void
         private var monitor: Any?
 
-        init(onCommandT: @escaping () -> Void) {
+        init(
+            onCommandT: @escaping () -> Void,
+            onControlTab: @escaping () -> Void,
+            onControlShiftTab: @escaping () -> Void,
+            onControlReleased: @escaping () -> Void
+        ) {
             self.onCommandT = onCommandT
+            self.onControlTab = onControlTab
+            self.onControlShiftTab = onControlShiftTab
+            self.onControlReleased = onControlReleased
         }
 
         func installMonitorIfNeeded() {
             guard monitor == nil else { return }
 
-            monitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown]) { [weak self] event in
-                guard
-                    let self,
-                    Self.isCommandT(event)
-                else {
+            monitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .flagsChanged]) { [weak self] event in
+                guard let self else {
                     return event
                 }
 
-                onCommandT()
-                return nil
+                if event.type == .flagsChanged {
+                    if !Self.isControlPressed(event) {
+                        onControlReleased()
+                    }
+                    return event
+                }
+
+                if Self.isCommandT(event) {
+                    onCommandT()
+                    return nil
+                }
+
+                if Self.isControlShiftTab(event) {
+                    onControlShiftTab()
+                    return nil
+                }
+
+                if Self.isControlTab(event) {
+                    onControlTab()
+                    return nil
+                }
+
+                return event
             }
         }
 
@@ -162,6 +215,20 @@ private struct KeyboardShortcutMonitor: NSViewRepresentable {
             let modifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
             return modifiers == .command &&
                 event.charactersIgnoringModifiers?.lowercased() == "t"
+        }
+
+        private static func isControlTab(_ event: NSEvent) -> Bool {
+            let modifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+            return modifiers == .control && event.keyCode == 48
+        }
+
+        private static func isControlShiftTab(_ event: NSEvent) -> Bool {
+            let modifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+            return modifiers == [.control, .shift] && event.keyCode == 48
+        }
+
+        private static func isControlPressed(_ event: NSEvent) -> Bool {
+            event.modifierFlags.intersection(.deviceIndependentFlagsMask).contains(.control)
         }
 
         deinit {
@@ -281,29 +348,57 @@ private struct MouseMoveMonitor: NSViewRepresentable {
 }
 
 private struct WindowInteractionConfigurator: NSViewRepresentable {
+    let autosaveName: String
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator()
+    }
+
     func makeNSView(context: Context) -> NSView {
         let view = NSView(frame: .zero)
         DispatchQueue.main.async {
-            configure(window: view.window)
+            context.coordinator.configure(window: view.window, autosaveName: autosaveName)
         }
         return view
     }
 
     func updateNSView(_ nsView: NSView, context: Context) {
         DispatchQueue.main.async {
-            configure(window: nsView.window)
+            context.coordinator.configure(window: nsView.window, autosaveName: autosaveName)
         }
     }
 
-    private func configure(window: NSWindow?) {
-        guard let window else { return }
-        window.titleVisibility = .hidden
-        window.titlebarAppearsTransparent = true
-        window.styleMask.insert(.fullSizeContentView)
-        window.isMovableByWindowBackground = false
+    @MainActor
+    final class Coordinator {
+        private static let minimumWindowSize = NSSize(width: 980, height: 640)
 
-        window.standardWindowButton(.closeButton)?.isHidden = true
-        window.standardWindowButton(.miniaturizeButton)?.isHidden = true
-        window.standardWindowButton(.zoomButton)?.isHidden = true
+        private weak var configuredWindow: NSWindow?
+        private var configuredAutosaveName: String?
+
+        func configure(window: NSWindow?, autosaveName: String) {
+            guard let window else { return }
+            configureChrome(for: window)
+
+            guard configuredWindow !== window || configuredAutosaveName != autosaveName else {
+                return
+            }
+
+            configuredWindow = window
+            configuredAutosaveName = autosaveName
+            _ = window.setFrameUsingName(autosaveName)
+            _ = window.setFrameAutosaveName(autosaveName)
+        }
+
+        private func configureChrome(for window: NSWindow) {
+            window.minSize = Self.minimumWindowSize
+            window.titleVisibility = .hidden
+            window.titlebarAppearsTransparent = true
+            window.styleMask.insert(.fullSizeContentView)
+            window.isMovableByWindowBackground = false
+
+            window.standardWindowButton(.closeButton)?.isHidden = true
+            window.standardWindowButton(.miniaturizeButton)?.isHidden = true
+            window.standardWindowButton(.zoomButton)?.isHidden = true
+        }
     }
 }
