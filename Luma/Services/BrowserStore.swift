@@ -2,6 +2,12 @@ import AppKit
 import Combine
 import Foundation
 
+struct TabMediaState: Equatable {
+    var hasMedia = false
+    var isPlaying = false
+    var isMuted = false
+}
+
 @MainActor
 final class BrowserStore: ObservableObject {
     private struct ClosedTabSnapshot {
@@ -36,6 +42,8 @@ final class BrowserStore: ObservableObject {
     @Published var draggedTabID: UUID?
     @Published var isFindBarPresented = false
     @Published var findQuery = ""
+    @Published private(set) var mediaStates: [UUID: TabMediaState] = [:]
+    @Published private(set) var mediaControllerTabID: UUID?
 
     private var recentlyClosedTabs: [ClosedTabSnapshot] = []
     private static let recentlyClosedTabLimit = 50
@@ -47,6 +55,7 @@ final class BrowserStore: ObservableObject {
     private let faviconService: FaviconService
     private var saveCancellable: AnyCancellable?
     private var tabSwitcherHideWorkItem: DispatchWorkItem?
+    private var tabSwitcherShowWorkItem: DispatchWorkItem?
     private var tabSwitcherCandidates: [BrowserTab] = []
     private let spaceSymbols = [
         "circle.grid.2x2",
@@ -316,6 +325,10 @@ final class BrowserStore: ObservableObject {
         rememberClosedTab(closingTab)
         tabs.remove(at: index)
         webCoordinator.removeWebView(for: id)
+        mediaStates[id] = nil
+        if mediaControllerTabID == id {
+            mediaControllerTabID = nil
+        }
 
         if splitTabID == id {
             splitTabID = replacementSplitTab(excluding: id)?.id
@@ -472,6 +485,51 @@ final class BrowserStore: ObservableObject {
         updateNavigationState()
     }
 
+    // MARK: - Media Controller
+
+    var mediaControllerTab: BrowserTab? {
+        guard let mediaControllerTabID else { return nil }
+        return tabs.first { $0.id == mediaControllerTabID }
+    }
+
+    var mediaControllerState: TabMediaState? {
+        guard let mediaControllerTabID else { return nil }
+        return mediaStates[mediaControllerTabID]
+    }
+
+    func updateMediaState(tabID: UUID, state: TabMediaState) {
+        guard tabs.contains(where: { $0.id == tabID }) else { return }
+        mediaStates[tabID] = state.hasMedia ? state : nil
+
+        if state.isPlaying {
+            // The most recently playing tab owns the controller; it keeps it
+            // while paused so playback can be resumed from the sidebar.
+            mediaControllerTabID = tabID
+        } else if mediaControllerTabID == tabID, !state.hasMedia {
+            mediaControllerTabID = nil
+        }
+    }
+
+    func toggleMediaPlayback() {
+        guard let mediaControllerTabID else { return }
+        webCoordinator.toggleMediaPlayback(tabID: mediaControllerTabID)
+    }
+
+    func toggleMediaMute() {
+        guard let mediaControllerTabID else { return }
+        webCoordinator.toggleMediaMute(tabID: mediaControllerTabID)
+    }
+
+    func skipMediaTrack(forward: Bool) {
+        guard let mediaControllerTabID else { return }
+        webCoordinator.skipMediaTrack(tabID: mediaControllerTabID, forward: forward)
+    }
+
+    func focusMediaTab() {
+        guard let mediaControllerTabID else { return }
+        switchTab(to: mediaControllerTabID)
+    }
+
     /// Auto picture-in-picture, Arc-style: leaving a tab with playing video
     /// pops it into the system PiP window; returning brings it back inline.
     private func handleActiveTabChange(from previousID: UUID?) {
@@ -526,6 +584,13 @@ final class BrowserStore: ObservableObject {
     }
 
     func finishTabSwitcherInteraction() {
+        // Quick tap: Control was released before the preview appeared, so the
+        // switch stays silent — just commit the interaction.
+        if tabSwitcherShowWorkItem != nil {
+            hideTabSwitcher()
+            return
+        }
+
         guard isTabSwitcherPresented else { return }
 
         tabSwitcherHideWorkItem?.cancel()
@@ -770,8 +835,9 @@ final class BrowserStore: ObservableObject {
     private func switchTabInRecentOrder(offset: Int, keepsPreviewOpen: Bool) {
         // Control-Tab cycles the top tabs in sidebar order, up to the preview
         // limit. The list is frozen for the whole interaction so it doesn't
-        // shift underneath the cycling.
-        if !isTabSwitcherPresented || tabSwitcherCandidates.isEmpty {
+        // shift underneath the cycling. (Candidates are cleared when the
+        // interaction ends, including before the preview ever appears.)
+        if tabSwitcherCandidates.isEmpty {
             tabSwitcherCandidates = Array(
                 visibleTabsForActiveSpace.prefix(TabSwitcherConfiguration.previewLimit)
             )
@@ -824,7 +890,27 @@ final class BrowserStore: ObservableObject {
         tabSwitcherHideWorkItem?.cancel()
         tabSwitcherTabs = previewTabs
         tabSwitcherSelectedTabID = selectedTabID ?? previewTabs.first?.id
-        isTabSwitcherPresented = true
+
+        if isTabSwitcherPresented || autoHide {
+            tabSwitcherShowWorkItem?.cancel()
+            tabSwitcherShowWorkItem = nil
+            isTabSwitcherPresented = true
+        } else if tabSwitcherShowWorkItem == nil {
+            // Hold-to-reveal: defer the overlay so a quick Control-Tab stays a
+            // silent switch. Repeated presses keep the original deadline.
+            let workItem = DispatchWorkItem { [weak self] in
+                Task { @MainActor in
+                    guard let self else { return }
+                    self.tabSwitcherShowWorkItem = nil
+                    self.isTabSwitcherPresented = true
+                }
+            }
+            tabSwitcherShowWorkItem = workItem
+            DispatchQueue.main.asyncAfter(
+                deadline: .now() + TabSwitcherConfiguration.holdRevealDelay,
+                execute: workItem
+            )
+        }
 
         guard autoHide else { return }
 
@@ -840,6 +926,8 @@ final class BrowserStore: ObservableObject {
     private func hideTabSwitcher() {
         tabSwitcherHideWorkItem?.cancel()
         tabSwitcherHideWorkItem = nil
+        tabSwitcherShowWorkItem?.cancel()
+        tabSwitcherShowWorkItem = nil
         isTabSwitcherPresented = false
         tabSwitcherCandidates = []
         tabSwitcherSelectedTabID = nil

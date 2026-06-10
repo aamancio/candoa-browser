@@ -21,8 +21,7 @@ struct WebViewContainer: View {
                     .padding(surfacePadding)
                 } else {
                     browserSurface {
-                        WKWebViewRepresentable(tab: tab, store: store)
-                            .id(tab.id)
+                        ActiveWebViewHost(tab: tab, store: store)
                             .background(Color(nsColor: .windowBackgroundColor))
                     }
                     .padding(surfacePadding)

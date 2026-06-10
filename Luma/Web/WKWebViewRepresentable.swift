@@ -13,3 +13,24 @@ struct WKWebViewRepresentable: NSViewRepresentable {
         store.webCoordinator.ensureLoaded(tab)
     }
 }
+
+/// Persistent host for the active tab's web view. Unlike swapping
+/// representables per tab, this keeps background web views parented so
+/// picture-in-picture and media playback survive tab switches.
+struct ActiveWebViewHost: NSViewRepresentable {
+    let tab: BrowserTab
+    @ObservedObject var store: BrowserStore
+
+    func makeNSView(context: Context) -> NSView {
+        NSView()
+    }
+
+    func updateNSView(_ container: NSView, context: Context) {
+        store.webCoordinator.ensureLoaded(tab)
+        store.webCoordinator.hostActiveWebView(
+            for: tab.id,
+            in: container,
+            excludingTabID: store.splitTabID
+        )
+    }
+}

@@ -47,12 +47,16 @@ enum BrowserDefaults {
 }
 
 enum SidebarRevealConfiguration {
-    static let revealDistanceFromLeftEdge: CGFloat = 64
-    static let suppressionResetDistance: CGFloat = 96
+    static let revealDistanceFromLeftEdge: CGFloat = 10
+    static let suppressionResetDistance: CGFloat = 48
     static let hideDistanceFromLeftEdge: CGFloat = 250
     static let pollingInterval: TimeInterval = 0.12
 }
 
 enum TabSwitcherConfiguration {
     static let previewLimit = 5
+
+    /// Arc-style hold-to-reveal: a quick Control-Tab switches silently; the
+    /// preview overlay only appears if Control is still held after this delay.
+    static let holdRevealDelay: TimeInterval = 0.25
 }

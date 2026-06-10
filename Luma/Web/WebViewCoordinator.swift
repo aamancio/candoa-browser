@@ -3,7 +3,7 @@ import Foundation
 import WebKit
 
 @MainActor
-final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WKDownloadDelegate {
+final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WKDownloadDelegate, WKScriptMessageHandler {
     private struct PendingWebAppPrompt {
         let providerID: String
         let query: String
@@ -62,6 +62,16 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         webView.allowsMagnification = true
         webView.setValue(false, forKey: "drawsBackground")
 
+        let contentController = webView.configuration.userContentController
+        contentController.add(self, name: Self.mediaStateMessageName)
+        contentController.addUserScript(
+            WKUserScript(
+                source: Self.mediaObserverScript,
+                injectionTime: .atDocumentStart,
+                forMainFrameOnly: true
+            )
+        )
+
         webViews[tabID] = webView
         tabIDsByWebView.setObject(tabID.uuidString as NSString, forKey: webView)
         observe(webView, tabID: tabID)
@@ -114,8 +124,13 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         webView.stopLoading()
         webView.navigationDelegate = nil
         webView.uiDelegate = nil
+        webView.configuration.userContentController.removeScriptMessageHandler(forName: Self.mediaStateMessageName)
         webView.loadHTMLString("", baseURL: nil)
+        webView.removeFromSuperview()
         tabIDsByWebView.removeObject(forKey: webView)
+        if hostedActiveTabID == tabID {
+            hostedActiveTabID = nil
+        }
     }
 
     func goBack(tabID: UUID) {
@@ -174,6 +189,158 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         }?.offset ?? levels.firstIndex(of: 1) ?? 0
         let nextIndex = min(max(currentIndex + direction, 0), levels.count - 1)
         webView.pageZoom = levels[nextIndex]
+    }
+
+    // MARK: - Web View Hosting
+
+    /// Hosts the active tab's web view inside a persistent container while
+    /// keeping background tabs' web views parented (hidden) underneath it.
+    /// Unparenting a web view tears down its presentation, which kills
+    /// in-flight picture-in-picture and throttles media playback.
+    func hostActiveWebView(for tabID: UUID, in container: NSView, excludingTabID: UUID?) {
+        guard let activeWebView = webViews[tabID] else { return }
+
+        for (id, webView) in webViews where id != tabID && id != excludingTabID {
+            guard webView.superview !== container else { continue }
+            webView.frame = container.bounds
+            webView.autoresizingMask = [.width, .height]
+            webView.isHidden = true
+            container.addSubview(webView, positioned: .below, relativeTo: nil)
+        }
+
+        guard hostedActiveTabID != tabID || activeWebView.superview !== container else { return }
+        let previousActiveTabID = hostedActiveTabID
+        hostedActiveTabID = tabID
+
+        activeWebView.frame = container.bounds
+        activeWebView.autoresizingMask = [.width, .height]
+        activeWebView.isHidden = false
+        activeWebView.removeFromSuperview()
+        container.addSubview(activeWebView)
+
+        // The outgoing web view stays visible (covered by the new active one)
+        // for a beat so its video can finish entering picture-in-picture.
+        guard let previousActiveTabID, previousActiveTabID != tabID else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+            guard
+                let self,
+                self.hostedActiveTabID != previousActiveTabID,
+                let webView = self.webViews[previousActiveTabID],
+                webView.superview != nil
+            else {
+                return
+            }
+            webView.isHidden = true
+        }
+    }
+
+    // MARK: - Media Playback State & Controls
+
+    static let mediaStateMessageName = "lumaMediaState"
+
+    /// Injected at document start; reports playback state whenever any media
+    /// element on the page plays, pauses, ends, or changes volume.
+    private static let mediaObserverScript = """
+    (() => {
+      if (window.__lumaMediaObserved) { return; }
+      window.__lumaMediaObserved = true;
+
+      const report = () => {
+        const handler = window.webkit?.messageHandlers?.\(mediaStateMessageName);
+        if (!handler) { return; }
+
+        const medias = Array.from(document.querySelectorAll("video, audio"));
+        const playing = medias.find((media) => !media.paused && !media.ended && media.readyState >= 2);
+        const current = playing || medias.find((media) => media.currentTime > 0 && !media.ended);
+        handler.postMessage({
+          hasMedia: Boolean(current),
+          isPlaying: Boolean(playing),
+          isMuted: current ? (current.muted || current.volume === 0) : false
+        });
+      };
+
+      ["play", "playing", "pause", "ended", "emptied", "volumechange"].forEach((eventName) => {
+        document.addEventListener(eventName, report, true);
+      });
+      document.addEventListener("visibilitychange", report);
+    })();
+    """
+
+    func userContentController(
+        _ userContentController: WKUserContentController,
+        didReceive message: WKScriptMessage
+    ) {
+        guard
+            message.name == Self.mediaStateMessageName,
+            let webView = message.webView,
+            let tabID = tabID(for: webView),
+            let body = message.body as? [String: Any]
+        else {
+            return
+        }
+
+        let state = TabMediaState(
+            hasMedia: body["hasMedia"] as? Bool ?? false,
+            isPlaying: body["isPlaying"] as? Bool ?? false,
+            isMuted: body["isMuted"] as? Bool ?? false
+        )
+        store?.updateMediaState(tabID: tabID, state: state)
+    }
+
+    func toggleMediaPlayback(tabID: UUID) {
+        webViews[tabID]?.evaluateJavaScript("""
+        (() => {
+          const medias = Array.from(document.querySelectorAll("video, audio"));
+          const playing = medias.filter((media) => !media.paused && !media.ended);
+          if (playing.length > 0) {
+            playing.forEach((media) => media.pause());
+            return;
+          }
+
+          const resumable = medias.find((media) => media.currentTime > 0 && !media.ended)
+            || medias.find((media) => media.readyState >= 2);
+          if (resumable) { resumable.play(); }
+        })();
+        """)
+    }
+
+    func toggleMediaMute(tabID: UUID) {
+        webViews[tabID]?.evaluateJavaScript("""
+        (() => {
+          const medias = Array.from(document.querySelectorAll("video, audio"))
+            .filter((media) => media.readyState >= 1 || media.currentTime > 0);
+          if (medias.length === 0) { return; }
+
+          const shouldMute = medias.some((media) => !media.muted);
+          medias.forEach((media) => { media.muted = shouldMute; });
+        })();
+        """)
+    }
+
+    func skipMediaTrack(tabID: UUID, forward: Bool) {
+        let buttonSelectors = forward
+            ? ".ytp-next-button, [aria-label='Next'], [data-testid='control-button-skip-forward']"
+            : ".ytp-prev-button, [aria-label='Previous'], [data-testid='control-button-skip-back']"
+        let seekDelta = forward ? 15.0 : -15.0
+
+        webViews[tabID]?.evaluateJavaScript("""
+        (() => {
+          const button = document.querySelector("\(buttonSelectors)");
+          if (button) {
+            button.click();
+            return;
+          }
+
+          // No track controls on this page: nudge the timeline instead.
+          const media = Array.from(document.querySelectorAll("video, audio"))
+            .find((candidate) => !candidate.paused && !candidate.ended)
+            || Array.from(document.querySelectorAll("video, audio")).find((candidate) => candidate.currentTime > 0);
+          if (!media) { return; }
+
+          const target = media.currentTime + (\(seekDelta));
+          media.currentTime = Math.max(0, Number.isFinite(media.duration) ? Math.min(media.duration, target) : target);
+        })();
+        """)
     }
 
     // MARK: - Auto Picture-in-Picture

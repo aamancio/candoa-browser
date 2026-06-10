@@ -389,7 +389,9 @@ private struct MouseMoveMonitor: NSViewRepresentable {
             guard monitor == nil else { return }
 
             monitor = NSEvent.addLocalMonitorForEvents(matching: [.mouseMoved]) { [weak self] event in
-                guard let self, isSidebarVisible?.wrappedValue == false else {
+                // Windowless events carry screen coordinates, not window-local
+                // ones, so the edge math below would misfire on them.
+                guard let self, event.window != nil, isSidebarVisible?.wrappedValue == false else {
                     return event
                 }
 
@@ -433,17 +435,16 @@ private struct MouseMoveMonitor: NSViewRepresentable {
         private func pollMouseLocation() {
             guard isSidebarVisible?.wrappedValue == false else { return }
 
+            // Only react when the pointer is actually inside one of our
+            // windows; falling back to an arbitrary window made the sidebar
+            // reveal while the mouse was nowhere near the app.
+            guard NSApp.isActive else { return }
             let mouseLocation = NSEvent.mouseLocation
-            let visibleWindows = NSApp.windows.filter { $0.isVisible }
-            guard let window = visibleWindows.first(where: { $0.frame.contains(mouseLocation) }) ?? visibleWindows.first else {
+            guard let window = NSApp.windows.first(where: { $0.isVisible && $0.frame.contains(mouseLocation) }) else {
                 return
             }
 
-            let frame = window.frame
-            let isVerticallyInsideWindow = mouseLocation.y >= frame.minY && mouseLocation.y <= frame.maxY
-            guard isVerticallyInsideWindow else { return }
-
-            let distanceFromLeftEdge = mouseLocation.x - frame.minX
+            let distanceFromLeftEdge = mouseLocation.x - window.frame.minX
             if isSidebarRevealSuppressed?.wrappedValue == true {
                 if distanceFromLeftEdge > SidebarRevealConfiguration.suppressionResetDistance {
                     isSidebarRevealSuppressed?.wrappedValue = false
