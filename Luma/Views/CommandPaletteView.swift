@@ -34,6 +34,7 @@ struct CommandPaletteView: View {
                     }
 
                     searchField
+                        .layoutPriority(1)
 
                     if let headerSearchProvider {
                         Spacer(minLength: 12)
@@ -109,17 +110,32 @@ struct CommandPaletteView: View {
     }
 
     private var searchField: some View {
-        TextField("", text: $query, prompt: Text(placeholderText).foregroundStyle(Color.white.opacity(0.52)))
-            .textFieldStyle(.plain)
-            .font(.system(size: 17, weight: .medium))
-            .foregroundStyle(Color.white.opacity(0.86))
-            .focused($isSearchFocused)
-            .onSubmit(performFirstCommand)
-            .onKeyPress(.tab) {
-                activateSearchProviderFromQuery()
-                return .handled
+        ZStack(alignment: .leading) {
+            if let autocompleteSuggestion, !autocompleteSuggestion.suffix.isEmpty {
+                HStack(spacing: 0) {
+                    Text(query)
+                        .foregroundStyle(.clear)
+                    Text(autocompleteSuggestion.suffix)
+                        .foregroundStyle(Color.white.opacity(0.30))
+                }
+                .font(.system(size: 17, weight: .medium))
+                .lineLimit(1)
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
             }
-            .frame(height: 30)
+
+            TextField("", text: $query, prompt: Text(placeholderText).foregroundStyle(Color.white.opacity(0.52)))
+                .textFieldStyle(.plain)
+                .font(.system(size: 17, weight: .medium))
+                .foregroundStyle(Color.white.opacity(0.86))
+                .focused($isSearchFocused)
+                .onSubmit(performFirstCommand)
+                .onKeyPress(.tab) {
+                    activateSearchProviderFromQuery()
+                    return .handled
+                }
+        }
+        .frame(maxWidth: .infinity, minHeight: 30, maxHeight: 30, alignment: .leading)
     }
 
     private func focusSearchField() {
@@ -151,7 +167,7 @@ struct CommandPaletteView: View {
 
     private var headerSearchProvider: SearchProvider? {
         guard selectedSearchProvider == nil, !isResumingSearchURL else { return nil }
-        return store.navigationService.searchProvider(matching: query)
+        return autocompleteSuggestion?.provider ?? store.navigationService.searchProvider(matching: query)
     }
 
     private var placeholderText: String {
@@ -170,6 +186,10 @@ struct CommandPaletteView: View {
 
     private var shouldSelectCurrentURL: Bool {
         !store.commandPaletteInitialText.isEmpty && query == store.commandPaletteInitialText
+    }
+
+    private var autocompleteSuggestion: PaletteAutocompleteSuggestion? {
+        autocompleteSuggestion(for: query, allowsProviderSuggestions: selectedSearchProvider == nil && !isResumingSearchURL)
     }
 
     private func commandCandidates(for trimmedQuery: String, isResumingSearchURL: Bool = false) -> [PaletteCommand] {
@@ -212,7 +232,7 @@ struct CommandPaletteView: View {
             )
         }
 
-        if let provider = store.navigationService.searchProvider(matching: trimmedQuery) {
+        if let provider = suggestedSearchProvider(for: trimmedQuery, allowsAutocomplete: !isResumingSearchURL) {
             let matchingProviders = searchProviderCommands.filter { $0.provider == provider }
             return matchingProviders + [navigateCommand] + commands
         }
@@ -349,6 +369,17 @@ struct CommandPaletteView: View {
             return
         }
 
+        if let autocompleteSuggestion {
+            if let provider = autocompleteSuggestion.provider {
+                selectedSearchProvider = provider
+                query = ""
+            } else {
+                query = autocompleteSuggestion.text
+            }
+            fieldFocusRequestID = UUID()
+            return
+        }
+
         guard let provider = store.navigationService.searchProvider(matching: commandQueryText) else {
             fieldFocusRequestID = UUID()
             return
@@ -410,6 +441,151 @@ struct CommandPaletteView: View {
 
     private func hostDisplayText(for url: URL?) -> String {
         url?.host(percentEncoded: false) ?? ""
+    }
+
+    private func suggestedSearchProvider(for rawQuery: String, allowsAutocomplete: Bool) -> SearchProvider? {
+        if allowsAutocomplete,
+           let provider = autocompleteSuggestion(
+                for: rawQuery,
+                allowsProviderSuggestions: selectedSearchProvider == nil
+           )?.provider {
+            return provider
+        }
+
+        return store.navigationService.searchProvider(matching: rawQuery)
+    }
+
+    private func autocompleteSuggestion(
+        for rawQuery: String,
+        allowsProviderSuggestions: Bool
+    ) -> PaletteAutocompleteSuggestion? {
+        let trimmedQuery = rawQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard
+            allowsProviderSuggestions,
+            !trimmedQuery.isEmpty,
+            trimmedQuery == rawQuery,
+            !trimmedQuery.contains("\n")
+        else {
+            return nil
+        }
+
+        return providerAutocompleteSuggestion(for: trimmedQuery)
+            ?? localAutocompleteSuggestion(for: trimmedQuery)
+    }
+
+    private func providerAutocompleteSuggestion(for rawQuery: String) -> PaletteAutocompleteSuggestion? {
+        var bestCandidate: (suggestion: PaletteAutocompleteSuggestion, score: Int, providerIndex: Int, candidateIndex: Int)?
+
+        for (providerIndex, provider) in NavigationService.searchProviders.enumerated() {
+            for (candidateIndex, text) in autocompleteTexts(for: provider).enumerated() {
+                guard let suggestion = makeAutocompleteSuggestion(text: text, query: rawQuery, provider: provider) else {
+                    continue
+                }
+
+                let score = text.contains(".") ? 0 : 1
+                if let bestCandidate {
+                    guard score < bestCandidate.score ||
+                        (score == bestCandidate.score && providerIndex < bestCandidate.providerIndex) ||
+                        (score == bestCandidate.score && providerIndex == bestCandidate.providerIndex && candidateIndex < bestCandidate.candidateIndex)
+                    else {
+                        continue
+                    }
+                }
+
+                bestCandidate = (suggestion, score, providerIndex, candidateIndex)
+            }
+        }
+
+        return bestCandidate?.suggestion
+    }
+
+    private func localAutocompleteSuggestion(for rawQuery: String) -> PaletteAutocompleteSuggestion? {
+        let historySuggestion = store.recentHistory(matching: rawQuery, limit: 8)
+            .flatMap { autocompleteTexts(title: $0.title, url: $0.url) }
+            .compactMap { makeAutocompleteSuggestion(text: $0, query: rawQuery) }
+            .first
+
+        if let historySuggestion {
+            return historySuggestion
+        }
+
+        return store.tabs
+            .sorted {
+                if $0.lastAccessedAt == $1.lastAccessedAt {
+                    return $0.sortOrder < $1.sortOrder
+                }
+                return $0.lastAccessedAt > $1.lastAccessedAt
+            }
+            .flatMap { autocompleteTexts(title: $0.title, url: $0.url) }
+            .compactMap { makeAutocompleteSuggestion(text: $0, query: rawQuery) }
+            .first
+    }
+
+    private func autocompleteTexts(for provider: SearchProvider) -> [String] {
+        let hostText = normalizedHostDisplayText(for: provider.homeURL.host(percentEncoded: false))
+        let domainAliases = provider.aliases
+            .filter { $0.contains(".") }
+            .compactMap { normalizedHostDisplayText(for: $0) }
+
+        let aliasTexts = provider.aliases.filter { !$0.contains(".") && $0.count > 2 }
+        return uniqueAutocompleteTexts(([hostText].compactMap { $0 } + domainAliases + [provider.name] + aliasTexts))
+    }
+
+    private func autocompleteTexts(title: String, url: URL?) -> [String] {
+        let hostText = normalizedHostDisplayText(for: url?.host(percentEncoded: false))
+        return uniqueAutocompleteTexts(([hostText, url?.absoluteString].compactMap { $0 } + [title]))
+    }
+
+    private func makeAutocompleteSuggestion(
+        text: String,
+        query: String,
+        provider: SearchProvider? = nil
+    ) -> PaletteAutocompleteSuggestion? {
+        guard text.range(of: query, options: [.anchored, .caseInsensitive]) != nil else {
+            return nil
+        }
+
+        guard text.count > query.count else {
+            return nil
+        }
+
+        let suffixStart = text.index(text.startIndex, offsetBy: query.count)
+        let resolvedProvider = provider ?? store.navigationService.searchProvider(matching: text)
+        return PaletteAutocompleteSuggestion(
+            text: text,
+            suffix: String(text[suffixStart...]),
+            provider: resolvedProvider
+        )
+    }
+
+    private func normalizedHostDisplayText(for host: String?) -> String? {
+        guard var host = host?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(), !host.isEmpty else {
+            return nil
+        }
+
+        if host.hasPrefix("www.") {
+            host.removeFirst(4)
+        }
+
+        if host.hasPrefix("en.") {
+            host.removeFirst(3)
+        }
+
+        return host
+    }
+
+    private func uniqueAutocompleteTexts(_ texts: [String]) -> [String] {
+        var seen = Set<String>()
+        var uniqueTexts: [String] = []
+
+        for text in texts {
+            let normalizedText = text.lowercased()
+            guard !seen.contains(normalizedText) else { continue }
+            seen.insert(normalizedText)
+            uniqueTexts.append(text)
+        }
+
+        return uniqueTexts
     }
 }
 
@@ -1045,6 +1221,12 @@ private struct PaletteCommand: Identifiable {
     }
 }
 
+private struct PaletteAutocompleteSuggestion {
+    let text: String
+    let suffix: String
+    let provider: SearchProvider?
+}
+
 private enum PaletteCommandStyle {
     case generic
     case tab
@@ -1080,6 +1262,7 @@ private struct SearchProviderChip: View {
             .background(provider.paletteColor)
             .clipShape(Capsule())
             .shadow(color: provider.paletteColor.opacity(0.42), radius: 14, y: 2)
+            .fixedSize(horizontal: true, vertical: false)
     }
 }
 
