@@ -3,14 +3,15 @@ import SwiftUI
 
 struct ContentView: View {
     @StateObject private var store = BrowserStore()
+    @StateObject private var updateService = AppUpdateService()
     @SceneStorage("luma.windowAutosaveID") private var windowAutosaveID = UUID().uuidString
     @State private var isSidebarVisible = true
     @State private var isSidebarHoverRevealed = false
     @State private var isSidebarRevealSuppressed = false
     @State private var miniPlayerOrigin: CGPoint?
     @State private var miniPlayerExpandedSize = MiniPlayerLayout.defaultExpandedSize
-    private let sidebarWidth: CGFloat = 232
-    private let sidebarDividerWidth: CGFloat = 1
+    private let sidebarWidth = LumaChromeStyle.sidebarWidth
+    private let sidebarDividerWidth: CGFloat = 0
 
     private var sidebarTotalWidth: CGFloat {
         sidebarWidth + sidebarDividerWidth
@@ -25,8 +26,8 @@ struct ContentView: View {
             WebViewContainer(store: store)
                 .ignoresSafeArea(.container, edges: .top)
                 .padding(.leading, isSidebarVisible ? sidebarTotalWidth : 0)
-                .blur(radius: store.isCreateSpacePresented ? 7 : 0)
-                .animation(.easeOut(duration: 0.16), value: store.isCreateSpacePresented)
+                .blur(radius: store.isSpaceSetupPresented ? 7 : 0)
+                .animation(.easeOut(duration: 0.16), value: store.isSpaceSetupPresented)
 
             sidebarLayout
                 .offset(x: isSidebarPresented ? 0 : -sidebarTotalWidth)
@@ -76,6 +77,7 @@ struct ContentView: View {
                 .zIndex(1)
             }
         }
+        .background(LumaChromeStyle.windowBackground.ignoresSafeArea())
         .background(WindowInteractionConfigurator(autosaveName: "\(AppConfiguration.windowAutosaveNamePrefix).\(windowAutosaveID)"))
         .background(
             MouseMoveMonitor(
@@ -116,6 +118,12 @@ struct ContentView: View {
         .animation(.easeOut(duration: 0.18), value: isSidebarPresented)
         .animation(.easeOut(duration: 0.18), value: isSidebarVisible)
         .focusedSceneValue(\.browserCommandActions, browserCommandActions)
+        .onAppear {
+            updateService.startCheckingForUpdates()
+        }
+        .onDisappear {
+            updateService.stopCheckingForUpdates()
+        }
     }
 
     private var browserCommandActions: BrowserCommandActions {
@@ -150,14 +158,25 @@ struct ContentView: View {
 
     private var sidebarLayout: some View {
         HStack(spacing: 0) {
-            SidebarView(store: store, onToggleSidebar: toggleSidebar)
+            SidebarView(
+                store: store,
+                availableUpdate: updateService.availableUpdate,
+                onUpdateBannerTapped: {
+                    updateService.openAvailableUpdate()
+                },
+                onToggleSidebar: toggleSidebar
+            )
                 .frame(width: sidebarWidth)
-
-            Divider()
         }
         .frame(width: sidebarTotalWidth, alignment: .leading)
         .frame(maxHeight: .infinity)
-        .background(.regularMaterial)
+        .background(LumaChromeStyle.sidebarBackground)
+        .overlay(alignment: .trailing) {
+            Rectangle()
+                .fill(LumaChromeStyle.sidebarBorder)
+                .frame(width: 1)
+        }
+        .shadow(color: Color(nsColor: .shadowColor).opacity(isSidebarVisible ? 0.18 : 0), radius: 18, x: 8, y: 0)
     }
 
     private func toggleSidebar() {

@@ -19,6 +19,8 @@ final class BrowserStore: ObservableObject {
         let spaceID: UUID
     }
 
+    static let spaceNameCharacterLimit = 24
+
     @Published private(set) var spaces: [BrowserSpace]
     @Published private(set) var tabs: [BrowserTab]
     @Published var activeSpaceID: UUID
@@ -36,6 +38,7 @@ final class BrowserStore: ObservableObject {
     @Published var commandPaletteSessionID = UUID()
     @Published private(set) var commandPaletteOpensNewTab = false
     @Published var isCreateSpacePresented = false
+    @Published private(set) var isInitialSpaceSetupPresented = false
     @Published var addressFocusRequestID = UUID()
     @Published private(set) var isTabSwitcherPresented = false
     @Published private(set) var tabSwitcherTabs: [BrowserTab] = []
@@ -88,6 +91,10 @@ final class BrowserStore: ObservableObject {
         spaces.first { $0.id == activeSpaceID }
     }
 
+    var isSpaceSetupPresented: Bool {
+        isCreateSpacePresented || isInitialSpaceSetupPresented
+    }
+
     var activeTab: BrowserTab? {
         guard let activeTabID else { return nil }
         return tabs.first { $0.id == activeTabID }
@@ -118,14 +125,18 @@ final class BrowserStore: ObservableObject {
         persistenceService: PersistenceService = .shared,
         navigationService: NavigationService = .shared,
         faviconService: FaviconService = .shared,
-        webCoordinator: WebViewCoordinator = WebViewCoordinator()
+        webCoordinator: WebViewCoordinator = WebViewCoordinator(),
+        restoresWebViews: Bool = true
     ) {
         self.persistenceService = persistenceService
         self.navigationService = navigationService
         self.faviconService = faviconService
         self.webCoordinator = webCoordinator
 
-        if let restoredState = persistenceService.loadState(), !restoredState.spaces.isEmpty {
+        let restoredState = persistenceService.loadState()
+        var shouldPresentInitialSpaceSetup = false
+
+        if let restoredState, !restoredState.spaces.isEmpty {
             spaces = restoredState.spaces
             tabs = restoredState.tabs
             activeSpaceID = restoredState.spaces.contains(where: { $0.id == restoredState.activeSpaceID })
@@ -139,7 +150,7 @@ final class BrowserStore: ObservableObject {
                 : nil
             isSplitViewEnabled = restoredState.isSplitViewEnabled && splitTabID != nil && splitTabID != activeTabID
         } else {
-            let defaultSpace = BrowserSpace(name: "Personal", symbolName: "circle.grid.2x2")
+            let defaultSpace = BrowserSpace(name: "", symbolName: "circle.grid.2x2")
             let defaultTab = Self.homeTab(spaceID: defaultSpace.id)
             spaces = [defaultSpace]
             tabs = [defaultTab]
@@ -147,16 +158,24 @@ final class BrowserStore: ObservableObject {
             activeTabID = defaultTab.id
             splitTabID = nil
             isSplitViewEnabled = false
+            shouldPresentInitialSpaceSetup = restoredState?.spaces.isEmpty ?? true
         }
 
         self.webCoordinator.attach(store: self)
+        clearLegacyDefaultSpaceName()
         repairSessionState()
-        restoreVisibleWebViews()
+        shouldPresentInitialSpaceSetup = shouldPresentInitialSpaceSetup || needsInitialSpaceSetup()
+        isInitialSpaceSetupPresented = shouldPresentInitialSpaceSetup
+        if restoresWebViews {
+            restoreVisibleWebViews()
+        }
         updateNavigationState()
         configureAutosave()
     }
 
     func focusAddressBar() {
+        guard !isInitialSpaceSetupPresented else { return }
+
         let activeURL = activeTab?.url
         commandPaletteInitialText = activeURL?.absoluteString ?? ""
         commandPaletteResumeQuery = activeURL.flatMap(navigationService.searchQuery(from:)) ?? ""
@@ -167,6 +186,8 @@ final class BrowserStore: ObservableObject {
     }
 
     func openCommandPalette() {
+        guard !isInitialSpaceSetupPresented else { return }
+
         commandPaletteInitialText = ""
         commandPaletteResumeQuery = ""
         commandPaletteSessionID = UUID()
@@ -175,6 +196,8 @@ final class BrowserStore: ObservableObject {
     }
 
     func openNewTabCommandPalette() {
+        guard !isInitialSpaceSetupPresented else { return }
+
         commandPaletteInitialText = ""
         commandPaletteResumeQuery = ""
         commandPaletteSessionID = UUID()
@@ -194,6 +217,7 @@ final class BrowserStore: ObservableObject {
     }
 
     func beginSpaceCreation() {
+        guard !isInitialSpaceSetupPresented else { return }
         isCommandPalettePresented = false
         commandPaletteOpensNewTab = false
         isCreateSpacePresented = true
@@ -202,6 +226,14 @@ final class BrowserStore: ObservableObject {
     @discardableResult
     func dataStoreID(for spaceID: UUID) -> UUID {
         spaces.first(where: { $0.id == spaceID })?.dataStoreID ?? spaceID
+    }
+
+    static func limitedSpaceNameInput(_ name: String) -> String {
+        String(name.prefix(spaceNameCharacterLimit))
+    }
+
+    static func normalizedSpaceName(_ name: String) -> String {
+        limitedSpaceNameInput(name.trimmingCharacters(in: .whitespacesAndNewlines))
     }
 
     @discardableResult
@@ -213,8 +245,12 @@ final class BrowserStore: ObservableObject {
     ) -> BrowserSpace {
         let spaceNumber = spaces.count + 1
         let paletteIndex = spaces.count % spaceSymbols.count
+        let resolvedName = name
+            .map(Self.normalizedSpaceName)
+            .flatMap { $0.isEmpty ? nil : $0 }
+
         let space = BrowserSpace(
-            name: name ?? "Space \(spaceNumber)",
+            name: resolvedName ?? "Space \(spaceNumber)",
             symbolName: symbolName ?? spaceSymbols[paletteIndex],
             themeColorHex: themeColorHex ?? spaceThemeColors[paletteIndex],
             dataStoreID: dataStoreID ?? UUID()
@@ -225,10 +261,56 @@ final class BrowserStore: ObservableObject {
         return space
     }
 
+    func completeInitialSpaceSetup(
+        name: String,
+        symbolName: String,
+        themeColorHex: String,
+        dataStoreID: UUID? = nil
+    ) {
+        let normalizedName = Self.normalizedSpaceName(name)
+        guard !normalizedName.isEmpty else { return }
+
+        if spaces.isEmpty {
+            let defaultSpace = BrowserSpace(
+                name: normalizedName,
+                symbolName: symbolName,
+                themeColorHex: themeColorHex,
+                dataStoreID: dataStoreID
+            )
+            spaces = [defaultSpace]
+            activeSpaceID = defaultSpace.id
+        }
+
+        let targetSpaceID = spaces.contains(where: { $0.id == activeSpaceID })
+            ? activeSpaceID
+            : spaces[0].id
+
+        guard let index = spaces.firstIndex(where: { $0.id == targetSpaceID }) else { return }
+        let previousDataStoreID = spaces[index].dataStoreID
+
+        spaces[index].name = normalizedName
+        spaces[index].symbolName = symbolName
+        spaces[index].themeColorHex = themeColorHex
+        if let dataStoreID {
+            spaces[index].dataStoreID = dataStoreID
+        }
+
+        activeSpaceID = spaces[index].id
+        isInitialSpaceSetupPresented = false
+        isCreateSpacePresented = false
+        recreateWebViewsIfNeeded(
+            in: spaces[index].id,
+            previousDataStoreID: previousDataStoreID,
+            nextDataStoreID: spaces[index].dataStoreID
+        )
+        repairSessionState()
+        updateNavigationState()
+    }
+
     func renameSpace(_ id: UUID, to name: String) {
-        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmedName.isEmpty, let index = spaces.firstIndex(where: { $0.id == id }) else { return }
-        spaces[index].name = trimmedName
+        let normalizedName = Self.normalizedSpaceName(name)
+        guard !normalizedName.isEmpty, let index = spaces.firstIndex(where: { $0.id == id }) else { return }
+        spaces[index].name = normalizedName
     }
 
     func updateSpaceTheme(_ id: UUID, colorHex: String) {
@@ -280,6 +362,8 @@ final class BrowserStore: ObservableObject {
         let sourceSpaceID = tabs[tabIndex].spaceID
         guard sourceSpaceID != targetSpaceID else { return }
 
+        let sourceDataStoreID = dataStoreID(for: sourceSpaceID)
+        let targetDataStoreID = dataStoreID(for: targetSpaceID)
         tabs[tabIndex].spaceID = targetSpaceID
         tabs[tabIndex].sortOrder = nextSortOrder(spaceID: targetSpaceID, pinned: tabs[tabIndex].isPinned)
 
@@ -287,8 +371,15 @@ final class BrowserStore: ObservableObject {
             tabs.append(Self.homeTab(spaceID: sourceSpaceID, sortOrder: 0))
         }
 
+        if sourceDataStoreID != targetDataStoreID {
+            webCoordinator.removeWebView(for: tabID)
+        }
+
         if activeTabID == tabID {
             switchTab(to: tabID)
+            if let movedTab = tabs.first(where: { $0.id == tabID }) {
+                webCoordinator.ensureLoaded(movedTab)
+            }
         } else if splitTabID == tabID {
             splitTabID = nil
             isSplitViewEnabled = false
@@ -845,7 +936,7 @@ final class BrowserStore: ObservableObject {
     }
 
     func recentHistory(matching query: String = "", limit: Int = 8) -> [HistoryVisit] {
-        persistenceService.recentHistory(matching: query, limit: limit)
+        persistenceService.recentHistory(matching: query, in: activeSpaceID, limit: limit)
     }
 
     func setLoading(_ isLoading: Bool, for tabID: UUID) {
@@ -900,6 +991,8 @@ final class BrowserStore: ObservableObject {
     }
 
     private func saveSnapshot() {
+        guard !isInitialSpaceSetupPresented else { return }
+
         persistenceService.saveState(
             BrowserWindowState(
                 spaces: spaces,
@@ -1089,6 +1182,29 @@ final class BrowserStore: ObservableObject {
         return tab
     }
 
+    private func recreateWebViewsIfNeeded(
+        in spaceID: UUID,
+        previousDataStoreID: UUID,
+        nextDataStoreID: UUID
+    ) {
+        guard previousDataStoreID != nextDataStoreID else { return }
+
+        let affectedTabIDs = tabs
+            .filter { $0.spaceID == spaceID }
+            .map(\.id)
+        affectedTabIDs.forEach { webCoordinator.removeWebView(for: $0) }
+
+        guard activeSpaceID == spaceID else { return }
+
+        if let activeTab {
+            webCoordinator.ensureLoaded(activeTab)
+        }
+
+        if let activeSplitTab {
+            webCoordinator.ensureLoaded(activeSplitTab)
+        }
+    }
+
     private static func homeTab(spaceID: UUID, sortOrder: Double = 0, pinned: Bool = false) -> BrowserTab {
         BrowserTab(
             title: BrowserDefaults.defaultHomeTitle,
@@ -1102,7 +1218,11 @@ final class BrowserStore: ObservableObject {
 
     private func repairSessionState() {
         if spaces.isEmpty {
-            spaces = [BrowserSpace(name: "Personal", symbolName: "circle.grid.2x2")]
+            spaces = [BrowserSpace(name: "", symbolName: "circle.grid.2x2")]
+        }
+
+        for index in spaces.indices where !spaces[index].name.isEmpty {
+            spaces[index].name = Self.normalizedSpaceName(spaces[index].name)
         }
 
         let spaceIDs = Set(spaces.map(\.id))
@@ -1133,6 +1253,15 @@ final class BrowserStore: ObservableObject {
             splitTabID = nil
             isSplitViewEnabled = false
         }
+    }
+
+    private func clearLegacyDefaultSpaceName() {
+        guard spaces.count == 1, spaces[0].name == "Personal" else { return }
+        spaces[0].name = ""
+    }
+
+    private func needsInitialSpaceSetup() -> Bool {
+        spaces.count == 1 && spaces[0].name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     private static func isHomePlaceholderURL(_ url: URL?) -> Bool {

@@ -34,6 +34,18 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
             return existingWebView
         }
 
+        let webView = makeWebView(for: tab)
+
+        if let url = tab.url {
+            load(url, in: tab.id)
+        } else {
+            webView.loadHTMLString(newTabHTML, baseURL: nil)
+        }
+
+        return webView
+    }
+
+    private func makeWebView(for tab: BrowserTab) -> WKWebView {
         let dataStoreID = store?.dataStoreID(for: tab.spaceID) ?? tab.spaceID
         let dataStore = WKWebsiteDataStore(forIdentifier: dataStoreID)
 
@@ -46,13 +58,6 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
 
         let webView = WKWebView(frame: .zero, configuration: configuration)
         register(webView, for: tab.id)
-
-        if let url = tab.url {
-            load(url, in: tab.id)
-        } else {
-            webView.loadHTMLString(newTabHTML, baseURL: nil)
-        }
-
         return webView
     }
 
@@ -109,9 +114,18 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
 
         if let webView {
             targetWebView = webView
+        } else if let tab = store?.tabs.first(where: { $0.id == tabID }) {
+            targetWebView = makeWebView(for: tab)
         } else {
-            let placeholderTab = BrowserTab(title: url.absoluteString, url: url, spaceID: UUID())
-            targetWebView = self.webView(for: BrowserTab(id: tabID, title: placeholderTab.title, url: url, spaceID: placeholderTab.spaceID))
+            let fallbackSpaceID = store?.activeSpaceID ?? UUID()
+            targetWebView = makeWebView(
+                for: BrowserTab(
+                    id: tabID,
+                    title: url.absoluteString,
+                    url: url,
+                    spaceID: fallbackSpaceID
+                )
+            )
         }
 
         targetWebView.load(request(for: url))
@@ -288,14 +302,32 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         "tv.apple.com"
       ];
       const likelyAdPattern = /(^|[^a-z])(ad|ads|advert|advertisement|sponsor|sponsored|promo|preroll|midroll|postroll|ima|doubleclick|outstream|instream|teads|taboola|outbrain|aniview|primis|spotx|yieldmo|adchoices|google_ads|gpt)([^a-z]|$)/i;
+      const likelyPreviewPattern = /(^|[^a-z])(hover|thumbnail|preview|previews|inline-preview|video-preview|moving-thumbnail|ytp-inline-preview)([^a-z]|$)/i;
       const miniPlayerClass = "__luma-mini-player-active";
       const miniPlayerAttr = "data-luma-mini-player";
       const miniPlayerHostID = "__luma-mini-player-host";
       const miniPlayerStyleID = "__luma-mini-player-style";
 
+      const normalizedHostname = () => location.hostname.toLowerCase().replace(/^www[.]/, "");
+
       const isTrustedMediaHost = () => {
-        const hostname = location.hostname.toLowerCase().replace(/^www[.]/, "");
+        const hostname = normalizedHostname();
         return trustedMediaHosts.some((host) => hostname === host || hostname.endsWith("." + host));
+      };
+
+      const isYouTubeHost = () => {
+        const hostname = normalizedHostname();
+        return hostname === "youtube.com" || hostname.endsWith(".youtube.com") || hostname === "youtu.be";
+      };
+
+      const isYouTubePlaybackPage = () => {
+        if (normalizedHostname() === "music.youtube.com") { return true; }
+
+        const pathname = location.pathname;
+        return pathname === "/watch" ||
+          pathname.startsWith("/shorts/") ||
+          pathname.startsWith("/live/") ||
+          pathname.startsWith("/embed/");
       };
 
       const finiteDuration = (media) => Number.isFinite(media.duration) ? media.duration : 0;
@@ -321,6 +353,15 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
       };
 
       const looksLikeAd = (media) => likelyAdPattern.test(elementIdentity(media));
+
+      const looksLikeTransientPreview = (media) => {
+        const muted = media.muted || media.volume === 0;
+        if (!muted) { return false; }
+
+        if (isYouTubeHost() && !isYouTubePlaybackPage()) { return true; }
+
+        return likelyPreviewPattern.test(elementIdentity(media));
+      };
 
       const visibleRect = (media) => {
         const rect = media.getBoundingClientRect();
@@ -354,17 +395,22 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         const hasProgress = media.currentTime > 0 && !media.ended;
         if (!isPlaying && !hasProgress && media.readyState < 2) { return -1; }
 
+        const isMiniPlayerPresentation = document.documentElement.classList.contains(miniPlayerClass);
+        if (!isMiniPlayerPresentation && looksLikeTransientPreview(media)) { return -1; }
+
         const rect = visibleRect(media);
         const viewportArea = Math.max(window.innerWidth * window.innerHeight, 1);
-        const isMiniPlayerPresentation = document.documentElement.classList.contains(miniPlayerClass);
+        const prominentDimensions = (rect.width >= 360 && rect.height >= 200) ||
+          (rect.width >= 240 && rect.height >= 360);
         const fillsEnoughSpace = isMiniPlayerPresentation
           ? rect.area / viewportArea >= 0.60
-          : rect.width >= 360 && rect.height >= 200 && rect.area >= 120000 && rect.area / viewportArea >= 0.08;
+          : prominentDimensions && rect.area >= 120000 && rect.area / viewportArea >= 0.08;
         const duration = finiteDuration(media);
         const longEnough = duration >= 45;
         const audible = !(media.muted || media.volume === 0);
 
-        if (!trustedHost && (!fillsEnoughSpace || !longEnough || !audible)) { return -1; }
+        if (!fillsEnoughSpace) { return -1; }
+        if (!trustedHost && (!longEnough || !audible)) { return -1; }
 
         return (isPlaying ? 1000000 : 0) + rect.area + Math.min(duration, 7200);
       };

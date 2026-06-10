@@ -1,9 +1,10 @@
+import AppKit
 import SwiftUI
 
 struct WebViewContainer: View {
     @ObservedObject var store: BrowserStore
-    private let surfaceCornerRadius: CGFloat = 12
-    private let surfacePadding: CGFloat = 6
+    private let surfaceCornerRadius: CGFloat = 16
+    private let surfacePadding: CGFloat = 8
 
     var body: some View {
         ZStack {
@@ -22,7 +23,7 @@ struct WebViewContainer: View {
                 } else {
                     browserSurface {
                         ActiveWebViewHost(tab: tab, store: store)
-                            .background(Color(nsColor: .windowBackgroundColor))
+                            .background(LumaChromeStyle.surfaceFill)
                     }
                     .padding(surfacePadding)
                 }
@@ -35,7 +36,7 @@ struct WebViewContainer: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color(red: 0.105, green: 0.112, blue: 0.13))
+        .background(LumaChromeStyle.workspaceBackground)
         .overlay(alignment: .topTrailing) {
             if store.isFindBarPresented {
                 FindBarView(store: store)
@@ -52,12 +53,13 @@ struct WebViewContainer: View {
             .clipShape(RoundedRectangle(cornerRadius: surfaceCornerRadius, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: surfaceCornerRadius, style: .continuous)
-                    .stroke(Color.white.opacity(0.10), lineWidth: 1)
+                    .stroke(LumaChromeStyle.surfaceBorder, lineWidth: 1)
             }
             .background(
                 RoundedRectangle(cornerRadius: surfaceCornerRadius, style: .continuous)
-                    .fill(Color(red: 0.105, green: 0.112, blue: 0.13))
+                    .fill(LumaChromeStyle.surfaceFill)
             )
+            .shadow(color: Color(nsColor: .shadowColor).opacity(0.20), radius: 18, x: 0, y: 6)
     }
 
     private struct FindBarView: View {
@@ -104,10 +106,10 @@ struct WebViewContainer: View {
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
-            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .background(LumaChromeStyle.popoverBackground, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .stroke(Color.white.opacity(0.10), lineWidth: 1)
+                    .stroke(LumaChromeStyle.popoverBorder, lineWidth: 1)
             }
             .onAppear { isFieldFocused = true }
             .onExitCommand { store.dismissFindBar() }
@@ -138,7 +140,8 @@ struct WebViewContainer: View {
             }
             .padding(.horizontal, 10)
             .padding(.vertical, 6)
-            .background(.thinMaterial)
+            .foregroundStyle(LumaChromeStyle.sidebarTextSecondary)
+            .background(LumaChromeStyle.surfaceFill)
 
             ProgressView(value: tab.loadingProgress)
                 .progressViewStyle(.linear)
@@ -147,7 +150,7 @@ struct WebViewContainer: View {
 
             WKWebViewRepresentable(tab: tab, store: store)
                 .id(tab.id)
-                .background(Color(nsColor: .windowBackgroundColor))
+                .background(LumaChromeStyle.surfaceFill)
         }
     }
 }

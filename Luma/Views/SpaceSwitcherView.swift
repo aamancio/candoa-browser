@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 import UniformTypeIdentifiers
 
@@ -5,6 +6,8 @@ import UniformTypeIdentifiers
 /// pinned to the bottom of the sidebar, with a trailing "add space" control.
 struct SpaceSwitcherView: View {
     @ObservedObject var store: BrowserStore
+    @State private var isDownloadsPresented = false
+    @State private var isHoveringDownloads = false
     @State private var isActionMenuPresented = false
     @State private var isHoveringAddSpace = false
     @State private var renamingSpace: BrowserSpace?
@@ -23,51 +26,48 @@ struct SpaceSwitcherView: View {
     ]
 
     var body: some View {
-        HStack(spacing: 4) {
+        HStack(spacing: 8) {
+            downloadsButton
+
+            Spacer(minLength: 8)
+
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 4) {
+                HStack(spacing: 14) {
                     ForEach(store.spaces) { space in
                         workspaceButton(for: space)
                     }
                 }
+                .frame(minHeight: 28)
             }
+            .frame(maxWidth: 150)
 
             Spacer(minLength: 0)
 
-            Button {
-                isActionMenuPresented.toggle()
-            } label: {
-                Image(systemName: "plus")
-                    .font(.system(size: 12, weight: .semibold))
-                    .frame(width: 28, height: 28)
-                    .foregroundStyle(.secondary)
-                    .background(
-                        RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .fill(isHoveringAddSpace ? Color.primary.opacity(0.05) : Color.clear)
-                    )
-                    .overlay {
-                        if isHoveringAddSpace {
-                            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                .stroke(Color.primary.opacity(0.06), lineWidth: 1)
-                                .allowsHitTesting(false)
-                        }
-                    }
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .onHover { isHoveringAddSpace = $0 }
-            .animation(.easeOut(duration: 0.10), value: isHoveringAddSpace)
-            .help("New Space")
-            .popover(isPresented: $isActionMenuPresented, arrowEdge: .bottom) {
-                SpaceActionMenu(
-                    store: store,
-                    isPresented: $isActionMenuPresented
-                )
-            }
+            addSpaceButton
         }
         .frame(height: 32)
+        .overlay(alignment: .bottomLeading) {
+            if isDownloadsPresented {
+                DownloadsPopoverView {
+                    isDownloadsPresented = false
+                    openDownloadsFolder()
+                }
+                .frame(width: 520)
+                .offset(x: 1, y: -43)
+                .transition(.scale(scale: 0.98, anchor: .bottomLeading).combined(with: .opacity))
+                .zIndex(30)
+            }
+        }
+        .zIndex(isDownloadsPresented ? 30 : 0)
+        .animation(.easeOut(duration: 0.14), value: isDownloadsPresented)
         .alert("Rename Space", isPresented: isRenameAlertPresented) {
             TextField("Name", text: $renameDraft)
+                .onChange(of: renameDraft) { _, newValue in
+                    let limitedName = BrowserStore.limitedSpaceNameInput(newValue)
+                    if limitedName != newValue {
+                        renameDraft = limitedName
+                    }
+                }
 
             Button("Rename") {
                 guard let renamingSpace else { return }
@@ -93,25 +93,64 @@ struct SpaceSwitcherView: View {
         }
     }
 
+    private var downloadsButton: some View {
+        Button {
+            isDownloadsPresented.toggle()
+        } label: {
+            Image(systemName: "arrow.down.to.line.compact")
+                .font(.system(size: 15.5, weight: .medium))
+                .frame(width: 28, height: 28)
+                .foregroundStyle(LumaChromeStyle.sidebarIcon)
+                .background(bottomButtonBackground(isActive: isDownloadsPresented, isHovering: isHoveringDownloads))
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .onHover { isHoveringDownloads = $0 }
+        .help("Downloads")
+    }
+
+    private var addSpaceButton: some View {
+        Button {
+            isActionMenuPresented.toggle()
+        } label: {
+            Image(systemName: "plus")
+                .font(.system(size: 18, weight: .regular))
+                .frame(width: 28, height: 28)
+                .foregroundStyle(LumaChromeStyle.sidebarTextSecondary)
+                .background(bottomButtonBackground(isActive: isActionMenuPresented, isHovering: isHoveringAddSpace))
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .onHover { isHoveringAddSpace = $0 }
+        .animation(.easeOut(duration: 0.10), value: isHoveringAddSpace)
+        .help("New Space")
+        .popover(isPresented: $isActionMenuPresented, arrowEdge: .bottom) {
+            SpaceActionMenu(
+                store: store,
+                isPresented: $isActionMenuPresented
+            )
+        }
+    }
+
+    private func bottomButtonBackground(isActive: Bool, isHovering: Bool) -> some View {
+        RoundedRectangle(cornerRadius: 8, style: .continuous)
+            .fill(isActive ? LumaChromeStyle.sidebarControlFillActive : (isHovering ? LumaChromeStyle.sidebarControlFillHover : Color.clear))
+            .overlay {
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .stroke(isActive || isHovering ? LumaChromeStyle.sidebarControlStroke : Color.clear, lineWidth: 1)
+            }
+    }
+
     private func workspaceButton(for space: BrowserSpace) -> some View {
         let isActive = space.id == store.activeSpaceID
-        let themeColor = Color(spaceHex: space.themeColorHex)
 
         return Button {
             store.switchSpace(to: space.id)
         } label: {
-            Image(systemName: space.symbolName)
-                .font(.system(size: 13, weight: .medium))
-                .frame(width: 28, height: 28)
-                .foregroundStyle(isActive ? themeColor : Color(nsColor: .secondaryLabelColor))
-                .background(
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .fill(isActive ? AnyShapeStyle(themeColor.opacity(0.18)) : AnyShapeStyle(Color.clear))
-                )
-                .overlay {
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .strokeBorder(isActive ? themeColor.opacity(0.28) : Color.clear, lineWidth: 1)
-                }
+            Circle()
+                .fill(isActive ? LumaChromeStyle.sidebarTextSecondary : LumaChromeStyle.sidebarIcon.opacity(0.72))
+                .frame(width: isActive ? 8 : 7, height: isActive ? 8 : 7)
+                .frame(width: 16, height: 28)
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -154,6 +193,14 @@ struct SpaceSwitcherView: View {
         }
     }
 
+    private func openDownloadsFolder() {
+        guard let downloadsURL = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first else {
+            return
+        }
+
+        NSWorkspace.shared.open(downloadsURL)
+    }
+
     private var isRenameAlertPresented: Binding<Bool> {
         Binding(
             get: { renamingSpace != nil },
@@ -179,6 +226,73 @@ struct SpaceSwitcherView: View {
     private func beginRenaming(_ space: BrowserSpace) {
         renamingSpace = space
         renameDraft = space.name
+    }
+}
+
+private struct DownloadsPopoverView: View {
+    let onShowAllDownloads: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text("No downloads for this session.")
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundStyle(.primary)
+                .padding(.horizontal, 24)
+                .padding(.top, 25)
+                .padding(.bottom, 28)
+
+            Rectangle()
+                .fill(LumaChromeStyle.popoverBorder)
+                .frame(height: 1)
+                .padding(.horizontal, 24)
+
+            Button(action: onShowAllDownloads) {
+                Text("Show all downloads")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundStyle(.primary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 24)
+                    .padding(.vertical, 24)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+        }
+        .background(
+            RoundedRectangle(cornerRadius: 25, style: .continuous)
+                .fill(LumaChromeStyle.popoverBackground)
+        )
+        .overlay {
+            RoundedRectangle(cornerRadius: 25, style: .continuous)
+                .stroke(LumaChromeStyle.popoverBorder, lineWidth: 1)
+        }
+        .overlay(alignment: .bottomLeading) {
+            DownloadsPopoverTail()
+                .fill(LumaChromeStyle.popoverBackground)
+                .frame(width: 34, height: 24)
+                .overlay {
+                    DownloadsPopoverTail()
+                        .stroke(LumaChromeStyle.popoverBorder, lineWidth: 1)
+                }
+                .offset(x: 13, y: 15)
+        }
+        .shadow(color: Color(nsColor: .shadowColor).opacity(0.24), radius: 18, x: 0, y: 10)
+    }
+}
+
+private struct DownloadsPopoverTail: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        path.move(to: CGPoint(x: rect.minX + 4, y: rect.minY))
+        path.addQuadCurve(
+            to: CGPoint(x: rect.midX - 1, y: rect.maxY - 1),
+            control: CGPoint(x: rect.minX + 7, y: rect.maxY * 0.70)
+        )
+        path.addQuadCurve(
+            to: CGPoint(x: rect.maxX - 3, y: rect.minY),
+            control: CGPoint(x: rect.midX + 6, y: rect.maxY * 0.70)
+        )
+        path.closeSubpath()
+        return path
     }
 }
 

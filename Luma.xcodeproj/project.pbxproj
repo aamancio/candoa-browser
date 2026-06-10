@@ -26,6 +26,7 @@
 		010000000000000000000117 /* SpaceSwitcherView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000017 /* SpaceSwitcherView.swift */; };
 		010000000000000000000118 /* TabSwitcherOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01000000000000000000001B /* TabSwitcherOverlay.swift */; };
 		010000000000000000000119 /* AppConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01000000000000000000001C /* AppConfiguration.swift */; };
+		010000000000000000000120 /* AppUpdateService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01000000000000000000001D /* AppUpdateService.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -51,6 +52,7 @@
 		01000000000000000000001A /* Luma.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Luma.entitlements; sourceTree = "<group>"; };
 		01000000000000000000001B /* TabSwitcherOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabSwitcherOverlay.swift; sourceTree = "<group>"; };
 		01000000000000000000001C /* AppConfiguration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppConfiguration.swift; sourceTree = "<group>"; };
+		01000000000000000000001D /* AppUpdateService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppUpdateService.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -126,6 +128,7 @@
 				010000000000000000000006 /* NavigationService.swift */,
 				010000000000000000000007 /* PersistenceService.swift */,
 				010000000000000000000008 /* FaviconService.swift */,
+				01000000000000000000001D /* AppUpdateService.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -243,6 +246,7 @@
 				010000000000000000000117 /* SpaceSwitcherView.swift in Sources */,
 				010000000000000000000118 /* TabSwitcherOverlay.swift in Sources */,
 				010000000000000000000119 /* AppConfiguration.swift in Sources */,
+				010000000000000000000120 /* AppUpdateService.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -30,30 +30,32 @@ struct TabRowView: View {
             Text(tab.title)
                 .lineLimit(1)
                 .truncationMode(.tail)
-                .font(.system(size: 12.5, weight: .medium))
+                .font(.system(size: 13.5, weight: .semibold))
+                .foregroundStyle(isActive ? LumaChromeStyle.sidebarText : LumaChromeStyle.sidebarTextSecondary)
 
             Spacer(minLength: 8)
 
             if isSplit {
                 Image(systemName: "rectangle.split.1x2")
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(LumaChromeStyle.sidebarIcon)
             }
 
             Button(action: onClose) {
                 Image(systemName: "xmark")
-                    .font(.system(size: 10.5, weight: .semibold))
-                    .frame(width: 16, height: 16)
+                    .font(.system(size: 10, weight: .semibold))
+                    .frame(width: 14, height: 14)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .foregroundStyle(.secondary)
+            .foregroundStyle(LumaChromeStyle.sidebarIcon)
             .help("Close Tab")
             .opacity(isHovering ? 1 : 0)
             .accessibilityHidden(!isHovering)
         }
-        .padding(.horizontal, 9)
-        .padding(.vertical, 7)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 6)
+        .frame(minHeight: 32)
         .contentShape(Rectangle())
         .background(rowBackground)
         .background(TabHoverTracker(isHovering: $isHovering))
@@ -71,7 +73,7 @@ struct TabRowView: View {
         .overlay {
             if isHovering {
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .stroke(Color.primary.opacity(0.06), lineWidth: 1)
+                    .stroke(LumaChromeStyle.sidebarControlStroke, lineWidth: 1)
                     .allowsHitTesting(false)
             }
         }
@@ -80,10 +82,10 @@ struct TabRowView: View {
 
     private var rowBackground: Color {
         if isActive {
-            return Color.primary.opacity(0.10)
+            return LumaChromeStyle.sidebarControlFillActive
         }
         if isHovering {
-            return Color.primary.opacity(0.05)
+            return LumaChromeStyle.sidebarControlFillHover
         }
         return Color.clear
     }
@@ -99,6 +101,8 @@ struct TabRowView: View {
                 .scaledToFit()
         } else {
             Image(systemName: tab.faviconSymbol)
+                .font(.system(size: 14.5, weight: .medium))
+                .foregroundStyle(isActive ? LumaChromeStyle.sidebarText : LumaChromeStyle.sidebarIcon)
         }
     }
 }

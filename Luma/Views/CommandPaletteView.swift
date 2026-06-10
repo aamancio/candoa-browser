@@ -7,6 +7,7 @@ struct CommandPaletteView: View {
     @State private var selectedSearchProvider: SearchProvider?
     @State private var fieldFocusRequestID = UUID()
     @FocusState private var isSearchFocused: Bool
+    @Environment(\.colorScheme) private var colorScheme
 
     private var activeTint: Color {
         selectedSearchProvider?.paletteColor ?? Color(red: 0.26, green: 0.27, blue: 0.88)
@@ -14,7 +15,8 @@ struct CommandPaletteView: View {
 
     var body: some View {
         ZStack {
-            Color.black.opacity(0.02)
+            Color(nsColor: .shadowColor)
+                .opacity(colorScheme == .dark ? 0.12 : 0.06)
                 .ignoresSafeArea()
                 .onTapGesture {
                     store.dismissCommandPalette()
@@ -41,15 +43,15 @@ struct CommandPaletteView: View {
 
                         Text("Search \(headerSearchProvider.name)")
                             .font(.system(size: 14, weight: .semibold))
-                            .foregroundStyle(Color.white.opacity(0.36))
+                            .foregroundStyle(.secondary)
                             .lineLimit(1)
 
                         Text("Tab")
                             .font(.system(size: 14, weight: .bold))
-                            .foregroundStyle(Color.white.opacity(0.66))
+                            .foregroundStyle(.secondary)
                             .padding(.horizontal, 8)
                             .padding(.vertical, 5)
-                            .background(Color.white.opacity(0.08))
+                            .background(Color.primary.opacity(0.08))
                             .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
                     }
                 }
@@ -57,7 +59,7 @@ struct CommandPaletteView: View {
                 .padding(.vertical, 20)
 
                 Rectangle()
-                    .fill(Color.white.opacity(0.07))
+                    .fill(LumaChromeStyle.popoverBorder)
                     .frame(height: 1)
 
                 ScrollView {
@@ -85,9 +87,9 @@ struct CommandPaletteView: View {
             .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .strokeBorder(Color.white.opacity(0.14), lineWidth: 1)
+                    .strokeBorder(LumaChromeStyle.popoverBorder, lineWidth: 1)
             }
-            .shadow(color: .black.opacity(0.30), radius: 46, y: 24)
+            .shadow(color: Color(nsColor: .shadowColor).opacity(0.24), radius: 46, y: 24)
         }
         .background(
             CommandPaletteKeyMonitor(
@@ -116,7 +118,7 @@ struct CommandPaletteView: View {
                     Text(query)
                         .foregroundStyle(.clear)
                     Text(autocompleteSuggestion.suffix)
-                        .foregroundStyle(Color.white.opacity(0.30))
+                        .foregroundStyle(.tertiary)
                 }
                 .font(.system(size: 17, weight: .medium))
                 .lineLimit(1)
@@ -124,10 +126,10 @@ struct CommandPaletteView: View {
                 .accessibilityHidden(true)
             }
 
-            TextField("", text: $query, prompt: Text(placeholderText).foregroundStyle(Color.white.opacity(0.52)))
+            TextField("", text: $query, prompt: Text(placeholderText).foregroundStyle(.secondary))
                 .textFieldStyle(.plain)
                 .font(.system(size: 17, weight: .medium))
-                .foregroundStyle(Color.white.opacity(0.86))
+                .foregroundStyle(.primary)
                 .focused($isSearchFocused)
                 .onSubmit(performFirstCommand)
                 .onKeyPress(.tab) {
@@ -243,7 +245,7 @@ struct CommandPaletteView: View {
     private var defaultSuggestions: [PaletteCommand] {
         let recentHistory = store.recentHistory(limit: 4).map(historyCommand)
         let recentTabs = store.tabs
-            .filter { $0.url != nil }
+            .filter { $0.spaceID == store.activeSpaceID && $0.url != nil }
             .sorted { $0.lastAccessedAt > $1.lastAccessedAt }
             .prefix(4)
             .map { tab in
@@ -510,6 +512,7 @@ struct CommandPaletteView: View {
         }
 
         return store.tabs
+            .filter { $0.spaceID == store.activeSpaceID }
             .sorted {
                 if $0.lastAccessedAt == $1.lastAccessedAt {
                     return $0.sortOrder < $1.sortOrder
@@ -590,11 +593,16 @@ struct CommandPaletteView: View {
 }
 
 private struct PaletteBackground: View {
+    @Environment(\.colorScheme) private var colorScheme
+
     var body: some View {
         ZStack {
-            Color(red: 0.08, green: 0.08, blue: 0.09)
-            VisualEffectView(material: .hudWindow, blendingMode: .behindWindow)
-                .opacity(0.68)
+            LumaChromeStyle.popoverBackground
+            VisualEffectView(
+                material: colorScheme == .dark ? .hudWindow : .popover,
+                blendingMode: .behindWindow
+            )
+            .opacity(colorScheme == .dark ? 0.64 : 0.88)
         }
     }
 }
@@ -685,12 +693,12 @@ private struct PaletteCommandRow: View {
             )
 
             Text(command.title)
-                .foregroundStyle(isSelected ? .white : Color.white.opacity(0.82))
+                .foregroundStyle(isSelected ? Color.white : Color.primary)
                 .lineLimit(1)
 
             if let detail = command.detail, !detail.isEmpty {
                 Text("— \(detail)")
-                    .foregroundStyle(isSelected ? Color.white.opacity(0.60) : Color.white.opacity(0.32))
+                    .foregroundStyle(isSelected ? Color.white.opacity(0.68) : Color.secondary)
                     .lineLimit(1)
             }
 
@@ -698,16 +706,16 @@ private struct PaletteCommandRow: View {
 
             if command.showsSwitchToTab {
                 Text("Switch to Tab")
-                    .foregroundStyle(isSelected ? Color.white.opacity(0.92) : Color.white.opacity(0.34))
+                    .foregroundStyle(isSelected ? Color.white.opacity(0.92) : Color.secondary)
                     .lineLimit(1)
 
                 ZStack {
                     RoundedRectangle(cornerRadius: 4, style: .continuous)
-                        .fill(isSelected ? Color.white.opacity(0.94) : Color.white.opacity(0.08))
+                        .fill(isSelected ? Color.white.opacity(0.94) : Color.primary.opacity(0.08))
 
                     Image(systemName: "arrow.right")
                         .font(.system(size: 13, weight: .bold))
-                        .foregroundStyle(isSelected ? backgroundColor : Color.white.opacity(0.56))
+                        .foregroundStyle(isSelected ? backgroundColor : Color.secondary)
                 }
                 .frame(width: 24, height: 24)
             }
@@ -736,7 +744,7 @@ private struct PaletteIconView: View {
             } else {
                 Image(systemName: symbolName)
                     .font(.system(size: size * 0.68, weight: .medium))
-                    .foregroundStyle(isSelected ? Color.white.opacity(0.72) : Color.white.opacity(0.52))
+                    .foregroundStyle(isSelected ? Color.white.opacity(0.72) : Color.secondary)
                     .frame(width: size, height: size)
             }
         }
@@ -778,7 +786,7 @@ private struct PaletteIconView: View {
         default:
             Image(systemName: provider.symbolName)
                 .font(.system(size: size * 0.68, weight: .medium))
-                .foregroundStyle(isSelected ? Color.white.opacity(0.82) : Color.white.opacity(0.56))
+                .foregroundStyle(isSelected ? Color.white.opacity(0.82) : Color.secondary)
                 .frame(width: size, height: size)
         }
     }

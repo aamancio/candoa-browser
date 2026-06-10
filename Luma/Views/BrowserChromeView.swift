@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 struct BrowserChromeView: View {
@@ -69,7 +70,7 @@ struct BrowserChromeView: View {
                     .frame(width: 560)
                     .background(.regularMaterial)
                     .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                    .shadow(color: .black.opacity(0.18), radius: 18, y: 8)
+                    .shadow(color: Color(nsColor: .shadowColor).opacity(0.18), radius: 18, y: 8)
                     .focused($isAddressFocused)
                     .onSubmit {
                         store.navigateActiveTab(to: addressText)

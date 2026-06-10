@@ -49,7 +49,7 @@ enum BrowserDefaults {
 enum SidebarRevealConfiguration {
     static let revealDistanceFromLeftEdge: CGFloat = 10
     static let suppressionResetDistance: CGFloat = 48
-    static let hideDistanceFromLeftEdge: CGFloat = 250
+    static let hideDistanceFromLeftEdge: CGFloat = 340
     static let pollingInterval: TimeInterval = 0.12
 }
 

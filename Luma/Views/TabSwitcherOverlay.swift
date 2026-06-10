@@ -32,9 +32,9 @@ struct TabSwitcherOverlay: View {
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .stroke(Color.white.opacity(0.18), lineWidth: 1)
+                .stroke(LumaChromeStyle.popoverBorder, lineWidth: 1)
         }
-        .shadow(color: .black.opacity(0.30), radius: 26, y: 14)
+        .shadow(color: Color(nsColor: .shadowColor).opacity(0.24), radius: 26, y: 14)
     }
 
     private func refreshSnapshots() {
@@ -93,11 +93,11 @@ private struct TabSwitcherPreviewCard: View {
         .frame(width: TabSwitcherMetrics.cardWidth)
         .background(
             RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(isSelected ? Color.accentColor.opacity(0.20) : Color.black.opacity(0.24))
+                .fill(isSelected ? Color.accentColor.opacity(0.20) : LumaChromeStyle.surfaceFill)
         )
         .overlay {
             RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .stroke(isSelected ? Color.accentColor.opacity(0.92) : Color.white.opacity(0.12), lineWidth: isSelected ? 2 : 1)
+                .stroke(isSelected ? Color.accentColor.opacity(0.92) : LumaChromeStyle.surfaceBorder, lineWidth: isSelected ? 2 : 1)
         }
         .scaleEffect(isSelected ? 1.035 : 1)
         .animation(.easeOut(duration: 0.12), value: isSelected)
@@ -121,7 +121,7 @@ private struct TabSwitcherPreviewCard: View {
         .frame(maxWidth: .infinity)
         .clipShape(windowShape)
         .overlay {
-            windowShape.stroke(Color.white.opacity(0.14), lineWidth: 1)
+            windowShape.stroke(LumaChromeStyle.surfaceBorder, lineWidth: 1)
         }
     }
 
@@ -141,7 +141,7 @@ private struct TabSwitcherPreviewCard: View {
         }
         .padding(.horizontal, 6)
         .frame(height: TabSwitcherMetrics.titleBarHeight)
-        .background(Color.black.opacity(0.32))
+        .background(LumaChromeStyle.sidebarControlFill)
     }
 
     private func previewSurface(width: CGFloat) -> some View {

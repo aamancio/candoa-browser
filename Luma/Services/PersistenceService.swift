@@ -18,12 +18,12 @@ struct PersistenceService {
 
     private let container: NSPersistentContainer
 
-    init() {
+    init(storeURL: URL? = nil) {
         let model = Self.makeModel()
         let container = NSPersistentContainer(name: "Luma", managedObjectModel: model)
-        let folderURL = Self.applicationSupportURL
-        let storeURL = folderURL.appendingPathComponent("Luma.sqlite")
-        let storeDescription = NSPersistentStoreDescription(url: storeURL)
+        let resolvedStoreURL = storeURL ?? Self.applicationSupportURL.appendingPathComponent("Luma.sqlite")
+        let folderURL = resolvedStoreURL.deletingLastPathComponent()
+        let storeDescription = NSPersistentStoreDescription(url: resolvedStoreURL)
         storeDescription.shouldMigrateStoreAutomatically = true
         storeDescription.shouldInferMappingModelAutomatically = true
         container.persistentStoreDescriptions = [storeDescription]
@@ -110,7 +110,13 @@ struct PersistenceService {
         }
     }
 
-    func recentHistory(matching rawQuery: String = "", limit: Int = 8) -> [HistoryVisit] {
+    func recentHistory(
+        matching rawQuery: String = "",
+        in spaceID: UUID? = nil,
+        limit: Int = 8
+    ) -> [HistoryVisit] {
+        guard limit > 0 else { return [] }
+
         let query = rawQuery.trimmingCharacters(in: .whitespacesAndNewlines)
         let context = container.viewContext
 
@@ -120,14 +126,27 @@ struct PersistenceService {
                 request.sortDescriptors = [NSSortDescriptor(key: Key.visitedAt, ascending: false)]
                 request.fetchLimit = max(limit * 4, limit)
 
+                var predicates: [NSPredicate] = []
+
+                if let spaceID {
+                    predicates.append(NSPredicate(format: "%K == %@", Key.spaceID, spaceID as NSUUID))
+                }
+
                 if !query.isEmpty {
-                    request.predicate = NSPredicate(
-                        format: "%K CONTAINS[cd] %@ OR %K CONTAINS[cd] %@",
-                        Key.title,
-                        query,
-                        Key.urlString,
-                        query
+                    predicates.append(
+                        NSCompoundPredicate(
+                            orPredicateWithSubpredicates: [
+                                NSPredicate(format: "%K CONTAINS[cd] %@", Key.title, query),
+                                NSPredicate(format: "%K CONTAINS[cd] %@", Key.urlString, query)
+                            ]
+                        )
                     )
+                }
+
+                if predicates.count == 1 {
+                    request.predicate = predicates[0]
+                } else if !predicates.isEmpty {
+                    request.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: predicates)
                 }
 
                 var seenURLs = Set<String>()
