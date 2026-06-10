@@ -824,8 +824,16 @@ private enum MiniPlayerResizeEdge: String, CaseIterable, Identifiable {
         switch self {
         case .top, .bottom:
             return .resizeUpDown
-        case .leading, .trailing, .topLeading, .topTrailing, .bottomLeading, .bottomTrailing:
+        case .leading, .trailing:
             return .resizeLeftRight
+        case .topLeading:
+            return MiniPlayerResizeCursor.topLeft
+        case .topTrailing:
+            return MiniPlayerResizeCursor.topRight
+        case .bottomLeading:
+            return MiniPlayerResizeCursor.bottomLeft
+        case .bottomTrailing:
+            return MiniPlayerResizeCursor.bottomRight
         }
     }
 
@@ -910,6 +918,90 @@ private enum MiniPlayerResizeEdge: String, CaseIterable, Identifiable {
         }
 
         return candidates.max { abs($0) < abs($1) } ?? 0
+    }
+}
+
+private enum MiniPlayerResizeCursor {
+    static var topLeft: NSCursor {
+        if #available(macOS 15.0, *) {
+            return NSCursor.frameResize(position: .topLeft, directions: .all)
+        }
+        return northwestSoutheastFallback
+    }
+
+    static var topRight: NSCursor {
+        if #available(macOS 15.0, *) {
+            return NSCursor.frameResize(position: .topRight, directions: .all)
+        }
+        return northeastSouthwestFallback
+    }
+
+    static var bottomLeft: NSCursor {
+        if #available(macOS 15.0, *) {
+            return NSCursor.frameResize(position: .bottomLeft, directions: .all)
+        }
+        return northeastSouthwestFallback
+    }
+
+    static var bottomRight: NSCursor {
+        if #available(macOS 15.0, *) {
+            return NSCursor.frameResize(position: .bottomRight, directions: .all)
+        }
+        return northwestSoutheastFallback
+    }
+
+    nonisolated(unsafe) private static let northwestSoutheastFallback = fallbackResizeCursor(
+        from: CGPoint(x: 4, y: 14),
+        to: CGPoint(x: 14, y: 4)
+    )
+
+    nonisolated(unsafe) private static let northeastSouthwestFallback = fallbackResizeCursor(
+        from: CGPoint(x: 14, y: 14),
+        to: CGPoint(x: 4, y: 4)
+    )
+
+    private static func fallbackResizeCursor(from start: CGPoint, to end: CGPoint) -> NSCursor {
+        let size = CGSize(width: 18, height: 18)
+        let image = NSImage(size: size, flipped: false) { _ in
+            let path = NSBezierPath()
+            appendLine(to: path, from: start, to: end)
+            appendArrowHead(to: path, tip: start, tail: end)
+            appendArrowHead(to: path, tip: end, tail: start)
+            path.lineCapStyle = .round
+            path.lineJoinStyle = .round
+
+            NSColor.white.withAlphaComponent(0.95).setStroke()
+            path.lineWidth = 4
+            path.stroke()
+
+            NSColor.black.withAlphaComponent(0.95).setStroke()
+            path.lineWidth = 2
+            path.stroke()
+
+            return true
+        }
+
+        return NSCursor(image: image, hotSpot: CGPoint(x: size.width / 2, y: size.height / 2))
+    }
+
+    private static func appendLine(to path: NSBezierPath, from start: CGPoint, to end: CGPoint) {
+        path.move(to: start)
+        path.line(to: end)
+    }
+
+    private static func appendArrowHead(to path: NSBezierPath, tip: CGPoint, tail: CGPoint) {
+        let angle = atan2(tip.y - tail.y, tip.x - tail.x)
+        let headLength: CGFloat = 5
+        let spread: CGFloat = 0.72
+
+        for offset in [-spread, spread] {
+            let backAngle = angle + .pi + offset
+            let point = CGPoint(
+                x: tip.x + CGFloat(cos(Double(backAngle))) * headLength,
+                y: tip.y + CGFloat(sin(Double(backAngle))) * headLength
+            )
+            appendLine(to: path, from: tip, to: point)
+        }
     }
 }
 
