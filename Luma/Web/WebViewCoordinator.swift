@@ -23,6 +23,7 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
     private var activeDownloads = Set<WKDownload>()
     private var downloadDestinations: [WKDownload: URL] = [:]
     private var hostedActiveTabID: UUID?
+    private var miniPlayerHostedTabID: UUID?
 
     func attach(store: BrowserStore) {
         self.store = store
@@ -131,6 +132,9 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         if hostedActiveTabID == tabID {
             hostedActiveTabID = nil
         }
+        if miniPlayerHostedTabID == tabID {
+            miniPlayerHostedTabID = nil
+        }
     }
 
     func goBack(tabID: UUID) {
@@ -195,12 +199,16 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
 
     /// Hosts the active tab's web view inside a persistent container while
     /// keeping background tabs' web views parented (hidden) underneath it.
-    /// Unparenting a web view tears down its presentation, which kills
-    /// in-flight picture-in-picture and throttles media playback.
+    /// Unparenting a web view tears down media presentation and throttles
+    /// playback, so the floating mini player explicitly rehosts its tab.
     func hostActiveWebView(for tabID: UUID, in container: NSView, excludingTabID: UUID?) {
         guard let activeWebView = webViews[tabID] else { return }
+        if miniPlayerHostedTabID == tabID {
+            restoreMiniPlayerPresentation(tabID: tabID)
+            miniPlayerHostedTabID = nil
+        }
 
-        for (id, webView) in webViews where id != tabID && id != excludingTabID {
+        for (id, webView) in webViews where id != tabID && id != excludingTabID && id != miniPlayerHostedTabID {
             guard webView.superview !== container else { continue }
             webView.frame = container.bounds
             webView.autoresizingMask = [.width, .height]
@@ -219,7 +227,7 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         container.addSubview(activeWebView)
 
         // The outgoing web view stays visible (covered by the new active one)
-        // for a beat so its video can finish entering picture-in-picture.
+        // for a beat so media keeps rendering while the mini player attaches.
         guard let previousActiveTabID, previousActiveTabID != tabID else { return }
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
             guard
@@ -234,35 +242,259 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         }
     }
 
+    func hostMiniPlayerWebView(for tabID: UUID, in container: NSView) {
+        guard let webView = webViews[tabID] else { return }
+        miniPlayerHostedTabID = tabID
+        webView.frame = container.bounds
+        webView.autoresizingMask = [.width, .height]
+        webView.isHidden = false
+        activateMiniPlayerPresentation(tabID: tabID)
+
+        guard webView.superview !== container else { return }
+        webView.removeFromSuperview()
+        container.addSubview(webView)
+    }
+
+    func detachMiniPlayerWebView(for tabID: UUID) {
+        guard miniPlayerHostedTabID == tabID else { return }
+        restoreMiniPlayerPresentation(tabID: tabID)
+        miniPlayerHostedTabID = nil
+        webViews[tabID]?.isHidden = true
+    }
+
     // MARK: - Media Playback State & Controls
 
     static let mediaStateMessageName = "lumaMediaState"
 
-    /// Injected at document start; reports playback state whenever any media
-    /// element on the page plays, pauses, ends, or changes volume.
+    /// Injected at document start; reports playback state for the selected
+    /// foreground video candidate and ignores small/autoplay ad-like media.
     private static let mediaObserverScript = """
     (() => {
       if (window.__lumaMediaObserved) { return; }
       window.__lumaMediaObserved = true;
 
+      const trustedMediaHosts = [
+        "youtube.com",
+        "youtu.be",
+        "music.youtube.com",
+        "vimeo.com",
+        "twitch.tv",
+        "netflix.com",
+        "hulu.com",
+        "max.com",
+        "disneyplus.com",
+        "primevideo.com",
+        "apple.com",
+        "tv.apple.com"
+      ];
+      const likelyAdPattern = /(^|[^a-z])(ad|ads|advert|advertisement|sponsor|sponsored|promo|preroll|midroll|postroll|ima|doubleclick|outstream|instream|teads|taboola|outbrain|aniview|primis|spotx|yieldmo|adchoices|google_ads|gpt)([^a-z]|$)/i;
+      const miniPlayerClass = "__luma-mini-player-active";
+      const miniPlayerAttr = "data-luma-mini-player";
+      const miniPlayerHostID = "__luma-mini-player-host";
+      const miniPlayerStyleID = "__luma-mini-player-style";
+
+      const isTrustedMediaHost = () => {
+        const hostname = location.hostname.toLowerCase().replace(/^www[.]/, "");
+        return trustedMediaHosts.some((host) => hostname === host || hostname.endsWith("." + host));
+      };
+
+      const finiteDuration = (media) => Number.isFinite(media.duration) ? media.duration : 0;
+
+      const elementIdentity = (element) => {
+        const parts = [];
+        let cursor = element;
+        for (let depth = 0; cursor && depth < 7; depth += 1, cursor = cursor.parentElement) {
+          const className = typeof cursor.className === "string"
+            ? cursor.className
+            : (cursor.getAttribute("class") || "");
+          parts.push(
+            cursor.id || "",
+            className,
+            cursor.getAttribute("aria-label") || "",
+            cursor.getAttribute("data-testid") || "",
+            cursor.getAttribute("role") || "",
+            cursor.getAttribute("src") || ""
+          );
+        }
+        parts.push(element.currentSrc || element.src || "");
+        return parts.join(" ").toLowerCase();
+      };
+
+      const looksLikeAd = (media) => likelyAdPattern.test(elementIdentity(media));
+
+      const visibleRect = (media) => {
+        const rect = media.getBoundingClientRect();
+        const style = window.getComputedStyle(media);
+        const opacity = Number.parseFloat(style.opacity || "1");
+        if (
+          style.display === "none" ||
+          style.visibility === "hidden" ||
+          opacity === 0 ||
+          rect.width <= 0 ||
+          rect.height <= 0
+        ) {
+          return { width: 0, height: 0, area: 0 };
+        }
+
+        return {
+          width: rect.width,
+          height: rect.height,
+          area: rect.width * rect.height
+        };
+      };
+
+      const mediaScore = (media) => {
+        if (media.tagName?.toLowerCase() !== "video") { return -1; }
+        if (media.ended) { return -1; }
+
+        const trustedHost = isTrustedMediaHost();
+        if (!trustedHost && looksLikeAd(media)) { return -1; }
+
+        const isPlaying = !media.paused && !media.ended && media.readyState >= 2;
+        const hasProgress = media.currentTime > 0 && !media.ended;
+        if (!isPlaying && !hasProgress && media.readyState < 2) { return -1; }
+
+        const rect = visibleRect(media);
+        const viewportArea = Math.max(window.innerWidth * window.innerHeight, 1);
+        const isMiniPlayerPresentation = document.documentElement.classList.contains(miniPlayerClass);
+        const fillsEnoughSpace = isMiniPlayerPresentation
+          ? rect.area / viewportArea >= 0.60
+          : rect.width >= 360 && rect.height >= 200 && rect.area >= 120000 && rect.area / viewportArea >= 0.08;
+        const duration = finiteDuration(media);
+        const longEnough = duration >= 45;
+        const audible = !(media.muted || media.volume === 0);
+
+        if (!trustedHost && (!fillsEnoughSpace || !longEnough || !audible)) { return -1; }
+
+        return (isPlaying ? 1000000 : 0) + rect.area + Math.min(duration, 7200);
+      };
+
+      const selectMedia = () => Array.from(document.querySelectorAll("video"))
+        .map((media) => ({ media, score: mediaScore(media) }))
+        .filter((candidate) => candidate.score >= 0)
+        .sort((a, b) => b.score - a.score)[0]?.media || null;
+
+      const clearMiniPlayerMarkers = () => {
+        document.querySelectorAll("[" + miniPlayerAttr + "]").forEach((element) => {
+          element.removeAttribute(miniPlayerAttr);
+        });
+      };
+
+      const ensureMiniPlayerHost = () => {
+        let host = document.getElementById(miniPlayerHostID);
+        if (host) { return host; }
+
+        host = document.createElement("div");
+        host.id = miniPlayerHostID;
+        (document.body || document.documentElement).appendChild(host);
+        return host;
+      };
+
+      const restoreMiniPlayerMedia = () => {
+        const state = window.__lumaMiniPlayerState;
+        if (!state?.media) { return; }
+
+        state.media.removeAttribute(miniPlayerAttr);
+
+        if (state.parent?.isConnected) {
+          if (state.placeholder?.parentNode === state.parent) {
+            state.parent.insertBefore(state.media, state.placeholder);
+            state.placeholder.remove();
+          } else if (state.nextSibling?.parentNode === state.parent) {
+            state.parent.insertBefore(state.media, state.nextSibling);
+          } else {
+            state.parent.appendChild(state.media);
+          }
+        }
+
+        delete window.__lumaMiniPlayerState;
+      };
+
+      const installMiniPlayerStyle = () => {
+        if (document.getElementById(miniPlayerStyleID)) { return; }
+        const style = document.createElement("style");
+        style.id = miniPlayerStyleID;
+        style.textContent = [
+          "html." + miniPlayerClass + ", html." + miniPlayerClass + " body { background: #000 !important; margin: 0 !important; width: 100% !important; height: 100% !important; overflow: hidden !important; }",
+          "html." + miniPlayerClass + " body > :not(#" + miniPlayerHostID + ") { display: none !important; }",
+          "html." + miniPlayerClass + " #" + miniPlayerHostID + " { display: flex !important; position: fixed !important; inset: 0 !important; width: 100vw !important; height: 100vh !important; align-items: center !important; justify-content: center !important; overflow: hidden !important; z-index: 2147483647 !important; visibility: visible !important; background: #000 !important; pointer-events: none !important; }",
+          "html." + miniPlayerClass + " #" + miniPlayerHostID + " * { visibility: visible !important; }",
+          "html." + miniPlayerClass + " #" + miniPlayerHostID + " video[" + miniPlayerAttr + "='true'] { display: block !important; position: static !important; width: 100vw !important; height: 100vh !important; max-width: 100vw !important; max-height: 100vh !important; min-width: 0 !important; min-height: 0 !important; object-fit: contain !important; opacity: 1 !important; background: #000 !important; transform: none !important; border-radius: 0 !important; box-shadow: none !important; pointer-events: none !important; }"
+        ].join("");
+        document.documentElement.appendChild(style);
+      };
+
+      window.__lumaSelectMedia = selectMedia;
+      window.__lumaActivateMiniPlayerPresentation = () => {
+        const existingState = window.__lumaMiniPlayerState;
+        if (
+          existingState?.media?.isConnected &&
+          existingState.media.parentElement?.id === miniPlayerHostID
+        ) {
+          document.documentElement.classList.add(miniPlayerClass);
+          existingState.media.setAttribute(miniPlayerAttr, "true");
+          return true;
+        }
+
+        const media = selectMedia();
+        if (!media) { return false; }
+
+        installMiniPlayerStyle();
+        clearMiniPlayerMarkers();
+        const host = ensureMiniPlayerHost();
+        const placeholder = document.createComment("Luma mini player media placeholder");
+        const parent = media.parentNode;
+        const nextSibling = media.nextSibling;
+
+        if (parent) {
+          parent.insertBefore(placeholder, media);
+        }
+
+        window.__lumaMiniPlayerState = {
+          media,
+          parent,
+          nextSibling,
+          placeholder
+        };
+
+        document.documentElement.classList.add(miniPlayerClass);
+        media.setAttribute(miniPlayerAttr, "true");
+        host.appendChild(media);
+
+        return true;
+      };
+
+      window.__lumaDeactivateMiniPlayerPresentation = () => {
+        document.documentElement.classList.remove(miniPlayerClass);
+        restoreMiniPlayerMedia();
+        clearMiniPlayerMarkers();
+        document.getElementById(miniPlayerHostID)?.remove();
+        window.__lumaReportMediaState?.();
+      };
+
       const report = () => {
         const handler = window.webkit?.messageHandlers?.\(mediaStateMessageName);
         if (!handler) { return; }
 
-        const medias = Array.from(document.querySelectorAll("video, audio"));
-        const playing = medias.find((media) => !media.paused && !media.ended && media.readyState >= 2);
-        const current = playing || medias.find((media) => media.currentTime > 0 && !media.ended);
+        const current = selectMedia();
+        const playing = current && !current.paused && !current.ended && current.readyState >= 2;
         handler.postMessage({
           hasMedia: Boolean(current),
           isPlaying: Boolean(playing),
-          isMuted: current ? (current.muted || current.volume === 0) : false
+          isMuted: current ? (current.muted || current.volume === 0) : false,
+          isMiniPlayerEligible: Boolean(current),
+          currentTime: current ? current.currentTime : 0,
+          duration: current ? finiteDuration(current) : 0
         });
       };
+      window.__lumaReportMediaState = report;
 
-      ["play", "playing", "pause", "ended", "emptied", "volumechange"].forEach((eventName) => {
+      ["play", "playing", "pause", "ended", "emptied", "volumechange", "loadedmetadata", "loadeddata", "timeupdate"].forEach((eventName) => {
         document.addEventListener(eventName, report, true);
       });
       document.addEventListener("visibilitychange", report);
+      window.setTimeout(report, 0);
+      window.setInterval(report, 2500);
     })();
     """
 
@@ -282,15 +514,27 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         let state = TabMediaState(
             hasMedia: body["hasMedia"] as? Bool ?? false,
             isPlaying: body["isPlaying"] as? Bool ?? false,
-            isMuted: body["isMuted"] as? Bool ?? false
+            isMuted: body["isMuted"] as? Bool ?? false,
+            isMiniPlayerEligible: body["isMiniPlayerEligible"] as? Bool ?? false,
+            currentTime: body["currentTime"] as? Double ?? 0,
+            duration: body["duration"] as? Double ?? 0
         )
         store?.updateMediaState(tabID: tabID, state: state)
+    }
+
+    private func activateMiniPlayerPresentation(tabID: UUID) {
+        webViews[tabID]?.evaluateJavaScript("window.__lumaActivateMiniPlayerPresentation?.()")
+    }
+
+    private func restoreMiniPlayerPresentation(tabID: UUID) {
+        webViews[tabID]?.evaluateJavaScript("window.__lumaDeactivateMiniPlayerPresentation?.()")
     }
 
     func toggleMediaPlayback(tabID: UUID) {
         webViews[tabID]?.evaluateJavaScript("""
         (() => {
-          const medias = Array.from(document.querySelectorAll("video, audio"));
+          const selected = window.__lumaSelectMedia?.();
+          const medias = selected ? [selected] : Array.from(document.querySelectorAll("video, audio"));
           const playing = medias.filter((media) => !media.paused && !media.ended);
           if (playing.length > 0) {
             playing.forEach((media) => media.pause());
@@ -304,10 +548,24 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         """)
     }
 
+    func pauseMediaPlayback(tabID: UUID) {
+        webViews[tabID]?.evaluateJavaScript("""
+        (() => {
+          const selected = window.__lumaSelectMedia?.();
+          const medias = selected ? [selected] : Array.from(document.querySelectorAll("video, audio"));
+          medias
+            .filter((media) => !media.paused && !media.ended)
+            .forEach((media) => media.pause());
+          window.__lumaReportMediaState?.();
+        })();
+        """)
+    }
+
     func toggleMediaMute(tabID: UUID) {
         webViews[tabID]?.evaluateJavaScript("""
         (() => {
-          const medias = Array.from(document.querySelectorAll("video, audio"))
+          const selected = window.__lumaSelectMedia?.();
+          const medias = (selected ? [selected] : Array.from(document.querySelectorAll("video, audio")))
             .filter((media) => media.readyState >= 1 || media.currentTime > 0);
           if (medias.length === 0) { return; }
 
@@ -332,7 +590,8 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
           }
 
           // No track controls on this page: nudge the timeline instead.
-          const media = Array.from(document.querySelectorAll("video, audio"))
+          const media = window.__lumaSelectMedia?.()
+            || Array.from(document.querySelectorAll("video, audio"))
             .find((candidate) => !candidate.paused && !candidate.ended)
             || Array.from(document.querySelectorAll("video, audio")).find((candidate) => candidate.currentTime > 0);
           if (!media) { return; }
@@ -343,56 +602,43 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         """)
     }
 
-    // MARK: - Auto Picture-in-Picture
+    func seekMedia(tabID: UUID, by seconds: Double) {
+        webViews[tabID]?.evaluateJavaScript("""
+        (() => {
+          const media = window.__lumaSelectMedia?.()
+            || Array.from(document.querySelectorAll("video, audio"))
+            .find((candidate) => !candidate.paused && !candidate.ended)
+            || Array.from(document.querySelectorAll("video, audio")).find((candidate) => candidate.currentTime > 0);
+          if (!media) { return; }
 
-    /// Pops a currently-playing video out into the system PiP window when the
-    /// user leaves the tab. Videos are tagged so the matching exit call only
-    /// reverses PiP sessions this app started, never user-initiated ones.
-    func beginAutoPictureInPicture(for tabID: UUID) {
-        webViews[tabID]?.evaluateJavaScript(Self.enterAutoPiPScript)
+          const target = media.currentTime + (\(seconds));
+          media.currentTime = Math.max(0, Number.isFinite(media.duration) ? Math.min(media.duration, target) : target);
+          window.__lumaReportMediaState?.();
+        })();
+        """)
     }
 
-    /// Brings an auto-PiP video back inline when the user returns to its tab.
-    func endAutoPictureInPicture(for tabID: UUID) {
-        webViews[tabID]?.evaluateJavaScript(Self.exitAutoPiPScript)
+    func seekMedia(tabID: UUID, to time: Double) {
+        let targetTime = max(0, time)
+
+        webViews[tabID]?.evaluateJavaScript("""
+        (() => {
+          const media = window.__lumaSelectMedia?.()
+            || Array.from(document.querySelectorAll("video, audio"))
+            .find((candidate) => !candidate.paused && !candidate.ended)
+            || Array.from(document.querySelectorAll("video, audio")).find((candidate) => candidate.currentTime > 0);
+          if (!media) { return; }
+
+          const target = \(targetTime);
+          media.currentTime = Number.isFinite(media.duration) ? Math.min(media.duration, target) : target;
+          window.__lumaReportMediaState?.();
+        })();
+        """)
     }
 
-    private static let enterAutoPiPScript = """
-    (() => {
-      const candidates = Array.from(document.querySelectorAll("video")).filter((video) =>
-        !video.paused &&
-        !video.ended &&
-        video.readyState >= 2 &&
-        !video.disablePictureInPicture &&
-        typeof video.webkitSetPresentationMode === "function" &&
-        typeof video.webkitSupportsPresentationMode === "function" &&
-        video.webkitSupportsPresentationMode("picture-in-picture") &&
-        video.webkitPresentationMode === "inline"
-      );
-      if (candidates.length === 0) { return false; }
-
-      const video = candidates.sort((a, b) =>
-        (b.clientWidth * b.clientHeight) - (a.clientWidth * a.clientHeight)
-      )[0];
-      video.__lumaAutoPiP = true;
-      video.webkitSetPresentationMode("picture-in-picture");
-      return true;
-    })();
-    """
-
-    private static let exitAutoPiPScript = """
-    (() => {
-      const video = Array.from(document.querySelectorAll("video")).find((candidate) =>
-        candidate.__lumaAutoPiP === true &&
-        candidate.webkitPresentationMode === "picture-in-picture"
-      );
-      if (!video) { return false; }
-
-      delete video.__lumaAutoPiP;
-      video.webkitSetPresentationMode("inline");
-      return true;
-    })();
-    """
+    func refreshMediaState(tabID: UUID) {
+        webViews[tabID]?.evaluateJavaScript("window.__lumaReportMediaState?.()")
+    }
 
     func navigationState(for tabID: UUID) -> (canGoBack: Bool, canGoForward: Bool) {
         guard let webView = webViews[tabID] else {

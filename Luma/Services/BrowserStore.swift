@@ -6,6 +6,9 @@ struct TabMediaState: Equatable {
     var hasMedia = false
     var isPlaying = false
     var isMuted = false
+    var isMiniPlayerEligible = false
+    var currentTime: Double = 0
+    var duration: Double = 0
 }
 
 @MainActor
@@ -44,6 +47,9 @@ final class BrowserStore: ObservableObject {
     @Published var findQuery = ""
     @Published private(set) var mediaStates: [UUID: TabMediaState] = [:]
     @Published private(set) var mediaControllerTabID: UUID?
+    @Published var isMiniPlayerMinimized = false
+    @Published private(set) var dismissedMiniPlayerTabID: UUID?
+    @Published private(set) var retainedPausedMiniPlayerTabID: UUID?
 
     private var recentlyClosedTabs: [ClosedTabSnapshot] = []
     private static let recentlyClosedTabLimit = 50
@@ -497,21 +503,71 @@ final class BrowserStore: ObservableObject {
         return mediaStates[mediaControllerTabID]
     }
 
+    var backgroundMediaControllerTab: BrowserTab? {
+        guard let tab = mediaControllerTab, tab.id != activeTabID else { return nil }
+        if isSplitViewEnabled, tab.id == splitTabID { return nil }
+        return tab
+    }
+
+    var backgroundMediaControllerState: TabMediaState? {
+        guard let tabID = backgroundMediaControllerTab?.id else { return nil }
+        return mediaStates[tabID]
+    }
+
+    var floatingMiniPlayerTab: BrowserTab? {
+        guard let tab = backgroundMediaControllerTab, tab.id != dismissedMiniPlayerTabID else { return nil }
+        guard
+            mediaStates[tab.id]?.isMiniPlayerEligible == true,
+            mediaStates[tab.id]?.isPlaying == true || retainedPausedMiniPlayerTabID == tab.id
+        else {
+            return nil
+        }
+        return tab
+    }
+
+    var floatingMiniPlayerState: TabMediaState? {
+        guard let tabID = floatingMiniPlayerTab?.id else { return nil }
+        return mediaStates[tabID]
+    }
+
     func updateMediaState(tabID: UUID, state: TabMediaState) {
         guard tabs.contains(where: { $0.id == tabID }) else { return }
         mediaStates[tabID] = state.hasMedia ? state : nil
 
-        if state.isPlaying {
-            // The most recently playing tab owns the controller; it keeps it
-            // while paused so playback can be resumed from the sidebar.
+        if state.isPlaying, state.isMiniPlayerEligible {
+            // The most recently playing tab owns the floating mini player; it
+            // keeps it while paused so playback can be resumed from the card.
+            if mediaControllerTabID != tabID {
+                dismissedMiniPlayerTabID = nil
+                isMiniPlayerMinimized = false
+            }
+            retainedPausedMiniPlayerTabID = nil
             mediaControllerTabID = tabID
-        } else if mediaControllerTabID == tabID, !state.hasMedia {
+        } else if mediaControllerTabID == tabID {
+            if state.hasMedia, state.isMiniPlayerEligible, retainedPausedMiniPlayerTabID == tabID {
+                return
+            }
+
             mediaControllerTabID = nil
+            dismissedMiniPlayerTabID = nil
+            isMiniPlayerMinimized = false
+            retainedPausedMiniPlayerTabID = nil
+            webCoordinator.detachMiniPlayerWebView(for: tabID)
         }
     }
 
     func toggleMediaPlayback() {
         guard let mediaControllerTabID else { return }
+        webCoordinator.toggleMediaPlayback(tabID: mediaControllerTabID)
+    }
+
+    func toggleMiniPlayerPlayback() {
+        guard let mediaControllerTabID else { return }
+        if mediaStates[mediaControllerTabID]?.isPlaying == true {
+            retainedPausedMiniPlayerTabID = mediaControllerTabID
+        } else {
+            retainedPausedMiniPlayerTabID = nil
+        }
         webCoordinator.toggleMediaPlayback(tabID: mediaControllerTabID)
     }
 
@@ -525,24 +581,61 @@ final class BrowserStore: ObservableObject {
         webCoordinator.skipMediaTrack(tabID: mediaControllerTabID, forward: forward)
     }
 
+    func seekMedia(by seconds: Double) {
+        guard let mediaControllerTabID else { return }
+        webCoordinator.seekMedia(tabID: mediaControllerTabID, by: seconds)
+    }
+
+    func seekMedia(to time: Double) {
+        guard let mediaControllerTabID, time.isFinite else { return }
+        webCoordinator.seekMedia(tabID: mediaControllerTabID, to: max(0, time))
+    }
+
     func focusMediaTab() {
         guard let mediaControllerTabID else { return }
+        dismissedMiniPlayerTabID = nil
+        isMiniPlayerMinimized = false
+        retainedPausedMiniPlayerTabID = nil
         switchTab(to: mediaControllerTabID)
     }
 
-    /// Auto picture-in-picture, Arc-style: leaving a tab with playing video
-    /// pops it into the system PiP window; returning brings it back inline.
+    func minimizeMiniPlayer() {
+        hideMiniPlayer(pausesPlayback: false)
+    }
+
+    func expandMiniPlayer() {
+        isMiniPlayerMinimized = false
+    }
+
+    func dismissMiniPlayer() {
+        hideMiniPlayer(pausesPlayback: true)
+    }
+
+    private func hideMiniPlayer(pausesPlayback: Bool) {
+        guard let mediaControllerTabID else { return }
+        if pausesPlayback {
+            webCoordinator.pauseMediaPlayback(tabID: mediaControllerTabID)
+        }
+
+        dismissedMiniPlayerTabID = mediaControllerTabID
+        isMiniPlayerMinimized = false
+        retainedPausedMiniPlayerTabID = nil
+        webCoordinator.detachMiniPlayerWebView(for: mediaControllerTabID)
+    }
+
+    /// Leaving a media tab refreshes playback state so the in-app mini player
+    /// can attach to the background web view immediately.
     private func handleActiveTabChange(from previousID: UUID?) {
         if
             let previousID,
             previousID != splitTabID,
             tabs.contains(where: { $0.id == previousID })
         {
-            webCoordinator.beginAutoPictureInPicture(for: previousID)
+            webCoordinator.refreshMediaState(tabID: previousID)
         }
 
         if let activeTabID {
-            webCoordinator.endAutoPictureInPicture(for: activeTabID)
+            webCoordinator.refreshMediaState(tabID: activeTabID)
         }
     }
 
@@ -833,14 +926,13 @@ final class BrowserStore: ObservableObject {
     }
 
     private func switchTabInRecentOrder(offset: Int, keepsPreviewOpen: Bool) {
-        // Control-Tab cycles the top tabs in sidebar order, up to the preview
-        // limit. The list is frozen for the whole interaction so it doesn't
-        // shift underneath the cycling. (Candidates are cleared when the
-        // interaction ends, including before the preview ever appears.)
+        // Control-Tab starts from most-recent order, so a quick press toggles
+        // between the current tab and the previous tab. The list is frozen for
+        // the whole interaction so hold-to-cycle doesn't shift underneath the
+        // selection. (Candidates are cleared when the interaction ends,
+        // including before the preview ever appears.)
         if tabSwitcherCandidates.isEmpty {
-            tabSwitcherCandidates = Array(
-                visibleTabsForActiveSpace.prefix(TabSwitcherConfiguration.previewLimit)
-            )
+            tabSwitcherCandidates = recentTabsForActiveSpace()
         }
 
         let recentTabs = tabSwitcherCandidates

@@ -44,11 +44,6 @@ struct SidebarView: View {
                 Spacer(minLength: 6)
             }
 
-            if let mediaTab = store.mediaControllerTab, let mediaState = store.mediaControllerState {
-                MediaControllerView(store: store, tab: mediaTab, state: mediaState)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
-            }
-
             SpaceSwitcherView(store: store)
         }
         .animation(.easeOut(duration: 0.16), value: store.mediaControllerTabID)
@@ -701,111 +696,5 @@ private struct TabReorderDropDelegate: DropDelegate {
     func performDrop(info: DropInfo) -> Bool {
         store.draggedTabID = nil
         return true
-    }
-}
-
-/// Arc/Zen-style now-playing bar pinned to the bottom of the sidebar, just
-/// above the space switcher, controlling whichever tab owns media playback.
-private struct MediaControllerView: View {
-    @ObservedObject var store: BrowserStore
-    let tab: BrowserTab
-    let state: TabMediaState
-
-    var body: some View {
-        HStack(spacing: 0) {
-            MediaControlButton(help: tab.title) {
-                store.focusMediaTab()
-            } label: {
-                favicon
-            }
-
-            MediaControlButton(systemImage: "backward.end.fill", help: "Previous") {
-                store.skipMediaTrack(forward: false)
-            }
-
-            MediaControlButton(
-                systemImage: state.isPlaying ? "pause.fill" : "play.fill",
-                help: state.isPlaying ? "Pause" : "Play"
-            ) {
-                store.toggleMediaPlayback()
-            }
-
-            MediaControlButton(systemImage: "forward.end.fill", help: "Next") {
-                store.skipMediaTrack(forward: true)
-            }
-
-            MediaControlButton(
-                systemImage: state.isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill",
-                help: state.isMuted ? "Unmute" : "Mute"
-            ) {
-                store.toggleMediaMute()
-            }
-        }
-        .padding(.horizontal, 4)
-        .padding(.vertical, 4)
-        .background(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(Color.primary.opacity(0.06))
-        )
-        .overlay {
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .stroke(Color.white.opacity(0.10), lineWidth: 1)
-        }
-    }
-
-    @ViewBuilder
-    private var favicon: some View {
-        if let data = tab.faviconData, let image = NSImage(data: data) {
-            Image(nsImage: image)
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-                .frame(width: 15, height: 15)
-                .clipShape(RoundedRectangle(cornerRadius: 3, style: .continuous))
-        } else {
-            Image(systemName: tab.faviconSymbol)
-                .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(.secondary)
-        }
-    }
-}
-
-private struct MediaControlButton<Label: View>: View {
-    let help: String
-    let action: () -> Void
-    @ViewBuilder let label: () -> Label
-
-    @State private var isHovering = false
-
-    init(
-        help: String,
-        action: @escaping () -> Void,
-        @ViewBuilder label: @escaping () -> Label
-    ) {
-        self.help = help
-        self.action = action
-        self.label = label
-    }
-
-    var body: some View {
-        Button(action: action) {
-            label()
-                .frame(maxWidth: .infinity)
-                .frame(height: 26)
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .background(isHovering ? Color.primary.opacity(0.07) : Color.clear)
-        .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
-        .onHover { isHovering = $0 }
-        .animation(.easeOut(duration: 0.10), value: isHovering)
-        .help(help)
-    }
-}
-
-extension MediaControlButton where Label == Image {
-    init(systemImage: String, help: String, action: @escaping () -> Void) {
-        self.init(help: help, action: action) {
-            Image(systemName: systemImage)
-        }
     }
 }

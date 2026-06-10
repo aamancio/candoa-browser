@@ -16,7 +16,7 @@ struct WKWebViewRepresentable: NSViewRepresentable {
 
 /// Persistent host for the active tab's web view. Unlike swapping
 /// representables per tab, this keeps background web views parented so
-/// picture-in-picture and media playback survive tab switches.
+/// media playback can survive tab switches and move into the mini player.
 struct ActiveWebViewHost: NSViewRepresentable {
     let tab: BrowserTab
     @ObservedObject var store: BrowserStore
@@ -32,5 +32,25 @@ struct ActiveWebViewHost: NSViewRepresentable {
             in: container,
             excludingTabID: store.splitTabID
         )
+    }
+}
+
+struct MiniPlayerWebViewHost: NSViewRepresentable {
+    let tabID: UUID
+    @ObservedObject var store: BrowserStore
+
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView()
+        view.wantsLayer = true
+        view.layer?.backgroundColor = NSColor.black.cgColor
+        return view
+    }
+
+    func updateNSView(_ container: NSView, context: Context) {
+        store.webCoordinator.hostMiniPlayerWebView(for: tabID, in: container)
+    }
+
+    static func dismantleNSView(_ nsView: NSView, coordinator: ()) {
+        nsView.subviews.forEach { $0.removeFromSuperview() }
     }
 }
