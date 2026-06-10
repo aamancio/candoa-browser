@@ -825,7 +825,7 @@ private enum MiniPlayerResizeEdge: String, CaseIterable, Identifiable {
         case .top, .bottom:
             return .resizeUpDown
         case .leading, .trailing:
-            return .resizeLeftRight
+            return MiniPlayerResizeCursor.horizontal
         case .topLeading:
             return MiniPlayerResizeCursor.topLeft
         case .topTrailing:
@@ -922,6 +922,13 @@ private enum MiniPlayerResizeEdge: String, CaseIterable, Identifiable {
 }
 
 private enum MiniPlayerResizeCursor {
+    static var horizontal: NSCursor {
+        if #available(macOS 15.0, *) {
+            return NSCursor.columnResize(directions: .all)
+        }
+        return .resizeLeftRight
+    }
+
     static var topLeft: NSCursor {
         if #available(macOS 15.0, *) {
             return NSCursor.frameResize(position: .topLeft, directions: .all)
