@@ -1,12 +1,24 @@
+import AppKit
 import Combine
 import Foundation
 
 @MainActor
 final class BrowserStore: ObservableObject {
+    private struct ClosedTabSnapshot {
+        let url: URL
+        let isPinned: Bool
+        let spaceID: UUID
+    }
+
     @Published private(set) var spaces: [BrowserSpace]
     @Published private(set) var tabs: [BrowserTab]
     @Published var activeSpaceID: UUID
-    @Published var activeTabID: UUID?
+    @Published var activeTabID: UUID? {
+        didSet {
+            guard oldValue != activeTabID else { return }
+            handleActiveTabChange(from: oldValue)
+        }
+    }
     @Published var splitTabID: UUID?
     @Published var isSplitViewEnabled = false
     @Published var isCommandPalettePresented = false
@@ -22,17 +34,20 @@ final class BrowserStore: ObservableObject {
     @Published private(set) var canGoBack = false
     @Published private(set) var canGoForward = false
     @Published var draggedTabID: UUID?
+    @Published var isFindBarPresented = false
+    @Published var findQuery = ""
+
+    private var recentlyClosedTabs: [ClosedTabSnapshot] = []
+    private static let recentlyClosedTabLimit = 50
 
     let navigationService: NavigationService
     let webCoordinator: WebViewCoordinator
-
-    private static let defaultHomeURL = URL(string: "https://www.google.com/?hl=en&gl=us")!
-    private static let defaultHomeTitle = "Google"
 
     private let persistenceService: PersistenceService
     private let faviconService: FaviconService
     private var saveCancellable: AnyCancellable?
     private var tabSwitcherHideWorkItem: DispatchWorkItem?
+    private var tabSwitcherCandidates: [BrowserTab] = []
     private let spaceSymbols = [
         "circle.grid.2x2",
         "sparkle",
@@ -298,6 +313,7 @@ final class BrowserStore: ObservableObject {
     func closeTab(_ id: UUID) {
         guard let index = tabs.firstIndex(where: { $0.id == id }) else { return }
         let closingTab = tabs[index]
+        rememberClosedTab(closingTab)
         tabs.remove(at: index)
         webCoordinator.removeWebView(for: id)
 
@@ -331,15 +347,145 @@ final class BrowserStore: ObservableObject {
         _ = newTab(url: tab.url, pinned: tab.isPinned, in: tab.spaceID)
     }
 
-    func switchTab(to id: UUID) {
+    @discardableResult
+    func createPopupTab(url: URL?, in spaceID: UUID) -> BrowserTab {
+        let tab = BrowserTab(
+            title: title(for: url),
+            url: url,
+            faviconSymbol: faviconService.placeholderSymbol(for: url),
+            spaceID: spaceID,
+            sortOrder: nextSortOrder(spaceID: spaceID, pinned: false)
+        )
+
+        tabs.insert(tab, at: 0)
+        switchTab(to: tab.id)
+        return tab
+    }
+
+    func reopenLastClosedTab() {
+        guard let snapshot = recentlyClosedTabs.popLast() else { return }
+        let targetSpaceID = spaces.contains(where: { $0.id == snapshot.spaceID })
+            ? snapshot.spaceID
+            : activeSpaceID
+        _ = newTab(url: snapshot.url, pinned: snapshot.isPinned, in: targetSpaceID)
+    }
+
+    func clearUnpinnedTabs() {
+        regularTabsForActiveSpace.map(\.id).forEach(closeTab)
+    }
+
+    func togglePinForActiveTab() {
+        guard let activeTabID else { return }
+        togglePin(activeTabID)
+    }
+
+    func togglePin(_ id: UUID) {
         guard let index = tabs.firstIndex(where: { $0.id == id }) else { return }
-        tabs[index].lastAccessedAt = Date()
+        let pinned = !tabs[index].isPinned
+        tabs[index].isPinned = pinned
+        tabs[index].sortOrder = nextSortOrder(spaceID: tabs[index].spaceID, pinned: pinned)
+        normalizeSortOrder()
+    }
+
+    func switchToTab(at position: Int) {
+        let visibleTabs = visibleTabsForActiveSpace
+        guard position >= 1, position <= visibleTabs.count else { return }
+        switchTab(to: visibleTabs[position - 1].id)
+    }
+
+    func switchToSpace(at position: Int) {
+        guard position >= 1, position <= spaces.count else { return }
+        switchSpace(to: spaces[position - 1].id)
+    }
+
+    func copyActiveTabURL(asMarkdown: Bool = false) {
+        guard let tab = activeTab, let url = tab.url else { return }
+        let value = asMarkdown ? "[\(tab.title)](\(url.absoluteString))" : url.absoluteString
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setString(value, forType: .string)
+    }
+
+    func showFindBar() {
+        guard activeTab != nil else { return }
+        isFindBarPresented = true
+    }
+
+    func dismissFindBar() {
+        guard isFindBarPresented else { return }
+        isFindBarPresented = false
+        if let activeTabID {
+            webCoordinator.clearFindSelection(in: activeTabID)
+        }
+    }
+
+    func findNext() {
+        performFind(forward: true)
+    }
+
+    func findPrevious() {
+        performFind(forward: false)
+    }
+
+    func zoomInActiveTab() {
+        guard let activeTabID else { return }
+        webCoordinator.zoomIn(tabID: activeTabID)
+    }
+
+    func zoomOutActiveTab() {
+        guard let activeTabID else { return }
+        webCoordinator.zoomOut(tabID: activeTabID)
+    }
+
+    func resetZoomForActiveTab() {
+        guard let activeTabID else { return }
+        webCoordinator.resetZoom(tabID: activeTabID)
+    }
+
+    private func performFind(forward: Bool) {
+        guard let activeTabID, !findQuery.isEmpty else { return }
+        webCoordinator.find(findQuery, forward: forward, in: activeTabID)
+    }
+
+    private func rememberClosedTab(_ tab: BrowserTab) {
+        guard let url = tab.url else { return }
+        recentlyClosedTabs.append(ClosedTabSnapshot(url: url, isPinned: tab.isPinned, spaceID: tab.spaceID))
+        if recentlyClosedTabs.count > Self.recentlyClosedTabLimit {
+            recentlyClosedTabs.removeFirst(recentlyClosedTabs.count - Self.recentlyClosedTabLimit)
+        }
+    }
+
+    func switchTab(to id: UUID) {
+        switchTab(to: id, updatesAccessTime: true)
+    }
+
+    private func switchTab(to id: UUID, updatesAccessTime: Bool) {
+        guard let index = tabs.firstIndex(where: { $0.id == id }) else { return }
+        if updatesAccessTime {
+            tabs[index].lastAccessedAt = Date()
+        }
         activeSpaceID = tabs[index].spaceID
         activeTabID = id
         if splitTabID == id {
             splitTabID = replacementSplitTab(excluding: id)?.id
         }
         updateNavigationState()
+    }
+
+    /// Auto picture-in-picture, Arc-style: leaving a tab with playing video
+    /// pops it into the system PiP window; returning brings it back inline.
+    private func handleActiveTabChange(from previousID: UUID?) {
+        if
+            let previousID,
+            previousID != splitTabID,
+            tabs.contains(where: { $0.id == previousID })
+        {
+            webCoordinator.beginAutoPictureInPicture(for: previousID)
+        }
+
+        if let activeTabID {
+            webCoordinator.endAutoPictureInPicture(for: activeTabID)
+        }
     }
 
     func switchSpace(to id: UUID) {
@@ -562,7 +708,7 @@ final class BrowserStore: ObservableObject {
     }
 
     private func title(for url: URL?) -> String {
-        guard let url else { return "New Tab" }
+        guard let url else { return BrowserDefaults.newTabTitle }
         return url.host(percentEncoded: false) ?? url.absoluteString
     }
 
@@ -618,15 +764,20 @@ final class BrowserStore: ObservableObject {
         guard !visibleTabs.isEmpty else { return }
         let currentIndex = visibleTabs.firstIndex(where: { $0.id == activeTabID }) ?? 0
         let nextIndex = (currentIndex + offset + visibleTabs.count) % visibleTabs.count
-        let selectedTabID = visibleTabs[nextIndex].id
-        switchTab(to: selectedTabID)
-        presentTabSwitcher(selectedTabID: selectedTabID)
+        switchTab(to: visibleTabs[nextIndex].id)
     }
 
     private func switchTabInRecentOrder(offset: Int, keepsPreviewOpen: Bool) {
-        let recentTabs = isTabSwitcherPresented && !tabSwitcherTabs.isEmpty
-            ? tabSwitcherTabs
-            : recentTabsForActiveSpace(limit: 10)
+        // Control-Tab cycles the top tabs in sidebar order, up to the preview
+        // limit. The list is frozen for the whole interaction so it doesn't
+        // shift underneath the cycling.
+        if !isTabSwitcherPresented || tabSwitcherCandidates.isEmpty {
+            tabSwitcherCandidates = Array(
+                visibleTabsForActiveSpace.prefix(TabSwitcherConfiguration.previewLimit)
+            )
+        }
+
+        let recentTabs = tabSwitcherCandidates
         guard !recentTabs.isEmpty else { return }
         guard recentTabs.count > 1 else {
             presentTabSwitcher(
@@ -638,10 +789,16 @@ final class BrowserStore: ObservableObject {
         }
 
         let currentSelectionID = tabSwitcherSelectedTabID ?? activeTabID
-        let currentIndex = recentTabs.firstIndex(where: { $0.id == currentSelectionID }) ?? 0
-        let nextIndex = (currentIndex + offset + recentTabs.count) % recentTabs.count
+        let nextIndex: Int
+        if let currentIndex = recentTabs.firstIndex(where: { $0.id == currentSelectionID }) {
+            nextIndex = (currentIndex + offset + recentTabs.count) % recentTabs.count
+        } else {
+            // Active tab sits outside the top tabs: enter the list at the
+            // nearest end instead of skipping past it.
+            nextIndex = offset > 0 ? 0 : recentTabs.count - 1
+        }
         let selectedTabID = recentTabs[nextIndex].id
-        switchTab(to: selectedTabID)
+        switchTab(to: selectedTabID, updatesAccessTime: false)
         presentTabSwitcher(
             candidates: recentTabs,
             selectedTabID: selectedTabID,
@@ -654,7 +811,11 @@ final class BrowserStore: ObservableObject {
         selectedTabID: UUID? = nil,
         autoHide: Bool = true
     ) {
-        let previewTabs = Array((candidates ?? recentTabsForActiveSpace(limit: 10)).prefix(10))
+        let selectedTabID = selectedTabID ?? activeTabID
+        let previewTabs = tabSwitcherPreviewTabs(
+            from: candidates ?? recentTabsForActiveSpace(),
+            selectedTabID: selectedTabID
+        )
         guard !previewTabs.isEmpty else {
             hideTabSwitcher()
             return
@@ -662,7 +823,7 @@ final class BrowserStore: ObservableObject {
 
         tabSwitcherHideWorkItem?.cancel()
         tabSwitcherTabs = previewTabs
-        tabSwitcherSelectedTabID = selectedTabID ?? activeTabID ?? previewTabs.first?.id
+        tabSwitcherSelectedTabID = selectedTabID ?? previewTabs.first?.id
         isTabSwitcherPresented = true
 
         guard autoHide else { return }
@@ -680,9 +841,17 @@ final class BrowserStore: ObservableObject {
         tabSwitcherHideWorkItem?.cancel()
         tabSwitcherHideWorkItem = nil
         isTabSwitcherPresented = false
+        tabSwitcherCandidates = []
+        tabSwitcherSelectedTabID = nil
+
+        // Commit the access time the cycling deferred, so the landed-on tab
+        // becomes most recent for the next interaction.
+        if let activeTabID, let index = tabs.firstIndex(where: { $0.id == activeTabID }) {
+            tabs[index].lastAccessedAt = Date()
+        }
     }
 
-    private func recentTabsForActiveSpace(limit: Int) -> [BrowserTab] {
+    private func recentTabsForActiveSpace() -> [BrowserTab] {
         tabs
             .filter { $0.spaceID == activeSpaceID }
             .sorted {
@@ -691,8 +860,25 @@ final class BrowserStore: ObservableObject {
                 }
                 return $0.lastAccessedAt > $1.lastAccessedAt
             }
-            .prefix(limit)
-            .map { $0 }
+    }
+
+    private func tabSwitcherPreviewTabs(from candidates: [BrowserTab], selectedTabID: UUID?) -> [BrowserTab] {
+        var previewTabs = Array(candidates.prefix(TabSwitcherConfiguration.previewLimit))
+        guard
+            let selectedTabID,
+            !previewTabs.contains(where: { $0.id == selectedTabID }),
+            let selectedTab = candidates.first(where: { $0.id == selectedTabID })
+        else {
+            return previewTabs
+        }
+
+        if previewTabs.count == TabSwitcherConfiguration.previewLimit {
+            previewTabs[previewTabs.count - 1] = selectedTab
+        } else {
+            previewTabs.append(selectedTab)
+        }
+
+        return previewTabs
     }
 
     private func switchSpace(offset: Int) {
@@ -725,8 +911,8 @@ final class BrowserStore: ObservableObject {
 
     private static func homeTab(spaceID: UUID, sortOrder: Double = 0, pinned: Bool = false) -> BrowserTab {
         BrowserTab(
-            title: defaultHomeTitle,
-            url: defaultHomeURL,
+            title: BrowserDefaults.defaultHomeTitle,
+            url: BrowserDefaults.defaultHomeURL,
             faviconSymbol: "magnifyingglass",
             isPinned: pinned,
             spaceID: spaceID,
@@ -743,9 +929,9 @@ final class BrowserStore: ObservableObject {
         tabs = tabs.filter { spaceIDs.contains($0.spaceID) }
 
         for index in tabs.indices where Self.isHomePlaceholderURL(tabs[index].url) {
-            tabs[index].url = Self.defaultHomeURL
-            tabs[index].title = Self.defaultHomeTitle
-            tabs[index].faviconSymbol = faviconService.placeholderSymbol(for: Self.defaultHomeURL)
+            tabs[index].url = BrowserDefaults.defaultHomeURL
+            tabs[index].title = BrowserDefaults.defaultHomeTitle
+            tabs[index].faviconSymbol = faviconService.placeholderSymbol(for: BrowserDefaults.defaultHomeURL)
             tabs[index].faviconData = nil
         }
 

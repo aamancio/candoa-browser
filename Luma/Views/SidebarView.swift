@@ -6,6 +6,8 @@ struct SidebarView: View {
     @ObservedObject var store: BrowserStore
     let onToggleSidebar: () -> Void
 
+    @State private var isHoveringNewTab = false
+
     private let leadingInset: CGFloat = 12
     private let trailingInset: CGFloat = 10
     private let windowControlsWidth: CGFloat = 74
@@ -128,12 +130,12 @@ struct SidebarView: View {
             .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
         }
         .buttonStyle(.plain)
-        .help("Search or enter URL")
+        .help(BrowserDefaults.addressPlaceholder)
     }
 
     private var sidebarAddressText: String {
         guard let url = store.activeTab?.url else {
-            return "Search or enter URL"
+            return BrowserDefaults.addressPlaceholder
         }
 
         if let host = url.host(percentEncoded: false) {
@@ -159,7 +161,8 @@ struct SidebarView: View {
                             onSelect: { store.switchTab(to: tab.id) },
                             onClose: { store.closeTab(tab.id) },
                             onDuplicate: { store.duplicateTab(tab.id) },
-                            onOpenInSplit: { store.openSplitView(with: tab.id) }
+                            onOpenInSplit: { store.openSplitView(with: tab.id) },
+                            onTogglePin: { store.togglePin(tab.id) }
                         )
                         .onDrag {
                             store.draggedTabID = tab.id
@@ -211,7 +214,8 @@ struct SidebarView: View {
                             onSelect: { store.switchTab(to: tab.id) },
                             onClose: { store.closeTab(tab.id) },
                             onDuplicate: { store.duplicateTab(tab.id) },
-                            onOpenInSplit: { store.openSplitView(with: tab.id) }
+                            onOpenInSplit: { store.openSplitView(with: tab.id) },
+                            onTogglePin: { store.togglePin(tab.id) }
                         )
                         .onDrag {
                             store.draggedTabID = tab.id
@@ -237,7 +241,7 @@ struct SidebarView: View {
             store.newTab()
             store.focusAddressBar()
         } label: {
-            Label("New Tab", systemImage: "plus")
+            Label(BrowserCommandTitles.newTab, systemImage: "plus")
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
         .buttonStyle(.plain)
@@ -246,6 +250,17 @@ struct SidebarView: View {
         .padding(.horizontal, 9)
         .padding(.vertical, 7)
         .contentShape(Rectangle())
+        .background(isHoveringNewTab ? Color.primary.opacity(0.05) : Color.clear)
+        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .onHover { isHoveringNewTab = $0 }
+        .overlay {
+            if isHoveringNewTab {
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .stroke(Color.primary.opacity(0.06), lineWidth: 1)
+                    .allowsHitTesting(false)
+            }
+        }
+        .animation(.easeOut(duration: 0.10), value: isHoveringNewTab)
     }
 }
 
@@ -391,7 +406,7 @@ private struct CreateSpaceSidebarComposer: View {
             Button {
                 createSpace()
             } label: {
-                Text("Create Space")
+                Text(BrowserCommandTitles.createSpace)
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.plain)
@@ -485,6 +500,7 @@ private struct EssentialTileView: View {
     let onClose: () -> Void
     let onDuplicate: () -> Void
     let onOpenInSplit: () -> Void
+    let onTogglePin: () -> Void
 
     @State private var isHovering = false
 
@@ -520,7 +536,8 @@ private struct EssentialTileView: View {
         .onHover { isHovering = $0 }
         .help(tab.title)
         .contextMenu {
-            Button("Duplicate Tab", action: onDuplicate)
+            Button("Unpin Tab", action: onTogglePin)
+            Button(BrowserCommandTitles.duplicateTab, action: onDuplicate)
             Button("Open in Split View", action: onOpenInSplit)
             Button("Close Tab", action: onClose)
         }

@@ -9,6 +9,7 @@ struct TabRowView: View {
     let onClose: () -> Void
     let onDuplicate: () -> Void
     let onOpenInSplit: () -> Void
+    let onTogglePin: () -> Void
 
     @State private var isHovering = false
 
@@ -61,7 +62,8 @@ struct TabRowView: View {
         }
         .onHover { isHovering = $0 }
         .contextMenu {
-            Button("Duplicate Tab", action: onDuplicate)
+            Button(tab.isPinned ? "Unpin Tab" : "Pin Tab", action: onTogglePin)
+            Button(BrowserCommandTitles.duplicateTab, action: onDuplicate)
             Button("Open in Split View", action: onOpenInSplit)
             Button("Close Tab", action: onClose)
         }

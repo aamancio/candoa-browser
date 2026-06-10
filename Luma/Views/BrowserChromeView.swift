@@ -61,7 +61,7 @@ struct BrowserChromeView: View {
             .background(.regularMaterial)
 
             if isAddressOverlayPresented {
-                TextField("Search or enter URL", text: $addressText)
+                TextField(BrowserDefaults.addressPlaceholder, text: $addressText)
                     .textFieldStyle(.plain)
                     .font(.system(size: 15))
                     .padding(.horizontal, 14)

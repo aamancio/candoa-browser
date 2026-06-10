@@ -7,7 +7,7 @@ struct TabSwitcherOverlay: View {
 
     private let columns = Array(
         repeating: GridItem(.fixed(TabSwitcherMetrics.cardWidth), spacing: TabSwitcherMetrics.columnSpacing),
-        count: 5
+        count: TabSwitcherConfiguration.previewLimit
     )
 
     var body: some View {
@@ -25,7 +25,7 @@ struct TabSwitcherOverlay: View {
 
     private var panel: some View {
         LazyVGrid(columns: columns, alignment: .center, spacing: 12) {
-            ForEach(store.tabSwitcherTabs.prefix(10)) { tab in
+            ForEach(store.tabSwitcherTabs) { tab in
                 TabSwitcherPreviewCard(
                     tab: tab,
                     snapshot: snapshots[tab.id],
@@ -44,10 +44,10 @@ struct TabSwitcherOverlay: View {
     }
 
     private func refreshSnapshots() {
-        let visibleIDs = Set(store.tabSwitcherTabs.prefix(10).map(\.id))
+        let visibleIDs = Set(store.tabSwitcherTabs.map(\.id))
         snapshots = snapshots.filter { visibleIDs.contains($0.key) }
 
-        for tab in store.tabSwitcherTabs.prefix(10) where snapshots[tab.id] == nil {
+        for tab in store.tabSwitcherTabs where snapshots[tab.id] == nil {
             store.webCoordinator.snapshotImage(for: tab.id, width: TabSwitcherMetrics.snapshotWidth) { image in
                 guard let image else { return }
                 snapshots[tab.id] = image
@@ -59,7 +59,9 @@ struct TabSwitcherOverlay: View {
 private enum TabSwitcherMetrics {
     static let cardWidth: CGFloat = 142
     static let columnSpacing: CGFloat = 10
-    static let gridWidth: CGFloat = cardWidth * 5 + columnSpacing * 4
+    static let gridWidth: CGFloat =
+        cardWidth * CGFloat(TabSwitcherConfiguration.previewLimit) +
+        columnSpacing * CGFloat(TabSwitcherConfiguration.previewLimit - 1)
     static let snapshotWidth: CGFloat = 260
     static let previewHeight: CGFloat = 84
 }
@@ -70,7 +72,7 @@ private struct TabSwitcherPreviewCard: View {
     let isSelected: Bool
 
     private var hostText: String {
-        tab.url?.host(percentEncoded: false) ?? tab.url?.absoluteString ?? "New Tab"
+        tab.url?.host(percentEncoded: false) ?? tab.url?.absoluteString ?? BrowserDefaults.newTabTitle
     }
 
     var body: some View {

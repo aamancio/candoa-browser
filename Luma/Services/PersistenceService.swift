@@ -272,7 +272,7 @@ struct PersistenceService {
 
         return BrowserTab(
             id: id,
-            title: object.string(for: Key.title) ?? "New Tab",
+            title: object.string(for: Key.title) ?? BrowserDefaults.newTabTitle,
             url: url,
             faviconSymbol: object.string(for: Key.faviconSymbol) ?? "globe",
             faviconData: object.data(for: Key.faviconData),

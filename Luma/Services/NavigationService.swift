@@ -68,17 +68,14 @@ struct SearchProvider: Identifiable, Equatable {
 struct NavigationService {
     static let shared = NavigationService()
 
-    private static let googleHomeURL = URL(string: "https://www.google.com/?hl=en&gl=us")!
-    private static let googleSearchURL = URL(string: "https://www.google.com/search?hl=en&gl=us")!
-
     static let searchProviders: [SearchProvider] = [
         SearchProvider(
             id: "google",
             name: "Google",
             aliases: ["g", "search", "google.com", "www.google.com"],
             symbolName: "magnifyingglass",
-            homeURL: googleHomeURL,
-            baseURL: googleSearchURL,
+            homeURL: BrowserDefaults.defaultHomeURL,
+            baseURL: BrowserDefaults.googleSearchURL,
             queryItemName: "q"
         ),
         SearchProvider(
@@ -282,7 +279,7 @@ struct NavigationService {
         )
     ]
 
-    private let searchBaseURL = Self.googleSearchURL
+    private let searchBaseURL = BrowserDefaults.googleSearchURL
 
     func destinationURL(for rawInput: String) -> URL? {
         let input = rawInput.trimmingCharacters(in: .whitespacesAndNewlines)

@@ -42,7 +42,7 @@ struct ContentView: View {
                     .zIndex(9)
             }
         }
-        .background(WindowInteractionConfigurator(autosaveName: "Luma.BrowserWindow.\(windowAutosaveID)"))
+        .background(WindowInteractionConfigurator(autosaveName: "\(AppConfiguration.windowAutosaveNamePrefix).\(windowAutosaveID)"))
         .background(
             MouseMoveMonitor(
                 isSidebarVisible: $isSidebarVisible,
@@ -61,48 +61,55 @@ struct ContentView: View {
                 store.switchToPreviousRecentTab(keepsPreviewOpen: true)
             } onControlReleased: {
                 store.finishTabSwitcherInteraction()
+            } onCommandDigit: { digit in
+                store.switchToTab(at: digit)
+            } onControlDigit: { digit in
+                store.switchToSpace(at: digit)
+            } onZoomIn: {
+                store.zoomInActiveTab()
+            } onZoomOut: {
+                store.zoomOutActiveTab()
+            } onAddSplit: {
+                addSplitView()
+            } onCloseSplit: {
+                store.closeSplitView()
             }
         )
         .animation(.easeOut(duration: 0.14), value: store.isCommandPalettePresented)
         .animation(.easeOut(duration: 0.14), value: store.isTabSwitcherPresented)
         .animation(.easeOut(duration: 0.18), value: isSidebarPresented)
         .animation(.easeOut(duration: 0.18), value: isSidebarVisible)
-        .onReceive(NotificationCenter.default.publisher(for: .lumaFocusAddressBar)) { _ in
-            store.focusAddressBar()
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .lumaOpenCommandPalette)) { _ in
-            store.openCommandPalette()
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .lumaNewTab)) { _ in
-            openNewTabFlow()
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .lumaReloadTab)) { _ in
-            store.reloadActiveTab()
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .lumaGoBack)) { _ in
-            store.goBack()
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .lumaGoForward)) { _ in
-            store.goForward()
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .lumaCloseCurrentTab)) { _ in
-            store.closeCurrentTab()
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .lumaNextTab)) { _ in
-            store.switchToNextTab()
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .lumaPreviousTab)) { _ in
-            store.switchToPreviousTab()
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .lumaNextSpace)) { _ in
-            store.switchToNextSpace()
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .lumaPreviousSpace)) { _ in
-            store.switchToPreviousSpace()
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .lumaToggleSidebar)) { _ in
-            toggleSidebar()
-        }
+        .focusedSceneValue(\.browserCommandActions, browserCommandActions)
+    }
+
+    private var browserCommandActions: BrowserCommandActions {
+        BrowserCommandActions(
+            newTab: openNewTabFlow,
+            focusAddressBar: store.focusAddressBar,
+            openCommandPalette: store.openCommandPalette,
+            toggleSidebar: toggleSidebar,
+            reloadTab: store.reloadActiveTab,
+            goBack: store.goBack,
+            goForward: store.goForward,
+            closeCurrentTab: closeTabOrWindow,
+            nextTab: store.switchToNextTab,
+            previousTab: store.switchToPreviousTab,
+            nextSpace: store.switchToNextSpace,
+            previousSpace: store.switchToPreviousSpace,
+            reopenClosedTab: store.reopenLastClosedTab,
+            pinOrUnpinTab: store.togglePinForActiveTab,
+            clearUnpinnedTabs: store.clearUnpinnedTabs,
+            copyURL: { store.copyActiveTabURL() },
+            copyURLAsMarkdown: { store.copyActiveTabURL(asMarkdown: true) },
+            findInPage: store.showFindBar,
+            findNext: store.findNext,
+            findPrevious: store.findPrevious,
+            zoomIn: store.zoomInActiveTab,
+            zoomOut: store.zoomOutActiveTab,
+            resetZoom: store.resetZoomForActiveTab,
+            addSplitView: addSplitView,
+            closeSplitView: store.closeSplitView
+        )
     }
 
     private var sidebarLayout: some View {
@@ -133,6 +140,11 @@ struct ContentView: View {
         store.openNewTabCommandPalette()
     }
 
+    private func addSplitView() {
+        guard !store.isSplitViewEnabled else { return }
+        store.toggleSplitView()
+    }
+
     private func closeTabOrWindow() {
         if store.visibleTabsForActiveSpace.count > 1 {
             store.closeCurrentTab()
@@ -149,15 +161,17 @@ private struct KeyboardShortcutMonitor: NSViewRepresentable {
     let onControlTab: () -> Void
     let onControlShiftTab: () -> Void
     let onControlReleased: () -> Void
+    let onCommandDigit: (Int) -> Void
+    let onControlDigit: (Int) -> Void
+    let onZoomIn: () -> Void
+    let onZoomOut: () -> Void
+    let onAddSplit: () -> Void
+    let onCloseSplit: () -> Void
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(
-            onCommandT: onCommandT,
-            onCommandW: onCommandW,
-            onControlTab: onControlTab,
-            onControlShiftTab: onControlShiftTab,
-            onControlReleased: onControlReleased
-        )
+        let coordinator = Coordinator()
+        apply(to: coordinator)
+        return coordinator
     }
 
     func makeNSView(context: Context) -> NSView {
@@ -166,35 +180,40 @@ private struct KeyboardShortcutMonitor: NSViewRepresentable {
     }
 
     func updateNSView(_ nsView: NSView, context: Context) {
-        context.coordinator.onCommandT = onCommandT
-        context.coordinator.onCommandW = onCommandW
-        context.coordinator.onControlTab = onControlTab
-        context.coordinator.onControlShiftTab = onControlShiftTab
-        context.coordinator.onControlReleased = onControlReleased
+        apply(to: context.coordinator)
         context.coordinator.installMonitorIfNeeded()
     }
 
-    final class Coordinator {
-        var onCommandT: () -> Void
-        var onCommandW: () -> Void
-        var onControlTab: () -> Void
-        var onControlShiftTab: () -> Void
-        var onControlReleased: () -> Void
+    private func apply(to coordinator: Coordinator) {
+        coordinator.onCommandT = onCommandT
+        coordinator.onCommandW = onCommandW
+        coordinator.onControlTab = onControlTab
+        coordinator.onControlShiftTab = onControlShiftTab
+        coordinator.onControlReleased = onControlReleased
+        coordinator.onCommandDigit = onCommandDigit
+        coordinator.onControlDigit = onControlDigit
+        coordinator.onZoomIn = onZoomIn
+        coordinator.onZoomOut = onZoomOut
+        coordinator.onAddSplit = onAddSplit
+        coordinator.onCloseSplit = onCloseSplit
+    }
+
+    final class Coordinator: NSObject {
+        var onCommandT: () -> Void = {}
+        var onCommandW: () -> Void = {}
+        var onControlTab: () -> Void = {}
+        var onControlShiftTab: () -> Void = {}
+        var onControlReleased: () -> Void = {}
+        var onCommandDigit: (Int) -> Void = { _ in }
+        var onControlDigit: (Int) -> Void = { _ in }
+        var onZoomIn: () -> Void = {}
+        var onZoomOut: () -> Void = {}
+        var onAddSplit: () -> Void = {}
+        var onCloseSplit: () -> Void = {}
         private var monitor: Any?
 
-        init(
-            onCommandT: @escaping () -> Void,
-            onCommandW: @escaping () -> Void,
-            onControlTab: @escaping () -> Void,
-            onControlShiftTab: @escaping () -> Void,
-            onControlReleased: @escaping () -> Void
-        ) {
-            self.onCommandT = onCommandT
-            self.onCommandW = onCommandW
-            self.onControlTab = onControlTab
-            self.onControlShiftTab = onControlShiftTab
-            self.onControlReleased = onControlReleased
-        }
+        private static let equalsKeyCode: UInt16 = 24
+        private static let minusKeyCode: UInt16 = 27
 
         func installMonitorIfNeeded() {
             guard monitor == nil else { return }
@@ -231,6 +250,37 @@ private struct KeyboardShortcutMonitor: NSViewRepresentable {
                     return nil
                 }
 
+                if let digit = Self.digit(for: event, requiring: .command) {
+                    onCommandDigit(digit)
+                    return nil
+                }
+
+                if let digit = Self.digit(for: event, requiring: .control) {
+                    onControlDigit(digit)
+                    return nil
+                }
+
+                if Self.matchesKey(event, keyCode: Self.equalsKeyCode, modifiers: [.control, .shift]) {
+                    onAddSplit()
+                    return nil
+                }
+
+                if Self.matchesKey(event, keyCode: Self.minusKeyCode, modifiers: [.control, .shift]) {
+                    onCloseSplit()
+                    return nil
+                }
+
+                // Catches both Command-= and Command-Shift-= (the literal Command-Plus).
+                if Self.matchesZoomKey(event, keyCode: Self.equalsKeyCode) {
+                    onZoomIn()
+                    return nil
+                }
+
+                if Self.matchesZoomKey(event, keyCode: Self.minusKeyCode) {
+                    onZoomOut()
+                    return nil
+                }
+
                 return event
             }
         }
@@ -248,17 +298,46 @@ private struct KeyboardShortcutMonitor: NSViewRepresentable {
         }
 
         private static func isControlTab(_ event: NSEvent) -> Bool {
-            let modifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+            let modifiers = normalizedModifiers(for: event)
             return modifiers == .control && event.keyCode == 48
         }
 
         private static func isControlShiftTab(_ event: NSEvent) -> Bool {
-            let modifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+            let modifiers = normalizedModifiers(for: event)
             return modifiers == [.control, .shift] && event.keyCode == 48
         }
 
         private static func isControlPressed(_ event: NSEvent) -> Bool {
             event.modifierFlags.intersection(.deviceIndependentFlagsMask).contains(.control)
+        }
+
+        private static func digit(for event: NSEvent, requiring modifier: NSEvent.ModifierFlags) -> Int? {
+            guard normalizedModifiers(for: event) == modifier else { return nil }
+            guard
+                let characters = event.charactersIgnoringModifiers,
+                characters.count == 1,
+                let digit = Int(characters),
+                (1...9).contains(digit)
+            else {
+                return nil
+            }
+            return digit
+        }
+
+        private static func matchesKey(_ event: NSEvent, keyCode: UInt16, modifiers: NSEvent.ModifierFlags) -> Bool {
+            event.keyCode == keyCode && normalizedModifiers(for: event) == modifiers
+        }
+
+        private static func matchesZoomKey(_ event: NSEvent, keyCode: UInt16) -> Bool {
+            guard event.keyCode == keyCode else { return false }
+            let modifiers = normalizedModifiers(for: event)
+            return modifiers == .command || modifiers == [.command, .shift]
+        }
+
+        private static func normalizedModifiers(for event: NSEvent) -> NSEvent.ModifierFlags {
+            event.modifierFlags
+                .intersection(.deviceIndependentFlagsMask)
+                .subtracting([.capsLock, .function, .numericPad])
         }
 
         deinit {
@@ -316,15 +395,16 @@ private struct MouseMoveMonitor: NSViewRepresentable {
 
                 let xPosition = event.locationInWindow.x
                 if isSidebarRevealSuppressed?.wrappedValue == true {
-                    if xPosition > 96 {
+                    if xPosition > SidebarRevealConfiguration.suppressionResetDistance {
                         isSidebarRevealSuppressed?.wrappedValue = false
                     }
                     return event
                 }
 
-                if xPosition <= 64 {
+                if xPosition <= SidebarRevealConfiguration.revealDistanceFromLeftEdge {
                     isSidebarHoverRevealed?.wrappedValue = true
-                } else if isSidebarHoverRevealed?.wrappedValue == true && xPosition > 250 {
+                } else if isSidebarHoverRevealed?.wrappedValue == true &&
+                            xPosition > SidebarRevealConfiguration.hideDistanceFromLeftEdge {
                     isSidebarHoverRevealed?.wrappedValue = false
                 }
 
@@ -335,11 +415,21 @@ private struct MouseMoveMonitor: NSViewRepresentable {
         func installTimerIfNeeded() {
             guard timer == nil else { return }
 
-            timer = Timer.scheduledTimer(withTimeInterval: 0.12, repeats: true) { [weak self] _ in
-                self?.pollMouseLocation()
-            }
+            timer = Timer.scheduledTimer(
+                timeInterval: SidebarRevealConfiguration.pollingInterval,
+                target: self,
+                selector: #selector(pollMouseLocationTimer(_:)),
+                userInfo: nil,
+                repeats: true
+            )
         }
 
+        @MainActor
+        @objc private func pollMouseLocationTimer(_ timer: Timer) {
+            pollMouseLocation()
+        }
+
+        @MainActor
         private func pollMouseLocation() {
             guard isSidebarVisible?.wrappedValue == false else { return }
 
@@ -355,15 +445,17 @@ private struct MouseMoveMonitor: NSViewRepresentable {
 
             let distanceFromLeftEdge = mouseLocation.x - frame.minX
             if isSidebarRevealSuppressed?.wrappedValue == true {
-                if distanceFromLeftEdge > 96 {
+                if distanceFromLeftEdge > SidebarRevealConfiguration.suppressionResetDistance {
                     isSidebarRevealSuppressed?.wrappedValue = false
                 }
                 return
             }
 
-            if distanceFromLeftEdge >= 0 && distanceFromLeftEdge <= 64 {
+            if distanceFromLeftEdge >= 0 &&
+                distanceFromLeftEdge <= SidebarRevealConfiguration.revealDistanceFromLeftEdge {
                 isSidebarHoverRevealed?.wrappedValue = true
-            } else if isSidebarHoverRevealed?.wrappedValue == true && distanceFromLeftEdge > 250 {
+            } else if isSidebarHoverRevealed?.wrappedValue == true &&
+                        distanceFromLeftEdge > SidebarRevealConfiguration.hideDistanceFromLeftEdge {
                 isSidebarHoverRevealed?.wrappedValue = false
             }
         }
@@ -400,7 +492,10 @@ private struct WindowInteractionConfigurator: NSViewRepresentable {
 
     @MainActor
     final class Coordinator {
-        private static let minimumWindowSize = NSSize(width: 980, height: 640)
+        private static let minimumWindowSize = NSSize(
+            width: AppConfiguration.minimumWindowWidth,
+            height: AppConfiguration.minimumWindowHeight
+        )
 
         private weak var configuredWindow: NSWindow?
         private var configuredAutosaveName: String?

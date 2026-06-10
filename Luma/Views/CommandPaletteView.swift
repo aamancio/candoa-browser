@@ -266,13 +266,13 @@ struct CommandPaletteView: View {
 
     private var baseCommands: [PaletteCommand] {
         [
-            PaletteCommand(title: "New Tab", symbolName: "plus", action: .newTab),
-            PaletteCommand(title: "Close Current Tab", symbolName: "xmark", action: .closeCurrentTab),
-            PaletteCommand(title: "Duplicate Tab", symbolName: "square.on.square", action: .duplicateCurrentTab),
-            PaletteCommand(title: "Reload Tab", symbolName: "arrow.clockwise", action: .reloadTab),
-            PaletteCommand(title: "Toggle Split View", symbolName: "rectangle.split.1x2", action: .toggleSplitView),
-            PaletteCommand(title: "Create Space", symbolName: "square.grid.2x2", action: .createSpace),
-            PaletteCommand(title: "Focus Address Bar", symbolName: "text.cursor", action: .focusAddressBar)
+            PaletteCommand(title: BrowserCommandTitles.newTab, symbolName: "plus", action: .newTab),
+            PaletteCommand(title: BrowserCommandTitles.closeCurrentTab, symbolName: "xmark", action: .closeCurrentTab),
+            PaletteCommand(title: BrowserCommandTitles.duplicateTab, symbolName: "square.on.square", action: .duplicateCurrentTab),
+            PaletteCommand(title: BrowserCommandTitles.reloadTab, symbolName: "arrow.clockwise", action: .reloadTab),
+            PaletteCommand(title: BrowserCommandTitles.toggleSplitView, symbolName: "rectangle.split.1x2", action: .toggleSplitView),
+            PaletteCommand(title: BrowserCommandTitles.createSpace, symbolName: "square.grid.2x2", action: .createSpace),
+            PaletteCommand(title: BrowserCommandTitles.focusAddressBar, symbolName: "text.cursor", action: .focusAddressBar)
         ]
     }
 

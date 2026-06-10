@@ -15,7 +15,7 @@ struct BrowserTab: Identifiable, Codable, Hashable {
 
     init(
         id: UUID = UUID(),
-        title: String = "New Tab",
+        title: String = BrowserDefaults.newTabTitle,
         url: URL? = nil,
         faviconSymbol: String = "globe",
         faviconData: Data? = nil,
@@ -56,7 +56,7 @@ struct BrowserTab: Identifiable, Codable, Hashable {
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         id = try container.decodeIfPresent(UUID.self, forKey: .id) ?? UUID()
-        title = try container.decodeIfPresent(String.self, forKey: .title) ?? "New Tab"
+        title = try container.decodeIfPresent(String.self, forKey: .title) ?? BrowserDefaults.newTabTitle
         url = try container.decodeIfPresent(URL.self, forKey: .url)
         faviconSymbol = try container.decodeIfPresent(String.self, forKey: .faviconSymbol) ?? "globe"
         faviconData = try container.decodeIfPresent(Data.self, forKey: .faviconData)

@@ -5,91 +5,222 @@ struct LumaApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
-                .frame(minWidth: 980, minHeight: 640)
+                .frame(
+                    minWidth: AppConfiguration.minimumWindowWidth,
+                    minHeight: AppConfiguration.minimumWindowHeight
+                )
         }
         .windowStyle(.hiddenTitleBar)
         .commands {
-            CommandGroup(replacing: .newItem) {
-                Button("New Tab") {
-                    NotificationCenter.default.post(name: .lumaNewTab, object: nil)
-                }
-                .keyboardShortcut("t", modifiers: .command)
-            }
-
-            CommandMenu("Browser") {
-                Button("Focus Address Bar") {
-                    NotificationCenter.default.post(name: .lumaFocusAddressBar, object: nil)
-                }
-                .keyboardShortcut("l", modifiers: .command)
-
-                Button("Command Bar") {
-                    NotificationCenter.default.post(name: .lumaOpenCommandPalette, object: nil)
-                }
-
-                Button("Toggle Sidebar") {
-                    NotificationCenter.default.post(name: .lumaToggleSidebar, object: nil)
-                }
-                .keyboardShortcut("s", modifiers: .command)
-
-                Divider()
-
-                Button("Reload Tab") {
-                    NotificationCenter.default.post(name: .lumaReloadTab, object: nil)
-                }
-                .keyboardShortcut("r", modifiers: .command)
-
-                Button("Back") {
-                    NotificationCenter.default.post(name: .lumaGoBack, object: nil)
-                }
-                .keyboardShortcut("[", modifiers: .command)
-
-                Button("Forward") {
-                    NotificationCenter.default.post(name: .lumaGoForward, object: nil)
-                }
-                .keyboardShortcut("]", modifiers: .command)
-
-                Button("Close Current Tab") {
-                    NotificationCenter.default.post(name: .lumaCloseCurrentTab, object: nil)
-                }
-                .keyboardShortcut("w", modifiers: .command)
-
-                Divider()
-
-                Button("Next Tab") {
-                    NotificationCenter.default.post(name: .lumaNextTab, object: nil)
-                }
-                .keyboardShortcut("]", modifiers: [.command, .shift])
-
-                Button("Previous Tab") {
-                    NotificationCenter.default.post(name: .lumaPreviousTab, object: nil)
-                }
-                .keyboardShortcut("[", modifiers: [.command, .shift])
-
-                Button("Next Space") {
-                    NotificationCenter.default.post(name: .lumaNextSpace, object: nil)
-                }
-                .keyboardShortcut(.rightArrow, modifiers: [.command, .option])
-
-                Button("Previous Space") {
-                    NotificationCenter.default.post(name: .lumaPreviousSpace, object: nil)
-                }
-                .keyboardShortcut(.leftArrow, modifiers: [.command, .option])
-            }
+            BrowserCommands()
         }
     }
 }
 
-extension Notification.Name {
-    static let lumaFocusAddressBar = Notification.Name("lumaFocusAddressBar")
-    static let lumaOpenCommandPalette = Notification.Name("lumaOpenCommandPalette")
-    static let lumaNewTab = Notification.Name("lumaNewTab")
-    static let lumaReloadTab = Notification.Name("lumaReloadTab")
-    static let lumaGoBack = Notification.Name("lumaGoBack")
-    static let lumaGoForward = Notification.Name("lumaGoForward")
-    static let lumaCloseCurrentTab = Notification.Name("lumaCloseCurrentTab")
-    static let lumaNextTab = Notification.Name("lumaNextTab")
-    static let lumaPreviousTab = Notification.Name("lumaPreviousTab")
-    static let lumaNextSpace = Notification.Name("lumaNextSpace")
-    static let lumaPreviousSpace = Notification.Name("lumaPreviousSpace")
-    static let lumaToggleSidebar = Notification.Name("lumaToggleSidebar")
+private struct BrowserCommands: Commands {
+    @FocusedValue(\.browserCommandActions) private var actions
+
+    var body: some Commands {
+        CommandGroup(replacing: .newItem) {
+            Button(BrowserCommandTitles.newTab) {
+                actions?.newTab()
+            }
+            .keyboardShortcut("t", modifiers: .command)
+            .disabled(actions == nil)
+
+            Button(BrowserCommandTitles.reopenClosedTab) {
+                actions?.reopenClosedTab()
+            }
+            .keyboardShortcut("t", modifiers: [.command, .shift])
+            .disabled(actions == nil)
+        }
+
+        CommandGroup(after: .textEditing) {
+            Button(BrowserCommandTitles.findInPage) {
+                actions?.findInPage()
+            }
+            .keyboardShortcut("f", modifiers: .command)
+            .disabled(actions == nil)
+
+            Button(BrowserCommandTitles.findNext) {
+                actions?.findNext()
+            }
+            .keyboardShortcut("g", modifiers: .command)
+            .disabled(actions == nil)
+
+            Button(BrowserCommandTitles.findPrevious) {
+                actions?.findPrevious()
+            }
+            .keyboardShortcut("g", modifiers: [.command, .shift])
+            .disabled(actions == nil)
+        }
+
+        CommandMenu("Browser") {
+            Button(BrowserCommandTitles.focusAddressBar) {
+                actions?.focusAddressBar()
+            }
+            .keyboardShortcut("l", modifiers: .command)
+            .disabled(actions == nil)
+
+            Button(BrowserCommandTitles.commandBar) {
+                actions?.openCommandPalette()
+            }
+            .disabled(actions == nil)
+
+            Button(BrowserCommandTitles.toggleSidebar) {
+                actions?.toggleSidebar()
+            }
+            .keyboardShortcut("s", modifiers: .command)
+            .disabled(actions == nil)
+
+            Divider()
+
+            Button(BrowserCommandTitles.reloadTab) {
+                actions?.reloadTab()
+            }
+            .keyboardShortcut("r", modifiers: .command)
+            .disabled(actions == nil)
+
+            Button(BrowserCommandTitles.back) {
+                actions?.goBack()
+            }
+            .keyboardShortcut("[", modifiers: .command)
+            .disabled(actions == nil)
+
+            Button(BrowserCommandTitles.forward) {
+                actions?.goForward()
+            }
+            .keyboardShortcut("]", modifiers: .command)
+            .disabled(actions == nil)
+
+            Button(BrowserCommandTitles.closeCurrentTab) {
+                actions?.closeCurrentTab()
+            }
+            .keyboardShortcut("w", modifiers: .command)
+            .disabled(actions == nil)
+
+            Divider()
+
+            Button(BrowserCommandTitles.pinOrUnpinTab) {
+                actions?.pinOrUnpinTab()
+            }
+            .keyboardShortcut("d", modifiers: .command)
+            .disabled(actions == nil)
+
+            Button(BrowserCommandTitles.clearUnpinnedTabs) {
+                actions?.clearUnpinnedTabs()
+            }
+            .keyboardShortcut("k", modifiers: [.command, .shift])
+            .disabled(actions == nil)
+
+            Button(BrowserCommandTitles.copyURL) {
+                actions?.copyURL()
+            }
+            .keyboardShortcut("c", modifiers: [.command, .shift])
+            .disabled(actions == nil)
+
+            Button(BrowserCommandTitles.copyURLAsMarkdown) {
+                actions?.copyURLAsMarkdown()
+            }
+            .keyboardShortcut("c", modifiers: [.command, .shift, .option])
+            .disabled(actions == nil)
+
+            Divider()
+
+            Button(BrowserCommandTitles.zoomIn) {
+                actions?.zoomIn()
+            }
+            .keyboardShortcut("=", modifiers: .command)
+            .disabled(actions == nil)
+
+            Button(BrowserCommandTitles.zoomOut) {
+                actions?.zoomOut()
+            }
+            .keyboardShortcut("-", modifiers: .command)
+            .disabled(actions == nil)
+
+            Button(BrowserCommandTitles.resetZoom) {
+                actions?.resetZoom()
+            }
+            .keyboardShortcut("0", modifiers: .command)
+            .disabled(actions == nil)
+
+            Divider()
+
+            Button(BrowserCommandTitles.addSplitView) {
+                actions?.addSplitView()
+            }
+            .disabled(actions == nil)
+
+            Button(BrowserCommandTitles.closeSplitView) {
+                actions?.closeSplitView()
+            }
+            .disabled(actions == nil)
+
+            Divider()
+
+            Button(BrowserCommandTitles.nextTab) {
+                actions?.nextTab()
+            }
+            .keyboardShortcut(.downArrow, modifiers: [.command, .option])
+            .disabled(actions == nil)
+
+            Button(BrowserCommandTitles.previousTab) {
+                actions?.previousTab()
+            }
+            .keyboardShortcut(.upArrow, modifiers: [.command, .option])
+            .disabled(actions == nil)
+
+            Button(BrowserCommandTitles.nextSpace) {
+                actions?.nextSpace()
+            }
+            .keyboardShortcut(.rightArrow, modifiers: [.command, .option])
+            .disabled(actions == nil)
+
+            Button(BrowserCommandTitles.previousSpace) {
+                actions?.previousSpace()
+            }
+            .keyboardShortcut(.leftArrow, modifiers: [.command, .option])
+            .disabled(actions == nil)
+        }
+    }
+}
+
+struct BrowserCommandActions {
+    var newTab: () -> Void
+    var focusAddressBar: () -> Void
+    var openCommandPalette: () -> Void
+    var toggleSidebar: () -> Void
+    var reloadTab: () -> Void
+    var goBack: () -> Void
+    var goForward: () -> Void
+    var closeCurrentTab: () -> Void
+    var nextTab: () -> Void
+    var previousTab: () -> Void
+    var nextSpace: () -> Void
+    var previousSpace: () -> Void
+    var reopenClosedTab: () -> Void
+    var pinOrUnpinTab: () -> Void
+    var clearUnpinnedTabs: () -> Void
+    var copyURL: () -> Void
+    var copyURLAsMarkdown: () -> Void
+    var findInPage: () -> Void
+    var findNext: () -> Void
+    var findPrevious: () -> Void
+    var zoomIn: () -> Void
+    var zoomOut: () -> Void
+    var resetZoom: () -> Void
+    var addSplitView: () -> Void
+    var closeSplitView: () -> Void
+}
+
+private struct BrowserCommandActionsKey: FocusedValueKey {
+    typealias Value = BrowserCommandActions
+}
+
+extension FocusedValues {
+    var browserCommandActions: BrowserCommandActions? {
+        get { self[BrowserCommandActionsKey.self] }
+        set { self[BrowserCommandActionsKey.self] = newValue }
+    }
 }

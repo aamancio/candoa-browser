@@ -6,6 +6,7 @@ import UniformTypeIdentifiers
 struct SpaceSwitcherView: View {
     @ObservedObject var store: BrowserStore
     @State private var isActionMenuPresented = false
+    @State private var isHoveringAddSpace = false
     @State private var renamingSpace: BrowserSpace?
     @State private var renameDraft = ""
     @State private var deletingSpace: BrowserSpace?
@@ -40,9 +41,22 @@ struct SpaceSwitcherView: View {
                     .font(.system(size: 12, weight: .semibold))
                     .frame(width: 28, height: 28)
                     .foregroundStyle(.secondary)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .fill(isHoveringAddSpace ? Color.primary.opacity(0.05) : Color.clear)
+                    )
+                    .overlay {
+                        if isHoveringAddSpace {
+                            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                .stroke(Color.primary.opacity(0.06), lineWidth: 1)
+                                .allowsHitTesting(false)
+                        }
+                    }
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            .onHover { isHoveringAddSpace = $0 }
+            .animation(.easeOut(duration: 0.10), value: isHoveringAddSpace)
             .help("New Space")
             .popover(isPresented: $isActionMenuPresented, arrowEdge: .bottom) {
                 SpaceActionMenu(
@@ -174,7 +188,7 @@ private struct SpaceActionMenu: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
-            menuButton("Create Space", systemImage: "square.on.square") {
+            menuButton(BrowserCommandTitles.createSpace, systemImage: "square.on.square") {
                 store.beginSpaceCreation()
             }
 
@@ -188,7 +202,7 @@ private struct SpaceActionMenu: View {
                 store.toggleSplitView()
             }
 
-            menuButton("New Tab", systemImage: "plus") {
+            menuButton(BrowserCommandTitles.newTab, systemImage: "plus") {
                 store.newTab()
                 store.focusAddressBar()
             }
@@ -202,10 +216,23 @@ private struct SpaceActionMenu: View {
         systemImage: String,
         action: @escaping () -> Void
     ) -> some View {
-        Button {
+        SpaceActionMenuRow(title: title, systemImage: systemImage) {
             isPresented = false
             action()
-        } label: {
+        }
+    }
+}
+
+private struct SpaceActionMenuRow: View {
+    let title: String
+    let systemImage: String
+    let action: () -> Void
+
+    @State private var isHovering = false
+    @Environment(\.isEnabled) private var isEnabled
+
+    var body: some View {
+        Button(action: action) {
             Label(title, systemImage: systemImage)
                 .font(.system(size: 14, weight: .medium))
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -214,6 +241,10 @@ private struct SpaceActionMenu: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .background(isHovering && isEnabled ? Color.primary.opacity(0.05) : Color.clear)
+        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .onHover { isHovering = $0 }
+        .animation(.easeOut(duration: 0.10), value: isHovering)
     }
 }
 

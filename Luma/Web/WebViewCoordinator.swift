@@ -1,8 +1,9 @@
+import AppKit
 import Foundation
 import WebKit
 
 @MainActor
-final class WebViewCoordinator: NSObject, WKNavigationDelegate {
+final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WKDownloadDelegate {
     private struct PendingWebAppPrompt {
         let providerID: String
         let query: String
@@ -10,6 +11,7 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate {
 
     private static let acceptLanguageHeader = "en-US,en;q=0.9"
     private static let googleLocaleCookieNames: Set<String> = ["PREF", "NID", "SOCS"]
+    private static let pageZoomLevels: [CGFloat] = [0.5, 0.65, 0.8, 0.9, 1.0, 1.1, 1.25, 1.5, 1.75, 2.0, 2.5, 3.0]
 
     private weak var store: BrowserStore?
     private var webViews: [UUID: WKWebView] = [:]
@@ -17,6 +19,10 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate {
     private var observations: [UUID: [NSKeyValueObservation]] = [:]
     private var pendingWebAppPrompts: [UUID: PendingWebAppPrompt] = [:]
     private var cleanedLocaleCookieDataStoreIDs = Set<UUID>()
+    private var popupTabIDsAwaitingFirstLoad = Set<UUID>()
+    private var activeDownloads = Set<WKDownload>()
+    private var downloadDestinations: [WKDownload: URL] = [:]
+    private var hostedActiveTabID: UUID?
 
     func attach(store: BrowserStore) {
         self.store = store
@@ -33,17 +39,12 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate {
         let configuration = WKWebViewConfiguration()
         configuration.allowsAirPlayForMediaPlayback = true
         configuration.defaultWebpagePreferences.allowsContentJavaScript = true
+        configuration.preferences.isElementFullscreenEnabled = true
         configuration.websiteDataStore = dataStore
         resetGoogleLocaleCookiesIfNeeded(in: dataStore, id: dataStoreID)
 
         let webView = WKWebView(frame: .zero, configuration: configuration)
-        webView.navigationDelegate = self
-        webView.allowsBackForwardNavigationGestures = true
-        webView.setValue(false, forKey: "drawsBackground")
-
-        webViews[tab.id] = webView
-        tabIDsByWebView.setObject(tab.id.uuidString as NSString, forKey: webView)
-        observe(webView, tabID: tab.id)
+        register(webView, for: tab.id)
 
         if let url = tab.url {
             load(url, in: tab.id)
@@ -54,7 +55,22 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate {
         return webView
     }
 
+    private func register(_ webView: WKWebView, for tabID: UUID) {
+        webView.navigationDelegate = self
+        webView.uiDelegate = self
+        webView.allowsBackForwardNavigationGestures = true
+        webView.allowsMagnification = true
+        webView.setValue(false, forKey: "drawsBackground")
+
+        webViews[tabID] = webView
+        tabIDsByWebView.setObject(tabID.uuidString as NSString, forKey: webView)
+        observe(webView, tabID: tabID)
+    }
+
     func ensureLoaded(_ tab: BrowserTab) {
+        // Popup web views own their first navigation; loading here would sever window.opener.
+        guard !popupTabIDsAwaitingFirstLoad.contains(tab.id) else { return }
+
         let webView = webView(for: tab)
 
         guard let expectedURL = tab.url else {
@@ -94,8 +110,10 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate {
         guard let webView = webViews.removeValue(forKey: tabID) else { return }
         pendingWebAppPrompts[tabID] = nil
         observations[tabID] = nil
+        popupTabIDsAwaitingFirstLoad.remove(tabID)
         webView.stopLoading()
         webView.navigationDelegate = nil
+        webView.uiDelegate = nil
         webView.loadHTMLString("", baseURL: nil)
         tabIDsByWebView.removeObject(forKey: webView)
     }
@@ -115,6 +133,99 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate {
     func stopLoading(tabID: UUID) {
         webViews[tabID]?.stopLoading()
     }
+
+    func find(_ query: String, forward: Bool, in tabID: UUID, completion: ((Bool) -> Void)? = nil) {
+        guard let webView = webViews[tabID], !query.isEmpty else {
+            completion?(false)
+            return
+        }
+
+        let configuration = WKFindConfiguration()
+        configuration.wraps = true
+        configuration.caseSensitive = false
+        configuration.backwards = !forward
+
+        webView.find(query, configuration: configuration) { result in
+            completion?(result.matchFound)
+        }
+    }
+
+    func clearFindSelection(in tabID: UUID) {
+        webViews[tabID]?.evaluateJavaScript("window.getSelection().removeAllRanges()")
+    }
+
+    func zoomIn(tabID: UUID) {
+        adjustZoom(tabID: tabID, direction: 1)
+    }
+
+    func zoomOut(tabID: UUID) {
+        adjustZoom(tabID: tabID, direction: -1)
+    }
+
+    func resetZoom(tabID: UUID) {
+        webViews[tabID]?.pageZoom = 1
+    }
+
+    private func adjustZoom(tabID: UUID, direction: Int) {
+        guard let webView = webViews[tabID] else { return }
+        let levels = Self.pageZoomLevels
+        let currentIndex = levels.enumerated().min {
+            abs($0.element - webView.pageZoom) < abs($1.element - webView.pageZoom)
+        }?.offset ?? levels.firstIndex(of: 1) ?? 0
+        let nextIndex = min(max(currentIndex + direction, 0), levels.count - 1)
+        webView.pageZoom = levels[nextIndex]
+    }
+
+    // MARK: - Auto Picture-in-Picture
+
+    /// Pops a currently-playing video out into the system PiP window when the
+    /// user leaves the tab. Videos are tagged so the matching exit call only
+    /// reverses PiP sessions this app started, never user-initiated ones.
+    func beginAutoPictureInPicture(for tabID: UUID) {
+        webViews[tabID]?.evaluateJavaScript(Self.enterAutoPiPScript)
+    }
+
+    /// Brings an auto-PiP video back inline when the user returns to its tab.
+    func endAutoPictureInPicture(for tabID: UUID) {
+        webViews[tabID]?.evaluateJavaScript(Self.exitAutoPiPScript)
+    }
+
+    private static let enterAutoPiPScript = """
+    (() => {
+      const candidates = Array.from(document.querySelectorAll("video")).filter((video) =>
+        !video.paused &&
+        !video.ended &&
+        video.readyState >= 2 &&
+        !video.disablePictureInPicture &&
+        typeof video.webkitSetPresentationMode === "function" &&
+        typeof video.webkitSupportsPresentationMode === "function" &&
+        video.webkitSupportsPresentationMode("picture-in-picture") &&
+        video.webkitPresentationMode === "inline"
+      );
+      if (candidates.length === 0) { return false; }
+
+      const video = candidates.sort((a, b) =>
+        (b.clientWidth * b.clientHeight) - (a.clientWidth * a.clientHeight)
+      )[0];
+      video.__lumaAutoPiP = true;
+      video.webkitSetPresentationMode("picture-in-picture");
+      return true;
+    })();
+    """
+
+    private static let exitAutoPiPScript = """
+    (() => {
+      const video = Array.from(document.querySelectorAll("video")).find((candidate) =>
+        candidate.__lumaAutoPiP === true &&
+        candidate.webkitPresentationMode === "picture-in-picture"
+      );
+      if (!video) { return false; }
+
+      delete video.__lumaAutoPiP;
+      video.webkitSetPresentationMode("inline");
+      return true;
+    })();
+    """
 
     func navigationState(for tabID: UUID) -> (canGoBack: Bool, canGoForward: Bool) {
         guard let webView = webViews[tabID] else {
@@ -167,12 +278,200 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate {
         updateStore(from: webView, isLoading: false)
     }
 
+    func webView(
+        _ webView: WKWebView,
+        decidePolicyFor navigationAction: WKNavigationAction
+    ) async -> WKNavigationActionPolicy {
+        navigationAction.shouldPerformDownload ? .download : .allow
+    }
+
+    func webView(
+        _ webView: WKWebView,
+        decidePolicyFor navigationResponse: WKNavigationResponse
+    ) async -> WKNavigationResponsePolicy {
+        navigationResponse.canShowMIMEType ? .allow : .download
+    }
+
+    func webView(_ webView: WKWebView, navigationAction: WKNavigationAction, didBecome download: WKDownload) {
+        configureDownload(download)
+    }
+
+    func webView(_ webView: WKWebView, navigationResponse: WKNavigationResponse, didBecome download: WKDownload) {
+        configureDownload(download)
+    }
+
+    // MARK: - WKUIDelegate
+
+    func webView(
+        _ webView: WKWebView,
+        createWebViewWith configuration: WKWebViewConfiguration,
+        for navigationAction: WKNavigationAction,
+        windowFeatures: WKWindowFeatures
+    ) -> WKWebView? {
+        guard let store else { return nil }
+
+        let sourceSpaceID = tabID(for: webView)
+            .flatMap { sourceTabID in store.tabs.first { $0.id == sourceTabID }?.spaceID }
+            ?? store.activeSpaceID
+        let popupTab = store.createPopupTab(url: navigationAction.request.url, in: sourceSpaceID)
+
+        // WebKit drives the popup's first navigation through the returned web view,
+        // which must be created with the configuration it hands us.
+        let popupWebView = WKWebView(frame: .zero, configuration: configuration)
+        register(popupWebView, for: popupTab.id)
+        popupTabIDsAwaitingFirstLoad.insert(popupTab.id)
+        return popupWebView
+    }
+
+    func webViewDidClose(_ webView: WKWebView) {
+        guard let tabID = tabID(for: webView) else { return }
+        store?.closeTab(tabID)
+    }
+
+    func webView(
+        _ webView: WKWebView,
+        runJavaScriptAlertPanelWithMessage message: String,
+        initiatedByFrame frame: WKFrameInfo
+    ) async {
+        let alert = javaScriptPanelAlert(message: message, frame: frame)
+        _ = await presentPanel(alert, for: webView)
+    }
+
+    func webView(
+        _ webView: WKWebView,
+        runJavaScriptConfirmPanelWithMessage message: String,
+        initiatedByFrame frame: WKFrameInfo
+    ) async -> Bool {
+        let alert = javaScriptPanelAlert(message: message, frame: frame)
+        alert.addButton(withTitle: "Cancel")
+        return await presentPanel(alert, for: webView) == .alertFirstButtonReturn
+    }
+
+    func webView(
+        _ webView: WKWebView,
+        runJavaScriptTextInputPanelWithPrompt prompt: String,
+        defaultText: String?,
+        initiatedByFrame frame: WKFrameInfo
+    ) async -> String? {
+        let alert = javaScriptPanelAlert(message: prompt, frame: frame)
+        alert.addButton(withTitle: "Cancel")
+
+        let inputField = NSTextField(frame: NSRect(x: 0, y: 0, width: 240, height: 24))
+        inputField.stringValue = defaultText ?? ""
+        alert.accessoryView = inputField
+        alert.window.initialFirstResponder = inputField
+
+        let response = await presentPanel(alert, for: webView)
+        return response == .alertFirstButtonReturn ? inputField.stringValue : nil
+    }
+
+    func webView(
+        _ webView: WKWebView,
+        runOpenPanelWith parameters: WKOpenPanelParameters,
+        initiatedByFrame frame: WKFrameInfo
+    ) async -> [URL]? {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = parameters.allowsDirectories
+        panel.allowsMultipleSelection = parameters.allowsMultipleSelection
+
+        let response: NSApplication.ModalResponse
+        if let window = webView.window {
+            response = await panel.beginSheetModal(for: window)
+        } else {
+            response = panel.runModal()
+        }
+
+        return response == .OK ? panel.urls : nil
+    }
+
+    private func javaScriptPanelAlert(message: String, frame: WKFrameInfo) -> NSAlert {
+        let alert = NSAlert()
+        let host = frame.securityOrigin.host
+        alert.messageText = host.isEmpty ? "This page says:" : "\(host) says:"
+        alert.informativeText = message
+        alert.addButton(withTitle: "OK")
+        return alert
+    }
+
+    private func presentPanel(_ alert: NSAlert, for webView: WKWebView) async -> NSApplication.ModalResponse {
+        if let window = webView.window {
+            return await alert.beginSheetModal(for: window)
+        }
+        return alert.runModal()
+    }
+
+    // MARK: - Downloads
+
+    private func configureDownload(_ download: WKDownload) {
+        download.delegate = self
+        activeDownloads.insert(download)
+    }
+
+    func download(
+        _ download: WKDownload,
+        decideDestinationUsing response: URLResponse,
+        suggestedFilename: String
+    ) async -> URL? {
+        guard let downloadsDirectory = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first else {
+            return nil
+        }
+
+        let destination = Self.uniqueDestination(for: suggestedFilename, in: downloadsDirectory)
+        downloadDestinations[download] = destination
+        return destination
+    }
+
+    func downloadDidFinish(_ download: WKDownload) {
+        activeDownloads.remove(download)
+        guard let destination = downloadDestinations.removeValue(forKey: download) else { return }
+
+        // Bounces the Downloads stack in the Dock, matching native browser behavior.
+        DistributedNotificationCenter.default().postNotificationName(
+            Notification.Name("com.apple.DownloadFileFinished"),
+            object: destination.path,
+            userInfo: nil,
+            deliverImmediately: true
+        )
+    }
+
+    func download(_ download: WKDownload, didFailWithError error: Error, resumeData: Data?) {
+        activeDownloads.remove(download)
+        downloadDestinations[download] = nil
+    }
+
+    private static func uniqueDestination(for suggestedFilename: String, in directory: URL) -> URL {
+        let baseName = (suggestedFilename as NSString).deletingPathExtension
+        let fileExtension = (suggestedFilename as NSString).pathExtension
+        var candidate = directory.appendingPathComponent(suggestedFilename)
+        var attempt = 2
+
+        while FileManager.default.fileExists(atPath: candidate.path) {
+            let numberedName = fileExtension.isEmpty
+                ? "\(baseName) \(attempt)"
+                : "\(baseName) \(attempt).\(fileExtension)"
+            candidate = directory.appendingPathComponent(numberedName)
+            attempt += 1
+        }
+
+        return candidate
+    }
+
+    private func tabID(for webView: WKWebView) -> UUID? {
+        guard let tabIDString = tabIDsByWebView.object(forKey: webView) as String? else { return nil }
+        return UUID(uuidString: tabIDString)
+    }
+
     private func updateStore(from webView: WKWebView, isLoading: Bool) {
         guard
             let tabIDString = tabIDsByWebView.object(forKey: webView) as String?,
             let tabID = UUID(uuidString: tabIDString)
         else {
             return
+        }
+
+        if webView.url != nil {
+            popupTabIDsAwaitingFirstLoad.remove(tabID)
         }
 
         store?.updateTabFromWebView(
@@ -440,5 +739,18 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate {
         </body>
         </html>
         """
+    }
+}
+
+// In an extension to avoid a spurious near-match warning against the
+// deprecated decideMediaCapturePermissionsFor requirement.
+extension WebViewCoordinator {
+    func webView(
+        _ webView: WKWebView,
+        requestMediaCapturePermissionFor origin: WKSecurityOrigin,
+        initiatedByFrame frame: WKFrameInfo,
+        type: WKMediaCaptureType
+    ) async -> WKPermissionDecision {
+        .prompt
     }
 }

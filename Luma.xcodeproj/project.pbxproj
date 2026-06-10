@@ -25,6 +25,7 @@
 		010000000000000000000116 /* TabRowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000016 /* TabRowView.swift */; };
 		010000000000000000000117 /* SpaceSwitcherView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000017 /* SpaceSwitcherView.swift */; };
 		010000000000000000000118 /* TabSwitcherOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01000000000000000000001B /* TabSwitcherOverlay.swift */; };
+		010000000000000000000119 /* AppConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01000000000000000000001C /* AppConfiguration.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -49,6 +50,7 @@
 		010000000000000000000019 /* Luma.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Luma.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		01000000000000000000001A /* Luma.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Luma.entitlements; sourceTree = "<group>"; };
 		01000000000000000000001B /* TabSwitcherOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabSwitcherOverlay.swift; sourceTree = "<group>"; };
+		01000000000000000000001C /* AppConfiguration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppConfiguration.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -97,6 +99,7 @@
 				010000000000000000000002 /* BrowserTab.swift */,
 				010000000000000000000003 /* BrowserSpace.swift */,
 				010000000000000000000004 /* BrowserWindowState.swift */,
+				01000000000000000000001C /* AppConfiguration.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -239,6 +242,7 @@
 				010000000000000000000116 /* TabRowView.swift in Sources */,
 				010000000000000000000117 /* SpaceSwitcherView.swift in Sources */,
 				010000000000000000000118 /* TabSwitcherOverlay.swift in Sources */,
+				010000000000000000000119 /* AppConfiguration.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
