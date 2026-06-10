@@ -56,6 +56,7 @@ struct TabRowView: View {
         .padding(.vertical, 7)
         .contentShape(Rectangle())
         .background(rowBackground)
+        .background(TabHoverTracker(isHovering: $isHovering))
         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
         .onTapGesture {
             onSelect()
@@ -98,6 +99,69 @@ struct TabRowView: View {
                 .scaledToFit()
         } else {
             Image(systemName: tab.faviconSymbol)
+        }
+    }
+}
+
+private struct TabHoverTracker: NSViewRepresentable {
+    @Binding var isHovering: Bool
+
+    func makeNSView(context: Context) -> TrackingView {
+        let view = TrackingView()
+        view.onHoverChange = { isHovering = $0 }
+        return view
+    }
+
+    func updateNSView(_ view: TrackingView, context: Context) {
+        view.onHoverChange = { isHovering = $0 }
+        view.syncHoverState()
+    }
+
+    final class TrackingView: NSView {
+        var onHoverChange: ((Bool) -> Void)?
+        private var trackingArea: NSTrackingArea?
+
+        override func updateTrackingAreas() {
+            if let trackingArea {
+                removeTrackingArea(trackingArea)
+            }
+
+            let trackingArea = NSTrackingArea(
+                rect: bounds,
+                options: [.mouseEnteredAndExited, .activeInKeyWindow, .inVisibleRect],
+                owner: self
+            )
+            addTrackingArea(trackingArea)
+            self.trackingArea = trackingArea
+
+            super.updateTrackingAreas()
+            syncHoverState()
+        }
+
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            DispatchQueue.main.async { [weak self] in
+                self?.syncHoverState()
+            }
+        }
+
+        override func mouseEntered(with event: NSEvent) {
+            onHoverChange?(true)
+        }
+
+        override func mouseExited(with event: NSEvent) {
+            syncHoverState()
+        }
+
+        func syncHoverState() {
+            guard let window else {
+                onHoverChange?(false)
+                return
+            }
+
+            let windowLocation = window.mouseLocationOutsideOfEventStream
+            let localLocation = convert(windowLocation, from: nil)
+            onHoverChange?(bounds.contains(localLocation))
         }
     }
 }
