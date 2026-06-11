@@ -38,19 +38,6 @@ struct SidebarView: View {
         isSetupThemePreviewActive ? Color.white.opacity(0.42) : LumaChromeStyle.sidebarIcon
     }
 
-    private var sidebarThemeBackdropIntensity: Double {
-        if store.isSpaceSetupPresented {
-            return isSetupThemePreviewActive ? 0.13 : 0.08
-        }
-
-        return 0.16
-    }
-
-    private var activeSpaceTintOpacity: Double {
-        guard hasActiveThemeTint else { return 0 }
-        return store.isSpaceSetupPresented ? 0.12 : 0.050
-    }
-
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             sidebarHeader
@@ -98,18 +85,6 @@ struct SidebarView: View {
         .padding(.trailing, trailingInset)
         .padding(.top, 8)
         .padding(.bottom, 10)
-        .background {
-            ZStack {
-                LumaChromeStyle.sidebarBackground
-                SpaceThemeBackdrop(
-                    hexes: store.activeThemeColorHexes,
-                    intensity: sidebarThemeBackdropIntensity * store.activeThemeIntensityMultiplier,
-                    texture: store.activeThemeTexture
-                )
-                LumaChromeStyle.setupNeutralTint.opacity(store.isSpaceSetupPresented && !isSetupThemePreviewActive ? 0.18 : 0)
-                activeSpaceTint.opacity(activeSpaceTintOpacity)
-            }
-        }
         .ignoresSafeArea(.container, edges: .top)
     }
 
@@ -2379,6 +2354,50 @@ enum LumaChromeStyle {
     static let surfaceBorder = Color.primary.opacity(0.12)
     static let popoverBackground = Color(nsColor: .windowBackgroundColor)
     static let popoverBorder = Color(nsColor: .separatorColor).opacity(0.85)
+}
+
+/// The single chrome surface painted across the entire window (Zen-style):
+/// sidebar, title-bar strip, and the gutter around the web view all share it,
+/// so the theme tint reads as one continuous backdrop.
+struct LumaWindowBackdrop: View {
+    @ObservedObject var store: BrowserStore
+
+    private var hasThemeTint: Bool {
+        !store.activeThemeColorHexes.isEmpty
+    }
+
+    private var isSetupThemePreviewActive: Bool {
+        store.isSpaceSetupPresented && hasThemeTint
+    }
+
+    private var backdropIntensity: Double {
+        if store.isSpaceSetupPresented {
+            return isSetupThemePreviewActive ? 0.16 : 0.08
+        }
+
+        return 0.16
+    }
+
+    // During setup theme preview the chrome mirrors SpaceSetupCanvas's fill
+    // (hex at 0.74) so sidebar, title bar, and canvas read as one color.
+    private var spaceTintOpacity: Double {
+        guard hasThemeTint else { return 0 }
+        return store.isSpaceSetupPresented ? 0.62 : 0.050
+    }
+
+    var body: some View {
+        ZStack {
+            LumaChromeStyle.windowBackground
+            SpaceThemeBackdrop(
+                hexes: store.activeThemeColorHexes,
+                intensity: backdropIntensity * store.activeThemeIntensityMultiplier,
+                texture: store.activeThemeTexture
+            )
+            LumaChromeStyle.setupNeutralTint.opacity(store.isSpaceSetupPresented && !isSetupThemePreviewActive ? 0.18 : 0)
+            Color(spaceHex: store.activeThemeColorHexes.first ?? "#8A8F98")
+                .opacity(spaceTintOpacity)
+        }
+    }
 }
 
 struct SpaceThemeBackdrop: View {

@@ -14,7 +14,9 @@ struct WebViewContainer: View {
                     intensity: store.activeThemeIntensityMultiplier,
                     texture: store.activeThemeTexture
                 )
-                .padding(surfacePadding)
+                .padding(.top, surfacePadding)
+                .padding(.trailing, surfacePadding)
+                .padding(.bottom, surfacePadding)
                 .transition(.opacity)
             } else if let tab = store.activeTab {
                 if let splitTab = store.activeSplitTab {
@@ -44,16 +46,6 @@ struct WebViewContainer: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background {
-            ZStack {
-                LumaChromeStyle.workspaceBackground.opacity(store.isSpaceSetupPresented ? 0.34 : 0.70)
-                SpaceThemeBackdrop(
-                    hexes: store.activeThemeColorHexes,
-                    intensity: (store.isSpaceSetupPresented ? 0.12 : 0.22) * store.activeThemeIntensityMultiplier,
-                    texture: store.activeThemeTexture
-                )
-            }
-        }
         .overlay(alignment: .topTrailing) {
             if store.isFindBarPresented {
                 FindBarView(store: store)
@@ -199,6 +191,18 @@ private struct SpaceSetupCanvas: View {
             )
             .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
 
+            LinearGradient(
+                colors: [
+                    Color.white.opacity(hexes.isEmpty ? 0.10 : 0.16),
+                    Color.clear,
+                    Color.black.opacity(hexes.isEmpty ? 0.08 : 0.14)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .blendMode(.overlay)
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+
             Image(systemName: "car.side.fill")
                 .font(.system(size: 146, weight: .regular))
                 .symbolRenderingMode(.hierarchical)
@@ -208,21 +212,27 @@ private struct SpaceSetupCanvas: View {
                 .allowsHitTesting(false)
         }
         .overlay {
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .stroke(LumaChromeStyle.surfaceBorder.opacity(hexes.isEmpty ? 0.62 : 0.28), lineWidth: 1)
+            ZStack {
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .stroke(Color.black.opacity(hexes.isEmpty ? 0.20 : 0.24), lineWidth: 1)
+
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .stroke(Color.white.opacity(hexes.isEmpty ? 0.18 : 0.20), lineWidth: 1)
+                    .blendMode(.overlay)
+            }
         }
         .compositingGroup()
         .shadow(
-            color: Color.black.opacity(hexes.isEmpty ? 0.16 : 0.22),
-            radius: hexes.isEmpty ? 10 : 18,
-            x: hexes.isEmpty ? 0 : -4,
-            y: hexes.isEmpty ? 3 : 0
+            color: Color.black.opacity(hexes.isEmpty ? 0.22 : 0.38),
+            radius: hexes.isEmpty ? 18 : 32,
+            x: 0,
+            y: hexes.isEmpty ? 6 : 10
         )
         .shadow(
-            color: Color.black.opacity(hexes.isEmpty ? 0 : 0.08),
-            radius: 8,
-            x: 0,
-            y: 3
+            color: Color.black.opacity(hexes.isEmpty ? 0.14 : 0.28),
+            radius: hexes.isEmpty ? 9 : 16,
+            x: -5,
+            y: 1
         )
     }
 

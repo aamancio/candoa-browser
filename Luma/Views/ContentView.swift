@@ -42,16 +42,12 @@ struct ContentView: View {
         isSidebarVisible || isSidebarHoverRevealed
     }
 
+    private var isSidebarOverlaying: Bool {
+        isSidebarHoverRevealed && !isSidebarVisible
+    }
+
     var body: some View {
         ZStack(alignment: .leading) {
-            SpaceThemeBackdrop(
-                hexes: activeThemeHexes,
-                intensity: (store.isSpaceSetupPresented ? 0.16 : 0.20) * activeThemeIntensityMultiplier,
-                texture: store.activeThemeTexture
-            )
-            .ignoresSafeArea()
-            .allowsHitTesting(false)
-
             WebViewContainer(store: store)
                 .ignoresSafeArea(.container, edges: .top)
                 .padding(.leading, isSidebarVisible ? sidebarTotalWidth : 0)
@@ -105,15 +101,8 @@ struct ContentView: View {
             }
         }
         .background {
-            ZStack {
-                LumaChromeStyle.windowBackground
-                SpaceThemeBackdrop(
-                    hexes: activeThemeHexes,
-                    intensity: (store.isSpaceSetupPresented ? 0.10 : 0.16) * activeThemeIntensityMultiplier,
-                    texture: store.activeThemeTexture
-                )
-            }
-            .ignoresSafeArea()
+            LumaWindowBackdrop(store: store)
+                .ignoresSafeArea()
         }
         .preferredColorScheme(preferredColorScheme)
         .background(
@@ -241,19 +230,17 @@ struct ContentView: View {
         .frame(width: sidebarTotalWidth, alignment: .leading)
         .frame(maxHeight: .infinity)
         .background {
-            ZStack {
-                LumaChromeStyle.sidebarBackground
-                SpaceThemeBackdrop(
-                    hexes: activeThemeHexes,
-                    intensity: (store.isSpaceSetupPresented ? 0.10 : 0.18) * activeThemeIntensityMultiplier,
-                    texture: store.activeThemeTexture
-                )
+            // Opaque backing only when the sidebar floats over the web view
+            // (hover reveal). When pinned, it stays transparent so the
+            // window-wide backdrop reads as one continuous surface.
+            if isSidebarOverlaying {
+                LumaWindowBackdrop(store: store)
             }
         }
         .shadow(
-            color: Color.black.opacity(isSidebarVisible ? 0.16 : 0),
-            radius: store.isSpaceSetupPresented && !activeThemeHexes.isEmpty ? 16 : 10,
-            x: store.isSpaceSetupPresented && !activeThemeHexes.isEmpty ? 3 : 3,
+            color: Color.black.opacity(isSidebarOverlaying ? 0.22 : 0),
+            radius: 16,
+            x: 3,
             y: 0
         )
     }
