@@ -251,9 +251,7 @@ struct ContentView: View {
             }
         }
         .shadow(
-            color: Color(nsColor: .shadowColor).opacity(
-                isSidebarVisible ? (store.isSpaceSetupPresented && !activeThemeHexes.isEmpty ? 0.12 : 0.08) : 0
-            ),
+            color: Color.black.opacity(isSidebarVisible ? 0.16 : 0),
             radius: store.isSpaceSetupPresented && !activeThemeHexes.isEmpty ? 16 : 10,
             x: store.isSpaceSetupPresented && !activeThemeHexes.isEmpty ? 3 : 3,
             y: 0

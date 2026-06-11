@@ -90,12 +90,12 @@ struct SidebarView: View {
                 LumaChromeStyle.sidebarBackground
                 SpaceThemeBackdrop(
                     hexes: store.activeThemeColorHexes,
-                    intensity: (store.isSpaceSetupPresented ? (isSetupThemePreviewActive ? 0.22 : 0.08) : 0.16) * store.activeThemeIntensityMultiplier,
+                    intensity: (store.isSpaceSetupPresented ? (isSetupThemePreviewActive ? 0.18 : 0.08) : 0.16) * store.activeThemeIntensityMultiplier,
                     texture: store.activeThemeTexture
                 )
                 LumaChromeStyle.setupNeutralTint.opacity(store.isSpaceSetupPresented && !isSetupThemePreviewActive ? 0.18 : 0)
-                activeSpaceTint.opacity(hasActiveThemeTint ? (store.isSpaceSetupPresented ? 0.32 : 0.050) : 0)
-                Color.black.opacity(isSetupThemePreviewActive ? 0.035 : 0)
+                activeSpaceTint.opacity(hasActiveThemeTint ? (store.isSpaceSetupPresented ? 0.24 : 0.050) : 0)
+                Color.black.opacity(isSetupThemePreviewActive ? 0.012 : 0)
             }
         }
         .ignoresSafeArea(.container, edges: .top)
@@ -151,7 +151,7 @@ struct SidebarView: View {
         .frame(height: 34)
         .overlay(alignment: .bottom) {
             SidebarLoadingBar(progress: store.activeTab?.loadingProgress ?? 0, tint: activeSpaceTint)
-                .opacity(store.activeTab?.isLoading == true ? 1 : 0)
+                .opacity(store.activeTab?.isLoading == true && !store.isSpaceSetupPresented ? 1 : 0)
                 .offset(y: 5)
         }
     }
