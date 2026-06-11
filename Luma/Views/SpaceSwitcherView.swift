@@ -143,14 +143,23 @@ struct SpaceSwitcherView: View {
 
     private func workspaceButton(for space: BrowserSpace) -> some View {
         let isActive = space.id == store.activeSpaceID
+        let themeColor = Color(spaceHex: space.themeColorHex)
 
         return Button {
             store.switchSpace(to: space.id)
         } label: {
             Circle()
-                .fill(isActive ? LumaChromeStyle.sidebarTextSecondary : LumaChromeStyle.sidebarIcon.opacity(0.72))
+                .fill(isActive ? themeColor : themeColor.opacity(0.50))
                 .frame(width: isActive ? 8 : 7, height: isActive ? 8 : 7)
                 .frame(width: 16, height: 28)
+                .overlay {
+                    if isActive {
+                        Circle()
+                            .stroke(themeColor.opacity(0.28), lineWidth: 5)
+                            .frame(width: 16, height: 16)
+                            .allowsHitTesting(false)
+                    }
+                }
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)

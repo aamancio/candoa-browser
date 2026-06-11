@@ -5,6 +5,7 @@ struct TabRowView: View {
     let tab: BrowserTab
     let isActive: Bool
     let isSplit: Bool
+    let accentColor: Color
     let onSelect: () -> Void
     let onClose: () -> Void
     let onDuplicate: () -> Void
@@ -82,7 +83,7 @@ struct TabRowView: View {
 
     private var rowBackground: Color {
         if isActive {
-            return LumaChromeStyle.sidebarControlFillActive
+            return accentColor.opacity(0.18)
         }
         if isHovering {
             return LumaChromeStyle.sidebarControlFillHover

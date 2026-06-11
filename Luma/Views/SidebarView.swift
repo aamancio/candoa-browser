@@ -22,6 +22,10 @@ struct SidebarView: View {
         GridItem(.flexible(), spacing: 12)
     ]
 
+    private var activeSpaceTint: Color {
+        Color(spaceHex: store.activeSpace?.themeColorHex ?? "#6E8BFF")
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             sidebarHeader
@@ -69,7 +73,12 @@ struct SidebarView: View {
         .padding(.trailing, trailingInset)
         .padding(.top, 9)
         .padding(.bottom, 10)
-        .background(LumaChromeStyle.sidebarBackground)
+        .background {
+            ZStack {
+                LumaChromeStyle.sidebarBackground
+                activeSpaceTint.opacity(store.isSpaceSetupPresented ? 0.025 : 0.055)
+            }
+        }
         .ignoresSafeArea(.container, edges: .top)
     }
 
@@ -122,7 +131,7 @@ struct SidebarView: View {
         .foregroundStyle(LumaChromeStyle.sidebarIcon)
         .frame(height: 34)
         .overlay(alignment: .bottom) {
-            SidebarLoadingBar(progress: store.activeTab?.loadingProgress ?? 0)
+            SidebarLoadingBar(progress: store.activeTab?.loadingProgress ?? 0, tint: activeSpaceTint)
                 .opacity(store.activeTab?.isLoading == true ? 1 : 0)
                 .offset(y: 5)
         }
@@ -179,6 +188,7 @@ struct SidebarView: View {
                         EssentialTileView(
                             tab: tab,
                             isActive: tab.id == store.activeTabID,
+                            accentColor: activeSpaceTint,
                             onSelect: { store.switchTab(to: tab.id) },
                             onClose: { store.closeTab(tab.id) },
                             onDuplicate: { store.duplicateTab(tab.id) },
@@ -236,6 +246,7 @@ struct SidebarView: View {
                             tab: tab,
                             isActive: tab.id == store.activeTabID,
                             isSplit: tab.id == store.splitTabID,
+                            accentColor: activeSpaceTint,
                             onSelect: { store.switchTab(to: tab.id) },
                             onClose: { store.closeTab(tab.id) },
                             onDuplicate: { store.duplicateTab(tab.id) },
@@ -377,7 +388,7 @@ private struct CreateSpaceSidebarComposer: View {
             .foregroundStyle(trimmedName.isEmpty ? .secondary : .primary)
             .frame(maxWidth: .infinity)
             .frame(height: 34)
-            .background(Color.primary.opacity(trimmedName.isEmpty ? 0.14 : 0.28))
+            .background(Color(spaceHex: themeColorHex).opacity(trimmedName.isEmpty ? 0.16 : 0.36))
             .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
             .disabled(trimmedName.isEmpty)
 
@@ -1207,6 +1218,7 @@ private enum SpaceDataMode: String, CaseIterable, Identifiable {
 
 private struct SidebarLoadingBar: View {
     let progress: Double
+    let tint: Color
 
     private var clampedProgress: CGFloat {
         CGFloat(min(max(progress, 0), 1))
@@ -1215,7 +1227,7 @@ private struct SidebarLoadingBar: View {
     var body: some View {
         GeometryReader { proxy in
             Rectangle()
-                .fill(Color.accentColor.opacity(0.58))
+                .fill(tint.opacity(0.70))
                 .frame(width: proxy.size.width * clampedProgress, height: 1)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
@@ -1229,6 +1241,7 @@ private struct SidebarLoadingBar: View {
 private struct EssentialTileView: View {
     let tab: BrowserTab
     let isActive: Bool
+    let accentColor: Color
     let onSelect: () -> Void
     let onClose: () -> Void
     let onDuplicate: () -> Void
@@ -1243,7 +1256,7 @@ private struct EssentialTileView: View {
                 RoundedRectangle(cornerRadius: 11, style: .continuous)
                     .fill(
                         isActive
-                            ? AnyShapeStyle(LumaChromeStyle.sidebarControlFillActive)
+                            ? AnyShapeStyle(accentColor.opacity(0.18))
                             : AnyShapeStyle(LumaChromeStyle.sidebarControlFill)
                     )
 
@@ -1266,7 +1279,12 @@ private struct EssentialTileView: View {
             }
             .overlay {
                 RoundedRectangle(cornerRadius: 11, style: .continuous)
-                    .stroke(isHovering ? LumaChromeStyle.sidebarControlStroke : Color.clear, lineWidth: 1)
+                    .stroke(
+                        isActive
+                            ? accentColor.opacity(0.34)
+                            : (isHovering ? LumaChromeStyle.sidebarControlStroke : Color.clear),
+                        lineWidth: 1
+                    )
             }
         }
         .buttonStyle(.plain)
