@@ -5,6 +5,7 @@ struct WebViewContainer: View {
     @ObservedObject var store: BrowserStore
     private let surfaceCornerRadius: CGFloat = 12
     private let surfacePadding: CGFloat = 8
+    private let leadingLiftWidth: CGFloat = 18
 
     var body: some View {
         ZStack {
@@ -14,14 +15,7 @@ struct WebViewContainer: View {
                     intensity: store.activeThemeIntensityMultiplier,
                     texture: store.activeThemeTexture
                 )
-                .padding(
-                    EdgeInsets(
-                        top: surfacePadding,
-                        leading: 0,
-                        bottom: surfacePadding,
-                        trailing: surfacePadding
-                    )
-                )
+                .padding(.trailing, surfacePadding)
                 .transition(.opacity)
             } else if let tab = store.activeTab {
                 if let splitTab = store.activeSplitTab {
@@ -79,11 +73,32 @@ struct WebViewContainer: View {
                 RoundedRectangle(cornerRadius: surfaceCornerRadius, style: .continuous)
                     .stroke(LumaChromeStyle.surfaceBorder, lineWidth: 1)
             }
+            .overlay(alignment: .leading) {
+                leadingSurfaceLift(cornerRadius: surfaceCornerRadius, isThemePreview: false)
+            }
             .background(
                 RoundedRectangle(cornerRadius: surfaceCornerRadius, style: .continuous)
                     .fill(LumaChromeStyle.surfaceFill.opacity(0.74))
             )
-            .shadow(color: Color(nsColor: .shadowColor).opacity(0.14), radius: 12, x: 0, y: 4)
+            .compositingGroup()
+            .shadow(color: Color(nsColor: .shadowColor).opacity(0.12), radius: 16, x: -3, y: 1)
+            .shadow(color: Color(nsColor: .shadowColor).opacity(0.10), radius: 10, x: 0, y: 4)
+    }
+
+    private func leadingSurfaceLift(cornerRadius: CGFloat, isThemePreview: Bool) -> some View {
+        LinearGradient(
+            colors: [
+                Color.white.opacity(isThemePreview ? 0.16 : 0.12),
+                Color.white.opacity(isThemePreview ? 0.055 : 0.035),
+                Color.clear
+            ],
+            startPoint: .leading,
+            endPoint: .trailing
+        )
+        .frame(width: leadingLiftWidth)
+        .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+        .blendMode(.plusLighter)
+        .allowsHitTesting(false)
     }
 
     private struct FindBarView: View {
@@ -214,9 +229,36 @@ private struct SpaceSetupCanvas: View {
         }
         .overlay {
             RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .stroke(LumaChromeStyle.surfaceBorder.opacity(0.62), lineWidth: 1)
+                .stroke(LumaChromeStyle.surfaceBorder.opacity(hexes.isEmpty ? 0.62 : 0.28), lineWidth: 1)
         }
-        .shadow(color: Color(nsColor: .shadowColor).opacity(0.11), radius: 10, x: 0, y: 3)
+        .overlay(alignment: .leading) {
+            LinearGradient(
+                colors: [
+                    Color.white.opacity(hexes.isEmpty ? 0.10 : 0.16),
+                    Color.white.opacity(hexes.isEmpty ? 0.035 : 0.055),
+                    Color.clear
+                ],
+                startPoint: .leading,
+                endPoint: .trailing
+            )
+            .frame(width: 18)
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .blendMode(.plusLighter)
+            .allowsHitTesting(false)
+        }
+        .compositingGroup()
+        .shadow(
+            color: Color(nsColor: .shadowColor).opacity(hexes.isEmpty ? 0.11 : 0.14),
+            radius: hexes.isEmpty ? 10 : 18,
+            x: hexes.isEmpty ? 0 : -4,
+            y: hexes.isEmpty ? 3 : 0
+        )
+        .shadow(
+            color: Color(nsColor: .shadowColor).opacity(hexes.isEmpty ? 0 : 0.045),
+            radius: 8,
+            x: 0,
+            y: 3
+        )
     }
 
     private var canvasFill: Color {

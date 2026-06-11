@@ -90,12 +90,12 @@ struct SidebarView: View {
                 LumaChromeStyle.sidebarBackground
                 SpaceThemeBackdrop(
                     hexes: store.activeThemeColorHexes,
-                    intensity: (store.isSpaceSetupPresented ? (isSetupThemePreviewActive ? 0.26 : 0.08) : 0.16) * store.activeThemeIntensityMultiplier,
+                    intensity: (store.isSpaceSetupPresented ? (isSetupThemePreviewActive ? 0.22 : 0.08) : 0.16) * store.activeThemeIntensityMultiplier,
                     texture: store.activeThemeTexture
                 )
                 LumaChromeStyle.setupNeutralTint.opacity(store.isSpaceSetupPresented && !isSetupThemePreviewActive ? 0.18 : 0)
-                activeSpaceTint.opacity(hasActiveThemeTint ? (store.isSpaceSetupPresented ? 0.42 : 0.050) : 0)
-                Color.black.opacity(isSetupThemePreviewActive ? 0.08 : 0)
+                activeSpaceTint.opacity(hasActiveThemeTint ? (store.isSpaceSetupPresented ? 0.32 : 0.050) : 0)
+                Color.black.opacity(isSetupThemePreviewActive ? 0.035 : 0)
             }
         }
         .ignoresSafeArea(.container, edges: .top)
@@ -1082,7 +1082,6 @@ private struct SpaceThemePanel: View {
         }
         .padding(10)
         .frame(width: 372)
-        .background(LumaChromeStyle.popoverBackground)
         .onAppear {
             initializeDotPositionsIfNeeded()
             publishThemePreview()
@@ -1132,7 +1131,7 @@ private struct SpaceThemePanel: View {
                     .padding(.bottom, 15)
             }
         }
-        .frame(height: 270)
+        .frame(height: 352)
         .overlay {
             RoundedRectangle(cornerRadius: 13, style: .continuous)
                 .stroke(LumaChromeStyle.popoverBorder, lineWidth: 1)
@@ -1688,6 +1687,12 @@ private struct ThemeWaveSlider: View {
     let accentHex: String
     let isEnabled: Bool
 
+    @Environment(\.colorScheme) private var colorScheme
+
+    private var handleColor: Color {
+        colorScheme == .dark ? .white : .black
+    }
+
     private let range = 0.3...0.9
 
     private var normalizedValue: Double {
@@ -1704,6 +1709,11 @@ private struct ThemeWaveSlider: View {
             let handleHeight = CGFloat(42 + progress * 12)
 
             ZStack(alignment: .leading) {
+                Capsule(style: .continuous)
+                    .fill(Color.primary.opacity(isEnabled ? 0.09 : 0.05))
+                    .frame(height: 16)
+                    .padding(.horizontal, 1)
+
                 ThemeWaveShape(progress: progress)
                     .stroke(Color.primary.opacity(isEnabled ? 0.28 : 0.16), style: StrokeStyle(lineWidth: 7, lineCap: .round, lineJoin: .round))
                     .frame(height: 32)
@@ -1721,7 +1731,7 @@ private struct ThemeWaveSlider: View {
                     .padding(.horizontal, 1)
 
                 Capsule(style: .continuous)
-                    .fill(Color.white.opacity(isEnabled ? 1 : 0.28))
+                    .fill(handleColor.opacity(isEnabled ? 1 : 0.28))
                     .frame(width: handleWidth, height: handleHeight)
                     .shadow(color: Color.black.opacity(isEnabled ? 0.22 : 0), radius: 6, x: 0, y: 3)
                     .position(x: handleX, y: size.height / 2)
@@ -1767,7 +1777,12 @@ private struct ThemeTextureDial: View {
     let accentHex: String
     let isEnabled: Bool
 
+    @Environment(\.colorScheme) private var colorScheme
     @State private var dragValue: Double?
+
+    private var handleColor: Color {
+        colorScheme == .dark ? .white : .black
+    }
 
     private let textureStepCount = 16
     private var maxTextureStep: Int {
@@ -1825,7 +1840,7 @@ private struct ThemeTextureDial: View {
                     .position(x: proxy.size.width / 2, y: proxy.size.height / 2)
 
                 Capsule(style: .continuous)
-                    .fill(Color.white.opacity(isEnabled ? 1 : 0.34))
+                    .fill(handleColor.opacity(isEnabled ? 1 : 0.34))
                     .frame(width: 7, height: 18)
                     .rotationEffect(.degrees(rotationDegrees(forStep: activeStep)))
                     .position(point(forStep: activeStep, radius: radius, in: proxy.size))
