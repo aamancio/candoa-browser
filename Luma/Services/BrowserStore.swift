@@ -39,6 +39,12 @@ final class BrowserStore: ObservableObject {
     @Published private(set) var commandPaletteOpensNewTab = false
     @Published var isCreateSpacePresented = false
     @Published private(set) var isInitialSpaceSetupPresented = false
+    @Published private(set) var spaceThemeAppearancePreview: SpaceThemeAppearance?
+    @Published private(set) var isSpaceThemeColorPreviewActive = false
+    @Published private(set) var spaceThemeColorHexPreview: String?
+    @Published private(set) var spaceThemeAuxiliaryHexPreviews: [String] = []
+    @Published private(set) var spaceThemeOpacityPreview: Double?
+    @Published private(set) var spaceThemeTexturePreview: Double?
     @Published var addressFocusRequestID = UUID()
     @Published private(set) var isTabSwitcherPresented = false
     @Published private(set) var tabSwitcherTabs: [BrowserTab] = []
@@ -96,6 +102,39 @@ final class BrowserStore: ObservableObject {
 
     var activeSpace: BrowserSpace? {
         spaces.first { $0.id == activeSpaceID }
+    }
+
+    var activeThemeColorHexes: [String] {
+        if isSpaceThemeColorPreviewActive {
+            guard let spaceThemeColorHexPreview else { return [] }
+            return [spaceThemeColorHexPreview] + spaceThemeAuxiliaryHexPreviews
+        }
+
+        guard !isSpaceSetupPresented else { return [] }
+        return activeSpace?.themeColorHex.map { [$0] } ?? []
+    }
+
+    var activeThemeOpacity: Double {
+        if let spaceThemeOpacityPreview {
+            return spaceThemeOpacityPreview
+        }
+
+        guard !isSpaceSetupPresented else { return 0.5 }
+        return activeSpace?.themeOpacity ?? 0.5
+    }
+
+    var activeThemeTexture: Double {
+        if let spaceThemeTexturePreview {
+            return spaceThemeTexturePreview
+        }
+
+        guard !isSpaceSetupPresented else { return 0 }
+        return activeSpace?.themeTexture ?? 0
+    }
+
+    var activeThemeIntensityMultiplier: Double {
+        let normalizedOpacity = (activeThemeOpacity - 0.3) / 0.6
+        return min(1.45, max(0.25, 0.25 + normalizedOpacity * 1.2))
     }
 
     var isSpaceSetupPresented: Bool {
@@ -249,6 +288,9 @@ final class BrowserStore: ObservableObject {
         name: String? = nil,
         symbolName: String? = nil,
         themeColorHex: String? = nil,
+        themeAppearance: SpaceThemeAppearance = .automatic,
+        themeOpacity: Double = 0.5,
+        themeTexture: Double = 0,
         dataStoreID: UUID? = nil
     ) -> BrowserSpace {
         let spaceNumber = spaces.count + 1
@@ -260,7 +302,10 @@ final class BrowserStore: ObservableObject {
         let space = BrowserSpace(
             name: resolvedName ?? "Space \(spaceNumber)",
             symbolName: symbolName ?? spaceSymbols[paletteIndex],
-            themeColorHex: themeColorHex ?? spaceThemeColors[paletteIndex],
+            themeColorHex: themeColorHex,
+            themeAppearance: themeAppearance,
+            themeOpacity: themeOpacity,
+            themeTexture: themeTexture,
             dataStoreID: dataStoreID ?? UUID()
         )
         spaces.append(space)
@@ -273,7 +318,10 @@ final class BrowserStore: ObservableObject {
     func completeInitialSpaceSetup(
         name: String,
         symbolName: String,
-        themeColorHex: String,
+        themeColorHex: String?,
+        themeAppearance: SpaceThemeAppearance = .automatic,
+        themeOpacity: Double = 0.5,
+        themeTexture: Double = 0,
         dataStoreID: UUID? = nil
     ) {
         let normalizedName = Self.normalizedSpaceName(name)
@@ -284,6 +332,9 @@ final class BrowserStore: ObservableObject {
                 name: normalizedName,
                 symbolName: symbolName,
                 themeColorHex: themeColorHex,
+                themeAppearance: themeAppearance,
+                themeOpacity: themeOpacity,
+                themeTexture: themeTexture,
                 dataStoreID: dataStoreID
             )
             spaces = [defaultSpace]
@@ -300,6 +351,9 @@ final class BrowserStore: ObservableObject {
         spaces[index].name = normalizedName
         spaces[index].symbolName = symbolName
         spaces[index].themeColorHex = themeColorHex
+        spaces[index].themeAppearance = themeAppearance
+        spaces[index].themeOpacity = min(0.9, max(0.3, themeOpacity))
+        spaces[index].themeTexture = min(1, max(0, themeTexture))
         if let dataStoreID {
             spaces[index].dataStoreID = dataStoreID
         }
@@ -324,10 +378,71 @@ final class BrowserStore: ObservableObject {
         flushSession()
     }
 
-    func updateSpaceTheme(_ id: UUID, colorHex: String) {
+    func updateSpaceTheme(_ id: UUID, colorHex: String?) {
         guard let index = spaces.firstIndex(where: { $0.id == id }) else { return }
         spaces[index].themeColorHex = colorHex
         flushSession()
+    }
+
+    func updateSpaceThemeControls(_ id: UUID, opacity: Double, texture: Double) {
+        guard let index = spaces.firstIndex(where: { $0.id == id }) else { return }
+        spaces[index].themeOpacity = min(0.9, max(0.3, opacity))
+        spaces[index].themeTexture = min(1, max(0, texture))
+        flushSession()
+    }
+
+    func updateSpaceThemeAppearance(_ id: UUID, appearance: SpaceThemeAppearance) {
+        guard let index = spaces.firstIndex(where: { $0.id == id }) else { return }
+        spaces[index].themeAppearance = appearance
+        flushSession()
+    }
+
+    func previewSpaceThemeAppearance(_ appearance: SpaceThemeAppearance) {
+        guard spaceThemeAppearancePreview != appearance else { return }
+        spaceThemeAppearancePreview = appearance
+    }
+
+    func previewSpaceThemeColors(primaryHex: String?, auxiliaryHexes: [String] = []) {
+        let normalizedAuxiliaryHexes = primaryHex == nil ? [] : auxiliaryHexes
+        guard
+            !isSpaceThemeColorPreviewActive ||
+            spaceThemeColorHexPreview != primaryHex ||
+            spaceThemeAuxiliaryHexPreviews != normalizedAuxiliaryHexes
+        else { return }
+
+        if !isSpaceThemeColorPreviewActive {
+            isSpaceThemeColorPreviewActive = true
+        }
+        if spaceThemeColorHexPreview != primaryHex {
+            spaceThemeColorHexPreview = primaryHex
+        }
+        if spaceThemeAuxiliaryHexPreviews != normalizedAuxiliaryHexes {
+            spaceThemeAuxiliaryHexPreviews = normalizedAuxiliaryHexes
+        }
+    }
+
+    func previewSpaceThemeControls(opacity: Double, texture: Double) {
+        let clampedOpacity = min(0.9, max(0.3, opacity))
+        let clampedTexture = min(1, max(0, texture))
+        if spaceThemeOpacityPreview != clampedOpacity {
+            spaceThemeOpacityPreview = clampedOpacity
+        }
+        if spaceThemeTexturePreview != clampedTexture {
+            spaceThemeTexturePreview = clampedTexture
+        }
+    }
+
+    func clearSpaceThemePreview() {
+        spaceThemeAppearancePreview = nil
+        isSpaceThemeColorPreviewActive = false
+        spaceThemeColorHexPreview = nil
+        spaceThemeAuxiliaryHexPreviews = []
+        spaceThemeOpacityPreview = nil
+        spaceThemeTexturePreview = nil
+    }
+
+    func clearSpaceThemeAppearancePreview() {
+        clearSpaceThemePreview()
     }
 
     func cycleSpaceIcon(_ id: UUID) {
@@ -1329,8 +1444,8 @@ final class BrowserStore: ObservableObject {
     private static func homeTab(spaceID: UUID, sortOrder: Double = 0, pinned: Bool = false) -> BrowserTab {
         BrowserTab(
             title: BrowserDefaults.defaultHomeTitle,
-            url: BrowserDefaults.defaultHomeURL,
-            faviconSymbol: "magnifyingglass",
+            url: nil,
+            faviconSymbol: "sparkle",
             isPinned: pinned,
             spaceID: spaceID,
             sortOrder: sortOrder
@@ -1349,10 +1464,10 @@ final class BrowserStore: ObservableObject {
         let spaceIDs = Set(spaces.map(\.id))
         tabs = tabs.filter { spaceIDs.contains($0.spaceID) }
 
-        for index in tabs.indices where Self.isHomePlaceholderURL(tabs[index].url) {
-            tabs[index].url = BrowserDefaults.defaultHomeURL
+        for index in tabs.indices where Self.isLegacyHomePlaceholder(tabs[index]) {
+            tabs[index].url = nil
             tabs[index].title = BrowserDefaults.defaultHomeTitle
-            tabs[index].faviconSymbol = faviconService.placeholderSymbol(for: BrowserDefaults.defaultHomeURL)
+            tabs[index].faviconSymbol = "sparkle"
             tabs[index].faviconData = nil
         }
 
@@ -1385,9 +1500,20 @@ final class BrowserStore: ObservableObject {
         spaces.count == 1 && spaces[0].name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
-    private static func isHomePlaceholderURL(_ url: URL?) -> Bool {
-        guard let url else { return true }
+    private static func isLegacyBlankPlaceholderURL(_ url: URL?) -> Bool {
+        guard let url else { return false }
         return url.absoluteString == "about:blank"
+    }
+
+    private static func isLegacyHomePlaceholder(_ tab: BrowserTab) -> Bool {
+        if isLegacyBlankPlaceholderURL(tab.url) {
+            return true
+        }
+
+        return tab.url?.absoluteString == BrowserDefaults.googleHomeURL.absoluteString
+            && tab.title == "Google"
+            && tab.faviconSymbol == "magnifyingglass"
+            && tab.faviconData == nil
     }
 
     private func normalizeSortOrder() {

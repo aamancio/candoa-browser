@@ -23,7 +23,11 @@ struct SidebarView: View {
     ]
 
     private var activeSpaceTint: Color {
-        Color(spaceHex: store.activeSpace?.themeColorHex ?? "#6E8BFF")
+        Color(spaceHex: store.activeThemeColorHexes.first ?? "#8A8F98")
+    }
+
+    private var hasActiveThemeTint: Bool {
+        !store.activeThemeColorHexes.isEmpty
     }
 
     var body: some View {
@@ -76,7 +80,12 @@ struct SidebarView: View {
         .background {
             ZStack {
                 LumaChromeStyle.sidebarBackground
-                activeSpaceTint.opacity(store.isSpaceSetupPresented ? 0.025 : 0.055)
+                SpaceThemeBackdrop(
+                    hexes: store.activeThemeColorHexes,
+                    intensity: (store.isSpaceSetupPresented ? 0.72 : 0.24) * store.activeThemeIntensityMultiplier,
+                    texture: store.activeThemeTexture
+                )
+                activeSpaceTint.opacity(hasActiveThemeTint ? (store.isSpaceSetupPresented ? 0.09 : 0.055) : 0)
             }
         }
         .ignoresSafeArea(.container, edges: .top)
@@ -338,7 +347,10 @@ private struct CreateSpaceSidebarComposer: View {
 
     @State private var name = ""
     @State private var symbolName = "square.dashed"
-    @State private var themeColorHex = "#6E8BFF"
+    @State private var themeColorHex: String?
+    @State private var themeAppearance = SpaceThemeAppearance.automatic
+    @State private var themeOpacity = 0.5
+    @State private var themeTexture = 0.0
     @State private var dataMode = SpaceDataMode.isolated
     @State private var isIconPickerPresented = false
     @State private var isProfilePickerPresented = false
@@ -358,6 +370,23 @@ private struct CreateSpaceSidebarComposer: View {
 
     private var trimmedName: String {
         name.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private var themeAppearanceSelection: Binding<SpaceThemeAppearance> {
+        Binding {
+            themeAppearance
+        } set: { newAppearance in
+            themeAppearance = newAppearance
+            store.previewSpaceThemeAppearance(newAppearance)
+        }
+    }
+
+    private var createButtonBackground: Color {
+        guard let themeColorHex else {
+            return Color.primary.opacity(trimmedName.isEmpty ? 0.07 : 0.13)
+        }
+
+        return Color(spaceHex: themeColorHex).opacity(trimmedName.isEmpty ? 0.16 : 0.36)
     }
 
     init(store: BrowserStore, mode: SpaceComposerMode = .create) {
@@ -388,12 +417,13 @@ private struct CreateSpaceSidebarComposer: View {
             .foregroundStyle(trimmedName.isEmpty ? .secondary : .primary)
             .frame(maxWidth: .infinity)
             .frame(height: 34)
-            .background(Color(spaceHex: themeColorHex).opacity(trimmedName.isEmpty ? 0.16 : 0.36))
+            .background(createButtonBackground)
             .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
             .disabled(trimmedName.isEmpty)
 
             if mode == .create {
                 Button("Cancel") {
+                    store.clearSpaceThemePreview()
                     store.isCreateSpacePresented = false
                 }
                 .buttonStyle(.plain)
@@ -406,6 +436,10 @@ private struct CreateSpaceSidebarComposer: View {
         }
         .onAppear {
             isNameFocused = true
+            publishCurrentThemePreview()
+        }
+        .onDisappear {
+            store.clearSpaceThemePreview()
         }
     }
 
@@ -509,9 +543,11 @@ private struct CreateSpaceSidebarComposer: View {
             HStack(spacing: 9) {
                 Spacer(minLength: 0)
 
-                Circle()
-                    .fill(Color(spaceHex: themeColorHex))
-                    .frame(width: 10, height: 10)
+                if let themeColorHex {
+                    Circle()
+                        .fill(Color(spaceHex: themeColorHex))
+                        .frame(width: 10, height: 10)
+                }
 
                 Text("Edit Theme")
                     .font(.system(size: 13, weight: .semibold))
@@ -531,9 +567,25 @@ private struct CreateSpaceSidebarComposer: View {
         .popover(isPresented: $isThemeEditorPresented, arrowEdge: .trailing) {
             SpaceThemePanel(
                 selectedHex: $themeColorHex,
-                themeOptions: themeOptions
+                selectedAppearance: themeAppearanceSelection,
+                selectedOpacity: $themeOpacity,
+                selectedTexture: $themeTexture,
+                themeOptions: themeOptions,
+                onThemePreviewChange: { hexes, opacity, texture in
+                    store.previewSpaceThemeColors(
+                        primaryHex: hexes.first,
+                        auxiliaryHexes: Array(hexes.dropFirst())
+                    )
+                    store.previewSpaceThemeControls(opacity: opacity, texture: texture)
+                }
             )
         }
+    }
+
+    private func publishCurrentThemePreview() {
+        store.previewSpaceThemeAppearance(themeAppearance)
+        store.previewSpaceThemeColors(primaryHex: themeColorHex)
+        store.previewSpaceThemeControls(opacity: themeOpacity, texture: themeTexture)
     }
 
     private func createSpace() {
@@ -542,8 +594,12 @@ private struct CreateSpaceSidebarComposer: View {
                 name: trimmedName,
                 symbolName: symbolName,
                 themeColorHex: themeColorHex,
+                themeAppearance: themeAppearance,
+                themeOpacity: themeOpacity,
+                themeTexture: themeTexture,
                 dataStoreID: dataMode.dataStoreID(current: store.activeSpace?.dataStoreID)
             )
+            store.clearSpaceThemePreview()
             store.focusAddressBar()
             return
         }
@@ -552,8 +608,12 @@ private struct CreateSpaceSidebarComposer: View {
             name: trimmedName,
             symbolName: symbolName,
             themeColorHex: themeColorHex,
+            themeAppearance: themeAppearance,
+            themeOpacity: themeOpacity,
+            themeTexture: themeTexture,
             dataStoreID: dataMode.dataStoreID(current: store.activeSpace?.dataStoreID)
         )
+        store.clearSpaceThemePreview()
         store.isCreateSpacePresented = false
         store.focusAddressBar()
     }
@@ -562,7 +622,7 @@ private struct CreateSpaceSidebarComposer: View {
 
 private struct SpaceIconPreview: View {
     let symbolName: String
-    let themeColorHex: String
+    let themeColorHex: String?
 
     var body: some View {
         ZStack {
@@ -579,7 +639,7 @@ private struct SpaceIconPreview: View {
                 } else {
                     Image(systemName: symbolName)
                         .font(.system(size: 13.5, weight: .semibold))
-                        .foregroundStyle(Color(spaceHex: themeColorHex))
+                        .foregroundStyle(Color(spaceHex: themeColorHex ?? "#A8ADB7"))
                 }
             }
         }
@@ -900,114 +960,887 @@ private struct SpaceProfilePicker: View {
 }
 
 private struct SpaceThemePanel: View {
-    @Binding var selectedHex: String
+    @Binding var selectedHex: String?
+    @Binding var selectedAppearance: SpaceThemeAppearance
+    @Binding var selectedOpacity: Double
+    @Binding var selectedTexture: Double
     let themeOptions: [(name: String, hex: String)]
+    let onThemePreviewChange: ([String], Double, Double) -> Void
 
-    @State private var appearance = SpaceThemeAppearance.dark
+    @State private var auxiliaryHexes: [String] = []
+    @State private var palettePage = 0
+    @State private var palettePageDirection = 1
+    @State private var usesHarmony = true
+    @State private var dotPositions = [ThemeDotPosition(x: 0.57, y: 0.55)]
+    @State private var didInitializeDotPositions = false
+
+    private var paletteOptions: [(name: String, hex: String)] {
+        themeOptions + [
+            ("Mist", "#C8D3E8"),
+            ("Mint", "#8BE0C2"),
+            ("Amber", "#F0C36D"),
+            ("Coral", "#F18A7A"),
+            ("Lavender", "#C9A7E8"),
+            ("Sky", "#82C4EA"),
+            ("Rose", "#E4A4C3"),
+            ("Graphite", "#8F96A8")
+        ]
+    }
+
+    private var visiblePaletteOptions: [(name: String, hex: String)] {
+        let pageSize = 8
+        let currentPage = min(max(0, palettePage), pageCount - 1)
+        let start = min(currentPage * pageSize, max(0, paletteOptions.count - 1))
+        let end = min(start + pageSize, paletteOptions.count)
+        return Array(paletteOptions[start..<end])
+    }
+
+    private var pageCount: Int {
+        max(1, Int(ceil(Double(paletteOptions.count) / 8.0)))
+    }
+
+    private var canPagePaletteBackward: Bool {
+        palettePage > 0
+    }
+
+    private var canPagePaletteForward: Bool {
+        palettePage < pageCount - 1
+    }
+
+    private var activeHexes: [String] {
+        selectedHex.map { [$0] + auxiliaryHexes } ?? []
+    }
+
+    private var normalizedOpacity: Double {
+        (min(0.9, max(0.3, selectedOpacity)) - 0.3) / 0.6
+    }
+
+    private var hasSelectedThemeColor: Bool {
+        selectedHex != nil
+    }
+
+    private var themeControlAccentHex: String {
+        selectedHex ?? "#A8ADB7"
+    }
 
     var body: some View {
-        VStack(spacing: 14) {
-            HStack(spacing: 18) {
-                ForEach(SpaceThemeAppearance.allCases) { option in
-                    Button {
-                        appearance = option
-                    } label: {
-                        Image(systemName: option.symbolName)
-                            .font(.system(size: 18, weight: .semibold))
-                            .frame(width: 36, height: 32)
-                            .foregroundStyle(LumaChromeStyle.sidebarText)
-                            .background(
-                                RoundedRectangle(cornerRadius: 9, style: .continuous)
-                                    .fill(appearance == option ? Color.primary.opacity(0.10) : Color.clear)
-                            )
-                    }
-                    .buttonStyle(.plain)
-                    .help(option.title)
-                }
-            }
-            .padding(.top, 4)
+        VStack(spacing: 0) {
+            themeField
 
-            ZStack {
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(Color(spaceHex: selectedHex).opacity(0.10))
+            paletteRow
+                .padding(.top, 10)
 
-                DotPattern()
-                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            lowerControls
+                .padding(.top, 12)
+        }
+        .padding(10)
+        .frame(width: 372)
+        .background(LumaChromeStyle.popoverBackground)
+        .onAppear {
+            initializeDotPositionsIfNeeded()
+            publishThemePreview()
+        }
+        .onChange(of: selectedHex) { _, _ in
+            publishThemePreview()
+        }
+        .onChange(of: auxiliaryHexes) { _, _ in
+            publishThemePreview()
+        }
+        .onChange(of: selectedOpacity) { _, _ in
+            publishThemePreview()
+        }
+        .onChange(of: selectedTexture) { _, _ in
+            publishThemePreview()
+        }
+    }
 
-                Text("Pick a Space color")
-                    .font(.system(size: 16, weight: .heavy))
-                    .foregroundStyle(LumaChromeStyle.sidebarText)
-            }
-            .frame(height: 180)
-            .overlay {
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .stroke(LumaChromeStyle.popoverBorder, lineWidth: 1)
-            }
+    private var themeField: some View {
+        ZStack(alignment: .top) {
+            RoundedRectangle(cornerRadius: 13, style: .continuous)
+                .fill(Color.primary.opacity(0.045))
 
-            HStack(spacing: 13) {
-                ForEach(themeOptions, id: \.hex) { option in
-                    Button {
-                        selectedHex = option.hex
-                    } label: {
-                        Circle()
-                            .fill(Color(spaceHex: option.hex))
-                            .frame(width: 30, height: 30)
-                            .overlay {
-                                Circle()
-                                    .strokeBorder(
-                                        selectedHex == option.hex ? LumaChromeStyle.sidebarText : Color.clear,
-                                        lineWidth: 2.5
-                                    )
-                            }
-                    }
-                    .buttonStyle(.plain)
-                    .help(option.name)
-                }
-            }
+            ThemeColorFieldBackground(
+                hexes: activeHexes,
+                positions: dotPositions,
+                intensity: 0.20 + normalizedOpacity * 0.62
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 13, style: .continuous))
 
-            HStack(spacing: 14) {
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .fill(Color(spaceHex: selectedHex).opacity(0.74))
-                    .frame(width: 62, height: 42)
+            DotPattern(opacity: 0.09 + selectedTexture * 0.22, spacing: 6, dotSize: 1.7)
+                .clipShape(RoundedRectangle(cornerRadius: 13, style: .continuous))
 
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(appearance.title)
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(LumaChromeStyle.sidebarText)
+            ThemeColorFieldDots(
+                hexes: activeHexes,
+                positions: dotPositions,
+                onDrag: updateDotPosition
+            )
 
-                    Text("Theme color applies to Space controls.")
-                        .font(.system(size: 11.5, weight: .medium))
-                        .foregroundStyle(LumaChromeStyle.sidebarIcon)
-                }
+            VStack(spacing: 0) {
+                appearanceControls
+                    .padding(.top, 12)
 
                 Spacer(minLength: 0)
+
+                fieldActionControls
+                    .padding(.bottom, 15)
             }
         }
-        .padding(16)
-        .frame(width: 360)
-        .background(LumaChromeStyle.popoverBackground)
+        .frame(height: 270)
+        .overlay {
+            RoundedRectangle(cornerRadius: 13, style: .continuous)
+                .stroke(LumaChromeStyle.popoverBorder, lineWidth: 1)
+        }
+    }
+
+    private var appearanceControls: some View {
+        HStack(spacing: 18) {
+            ForEach(SpaceThemeAppearance.allCases) { option in
+                Button {
+                    selectedAppearance = option
+                } label: {
+                    Image(systemName: option.symbolName)
+                        .font(.system(size: 17, weight: .semibold))
+                        .frame(width: 34, height: 32)
+                        .foregroundStyle(LumaChromeStyle.sidebarText)
+                        .background(
+                            RoundedRectangle(cornerRadius: 9, style: .continuous)
+                                .fill(selectedAppearance == option ? Color.primary.opacity(0.13) : Color.clear)
+                        )
+                }
+                .buttonStyle(.plain)
+                .help(option.title)
+            }
+        }
+    }
+
+    private var fieldActionControls: some View {
+        HStack(spacing: 28) {
+            ThemeIconButton(systemName: "plus", help: "Add Color") {
+                addAuxiliaryColor()
+            }
+            .disabled(auxiliaryHexes.count >= 2)
+
+            ThemeIconButton(systemName: "minus", help: "Remove Color") {
+                removeAuxiliaryColor()
+            }
+            .disabled(selectedHex == nil && auxiliaryHexes.isEmpty)
+
+            ThemeIconButton(systemName: "circle.grid.3x3.fill", help: "Toggle Harmony") {
+                usesHarmony.toggle()
+            }
+            .opacity(usesHarmony ? 1 : 0.62)
+        }
+    }
+
+    private var paletteRow: some View {
+        HStack(spacing: 9) {
+            ThemeIconButton(systemName: "chevron.left", help: "Previous Colors") {
+                pagePalette(by: -1)
+            }
+            .disabled(!canPagePaletteBackward)
+
+            ZStack {
+                paletteColorPage
+                    .id(palettePage)
+                    .transition(
+                        .asymmetric(
+                            insertion: .move(edge: palettePageDirection > 0 ? .trailing : .leading)
+                                .combined(with: .opacity),
+                            removal: .move(edge: palettePageDirection > 0 ? .leading : .trailing)
+                                .combined(with: .opacity)
+                        )
+                    )
+            }
+            .frame(width: 287, height: 32)
+            .clipped()
+
+            ThemeIconButton(systemName: "chevron.right", help: "More Colors") {
+                pagePalette(by: 1)
+            }
+            .disabled(!canPagePaletteForward)
+        }
+        .frame(height: 32)
+    }
+
+    private var paletteColorPage: some View {
+        HStack(spacing: 9) {
+            ForEach(visiblePaletteOptions, id: \.hex) { option in
+                Button {
+                    selectPaletteColor(option.hex)
+                } label: {
+                    Circle()
+                        .fill(Color(spaceHex: option.hex))
+                        .frame(width: 28, height: 28)
+                        .overlay {
+                            Circle()
+                                .strokeBorder(
+                                    selectedHex == option.hex ? Color.white : Color.clear,
+                                    lineWidth: 3
+                                )
+                        }
+                        .overlay {
+                            Circle()
+                                .strokeBorder(
+                                    selectedHex == option.hex ? LumaChromeStyle.sidebarText.opacity(0.68) : Color.clear,
+                                    lineWidth: 1
+                                )
+                                .padding(-1)
+                        }
+                }
+                .buttonStyle(.plain)
+                .help(option.name)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .frame(width: 287, height: 32, alignment: .leading)
+    }
+
+    private var lowerControls: some View {
+        HStack(spacing: 18) {
+            ThemeWaveSlider(
+                value: $selectedOpacity,
+                accentHex: themeControlAccentHex,
+                isEnabled: hasSelectedThemeColor
+            )
+                .frame(width: 218, height: 58)
+
+            Spacer(minLength: 0)
+
+            ThemeTextureDial(
+                value: $selectedTexture,
+                accentHex: themeControlAccentHex,
+                isEnabled: hasSelectedThemeColor
+            )
+                .frame(width: 62, height: 62)
+        }
+        .padding(.horizontal, 8)
+        .padding(.bottom, 2)
+    }
+
+    private func addAuxiliaryColor() {
+        guard auxiliaryHexes.count < 2 else { return }
+        let hexes = paletteOptions.map(\.hex)
+        guard let firstHex = hexes.first else { return }
+
+        if selectedHex == nil {
+            selectedHex = firstHex
+            ensureDotPositionCount()
+            dotPositions[0] = Self.position(forHex: firstHex)
+            publishThemePreview()
+            return
+        }
+
+        let referenceHex = auxiliaryHexes.last ?? selectedHex ?? firstHex
+        let referenceIndex = hexes.firstIndex(of: referenceHex) ?? 0
+
+        for offset in 1...hexes.count {
+            let candidate = hexes[(referenceIndex + offset) % hexes.count]
+            if candidate != selectedHex, !auxiliaryHexes.contains(candidate) {
+                auxiliaryHexes.append(candidate)
+                ensureDotPositionCount()
+                dotPositions[auxiliaryHexes.count] = suggestedAuxiliaryPosition(at: auxiliaryHexes.count)
+                publishThemePreview()
+                return
+            }
+        }
+    }
+
+    private func removeAuxiliaryColor() {
+        if !auxiliaryHexes.isEmpty {
+            auxiliaryHexes.removeLast()
+        } else if selectedHex != nil {
+            selectedHex = nil
+        } else {
+            return
+        }
+
+        if dotPositions.count > activeHexes.count {
+            dotPositions.removeLast(dotPositions.count - activeHexes.count)
+        }
+        publishThemePreview()
+    }
+
+    private func initializeDotPositionsIfNeeded() {
+        guard !didInitializeDotPositions else { return }
+        didInitializeDotPositions = true
+        dotPositions = selectedHex.map { [Self.position(forHex: $0)] } ?? []
+        ensureDotPositionCount()
+    }
+
+    private func ensureDotPositionCount() {
+        while dotPositions.count < activeHexes.count {
+            dotPositions.append(suggestedAuxiliaryPosition(at: dotPositions.count))
+        }
+
+        if dotPositions.count > activeHexes.count {
+            dotPositions.removeLast(dotPositions.count - activeHexes.count)
+        }
+    }
+
+    private func selectPaletteColor(_ hex: String) {
+        selectedHex = hex
+        ensureDotPositionCount()
+        dotPositions[0] = Self.position(forHex: hex)
+        publishThemePreview()
+    }
+
+    private func pagePalette(by delta: Int) {
+        let nextPage = min(max(0, palettePage + delta), pageCount - 1)
+        guard nextPage != palettePage else { return }
+
+        palettePageDirection = delta >= 0 ? 1 : -1
+        withAnimation(.easeOut(duration: 0.18)) {
+            palettePage = nextPage
+        }
+    }
+
+    private func updateDotPosition(index: Int, position: ThemeDotPosition) {
+        ensureDotPositionCount()
+        guard dotPositions.indices.contains(index) else { return }
+
+        dotPositions[index] = position
+
+        if index == 0 {
+            selectedHex = Self.hex(for: position)
+            if usesHarmony, auxiliaryHexes.count > 0 {
+                harmonizeAuxiliaryDots(around: position)
+            }
+        } else {
+            let auxiliaryIndex = index - 1
+            if auxiliaryHexes.indices.contains(auxiliaryIndex) {
+                auxiliaryHexes[auxiliaryIndex] = Self.hex(for: position)
+            }
+        }
+
+        publishThemePreview()
+    }
+
+    private func harmonizeAuxiliaryDots(around primaryPosition: ThemeDotPosition) {
+        let dx = primaryPosition.x - 0.5
+        let dy = primaryPosition.y - 0.5
+        let primaryAngle = atan2(dy, dx)
+        let radius = min(0.38, max(0.18, hypot(dx, dy)))
+
+        for auxiliaryIndex in auxiliaryHexes.indices {
+            let dotIndex = auxiliaryIndex + 1
+            let offset = auxiliaryIndex == 0 ? 2.12 : -2.12
+            let angle = primaryAngle + offset
+            let position = ThemeDotPosition(
+                x: 0.5 + cos(angle) * radius,
+                y: 0.5 + sin(angle) * radius
+            ).clampedToUnitCircle()
+
+            dotPositions[dotIndex] = position
+            auxiliaryHexes[auxiliaryIndex] = Self.hex(for: position)
+        }
+    }
+
+    private func publishThemePreview() {
+        onThemePreviewChange(activeHexes, selectedOpacity, selectedTexture)
+    }
+
+    private func suggestedAuxiliaryPosition(at index: Int) -> ThemeDotPosition {
+        let primary = dotPositions.first ?? ThemeDotPosition(x: 0.57, y: 0.55)
+        let dx = primary.x - 0.5
+        let dy = primary.y - 0.5
+        let primaryAngle = atan2(dy, dx)
+        let radius = min(0.38, max(0.22, hypot(dx, dy)))
+        let offset = index == 1 ? 2.12 : -2.12
+
+        return ThemeDotPosition(
+            x: 0.5 + cos(primaryAngle + offset) * radius,
+            y: 0.5 + sin(primaryAngle + offset) * radius
+        ).clampedToUnitCircle()
+    }
+
+    private static func position(forHex hex: String) -> ThemeDotPosition {
+        guard let components = rgbComponents(from: hex) else {
+            return ThemeDotPosition(x: 0.57, y: 0.55)
+        }
+
+        let color = NSColor(
+            calibratedRed: components.red,
+            green: components.green,
+            blue: components.blue,
+            alpha: 1
+        )
+
+        var hue: CGFloat = 0
+        var saturation: CGFloat = 0
+        var brightness: CGFloat = 0
+        var alpha: CGFloat = 0
+        color.getHue(&hue, saturation: &saturation, brightness: &brightness, alpha: &alpha)
+
+        let radius = min(0.40, max(0.16, saturation * 0.40))
+        let angle = hue * .pi * 2
+        return ThemeDotPosition(
+            x: 0.5 + cos(angle) * radius,
+            y: 0.5 + sin(angle) * radius
+        ).clampedToUnitCircle()
+    }
+
+    private static func hex(for position: ThemeDotPosition) -> String {
+        let dx = position.x - 0.5
+        let dy = position.y - 0.5
+        var hue = atan2(dy, dx) / (.pi * 2)
+        if hue < 0 {
+            hue += 1
+        }
+
+        let distance = min(1, hypot(dx, dy) / 0.42)
+        let saturation = min(0.96, max(0.34, distance))
+        let brightness = min(0.98, max(0.46, 1.04 - position.y * 0.56))
+
+        let color = NSColor(calibratedHue: hue, saturation: saturation, brightness: brightness, alpha: 1)
+        guard let rgbColor = color.usingColorSpace(.sRGB) else {
+            return "#6E8BFF"
+        }
+
+        let red = Int(round(rgbColor.redComponent * 255))
+        let green = Int(round(rgbColor.greenComponent * 255))
+        let blue = Int(round(rgbColor.blueComponent * 255))
+        return String(format: "#%02X%02X%02X", red, green, blue)
+    }
+
+    private static func rgbComponents(from hex: String) -> (red: CGFloat, green: CGFloat, blue: CGFloat)? {
+        let hex = hex.trimmingCharacters(in: CharacterSet(charactersIn: "#"))
+        guard hex.count == 6, let value = Int(hex, radix: 16) else {
+            return nil
+        }
+
+        return (
+            red: CGFloat((value >> 16) & 0xFF) / 255.0,
+            green: CGFloat((value >> 8) & 0xFF) / 255.0,
+            blue: CGFloat(value & 0xFF) / 255.0
+        )
+    }
+}
+
+private struct ThemeDotPosition: Equatable {
+    var x: CGFloat
+    var y: CGFloat
+
+    func point(in size: CGSize) -> CGPoint {
+        CGPoint(x: x * size.width, y: y * size.height)
+    }
+
+    func clampedToUnitCircle() -> ThemeDotPosition {
+        let dx = x - 0.5
+        let dy = y - 0.5
+        let radius = hypot(dx, dy)
+        guard radius > 0.42 else {
+            return ThemeDotPosition(
+                x: min(0.92, max(0.08, x)),
+                y: min(0.92, max(0.08, y))
+            )
+        }
+
+        let scale = 0.42 / radius
+        return ThemeDotPosition(
+            x: min(0.92, max(0.08, 0.5 + dx * scale)),
+            y: min(0.92, max(0.08, 0.5 + dy * scale))
+        )
+    }
+
+    static func clamped(from point: CGPoint, in size: CGSize) -> ThemeDotPosition {
+        let safeWidth = max(1, size.width)
+        let safeHeight = max(1, size.height)
+        let center = CGPoint(x: safeWidth / 2, y: safeHeight / 2)
+        let fieldRadius = min(safeWidth, safeHeight) * 0.42
+        var clampedPoint = point
+
+        let dx = point.x - center.x
+        let dy = point.y - center.y
+        let distance = hypot(dx, dy)
+        if distance > fieldRadius {
+            let scale = fieldRadius / distance
+            clampedPoint = CGPoint(x: center.x + dx * scale, y: center.y + dy * scale)
+        }
+
+        return ThemeDotPosition(
+            x: min(0.92, max(0.08, clampedPoint.x / safeWidth)),
+            y: min(0.92, max(0.08, clampedPoint.y / safeHeight))
+        )
+    }
+}
+
+private struct ThemeColorFieldBackground: View {
+    let hexes: [String]
+    let positions: [ThemeDotPosition]
+    let intensity: Double
+
+    var body: some View {
+        GeometryReader { proxy in
+            ZStack {
+                ForEach(Array(hexes.enumerated()), id: \.offset) { index, hex in
+                    Circle()
+                        .fill(
+                            RadialGradient(
+                                colors: [
+                                    Color(spaceHex: hex).opacity(intensity),
+                                    Color(spaceHex: hex).opacity(intensity * 0.30),
+                                    Color.clear
+                                ],
+                                center: .center,
+                                startRadius: 8,
+                                endRadius: 125
+                            )
+                        )
+                        .frame(width: 260, height: 260)
+                        .position(position(for: index, in: proxy.size))
+                        .blur(radius: 14)
+                }
+
+                LinearGradient(
+                    colors: [
+                        Color.primary.opacity(0.08),
+                        Color.primary.opacity(0.02)
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            }
+        }
+    }
+
+    private func position(for index: Int, in size: CGSize) -> CGPoint {
+        guard positions.indices.contains(index) else {
+            return CGPoint(x: size.width * 0.57, y: size.height * 0.55)
+        }
+
+        return positions[index].point(in: size)
+    }
+}
+
+private struct ThemeColorFieldDots: View {
+    let hexes: [String]
+    let positions: [ThemeDotPosition]
+    let onDrag: (Int, ThemeDotPosition) -> Void
+
+    private static let coordinateSpaceName = "LumaThemeColorField"
+
+    var body: some View {
+        GeometryReader { proxy in
+            ZStack {
+                ForEach(Array(hexes.enumerated()), id: \.offset) { index, hex in
+                    Circle()
+                        .fill(Color(spaceHex: hex))
+                        .frame(width: index == 0 ? 40 : 22, height: index == 0 ? 40 : 22)
+                        .overlay {
+                            Circle()
+                                .stroke(Color.white.opacity(index == 0 ? 0.95 : 0.86), lineWidth: index == 0 ? 5 : 3)
+                        }
+                        .shadow(color: Color.black.opacity(0.20), radius: 8, x: 0, y: 4)
+                        .scaleEffect(positions.indices.contains(index) ? 1 : 0.001)
+                        .position(position(for: index, in: proxy.size))
+                        .contentShape(Circle())
+                        .gesture(
+                            DragGesture(minimumDistance: 0, coordinateSpace: .named(Self.coordinateSpaceName))
+                                .onChanged { gesture in
+                                    onDrag(
+                                        index,
+                                        ThemeDotPosition.clamped(from: gesture.location, in: proxy.size)
+                                    )
+                                }
+                        )
+                        .help(index == 0 ? "Drag to change Space color" : "Drag to adjust theme color")
+                }
+            }
+            .frame(width: proxy.size.width, height: proxy.size.height)
+            .coordinateSpace(name: Self.coordinateSpaceName)
+        }
+    }
+
+    private func position(for index: Int, in size: CGSize) -> CGPoint {
+        guard positions.indices.contains(index) else {
+            return CGPoint(x: size.width * 0.57, y: size.height * 0.55)
+        }
+
+        return positions[index].point(in: size)
+    }
+}
+
+private struct ThemeIconButton: View {
+    let systemName: String
+    let help: String
+    let action: () -> Void
+
+    @Environment(\.isEnabled) private var isEnabled
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: systemName)
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(LumaChromeStyle.sidebarText.opacity(isEnabled ? 0.92 : 0.34))
+                .frame(width: 22, height: 24)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help(help)
+    }
+}
+
+private struct ThemeWaveSlider: View {
+    @Binding var value: Double
+    let accentHex: String
+    let isEnabled: Bool
+
+    private let range = 0.3...0.9
+
+    private var normalizedValue: Double {
+        let clamped = min(range.upperBound, max(range.lowerBound, value))
+        return (clamped - range.lowerBound) / (range.upperBound - range.lowerBound)
+    }
+
+    var body: some View {
+        GeometryReader { proxy in
+            let size = proxy.size
+            let progress = normalizedValue
+            let handleX = CGFloat(progress) * max(1, size.width - 26) + 13
+            let handleWidth = CGFloat(14 + progress * 10)
+            let handleHeight = CGFloat(42 + progress * 12)
+
+            ZStack(alignment: .leading) {
+                ThemeWaveShape(progress: progress)
+                    .stroke(Color.primary.opacity(isEnabled ? 0.28 : 0.16), style: StrokeStyle(lineWidth: 7, lineCap: .round, lineJoin: .round))
+                    .frame(height: 32)
+                    .padding(.horizontal, 1)
+
+                ThemeWaveShape(progress: progress)
+                    .trim(from: 0, to: progress)
+                    .stroke(
+                        isEnabled
+                            ? Color(spaceHex: accentHex).opacity(0.38 + progress * 0.46)
+                            : Color.primary.opacity(0.12),
+                        style: StrokeStyle(lineWidth: 7, lineCap: .round, lineJoin: .round)
+                    )
+                    .frame(height: 32)
+                    .padding(.horizontal, 1)
+
+                Capsule(style: .continuous)
+                    .fill(Color.white.opacity(isEnabled ? 1 : 0.28))
+                    .frame(width: handleWidth, height: handleHeight)
+                    .shadow(color: Color.black.opacity(isEnabled ? 0.22 : 0), radius: 6, x: 0, y: 3)
+                    .position(x: handleX, y: size.height / 2)
+            }
+            .contentShape(Rectangle())
+            .gesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { gesture in
+                        guard isEnabled else { return }
+                        let progress = min(1, max(0, gesture.location.x / max(1, size.width)))
+                        value = range.lowerBound + progress * (range.upperBound - range.lowerBound)
+                    }
+            )
+        }
+    }
+}
+
+private struct ThemeWaveShape: Shape {
+    let progress: Double
+
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        let amplitude = rect.height * (0.18 + CGFloat(progress) * 0.20)
+        let midY = rect.midY
+        let wavelength = max(34, rect.width / 5.5)
+
+        path.move(to: CGPoint(x: rect.minX, y: midY))
+
+        var x = rect.minX
+        while x <= rect.maxX {
+            let normalized = (x - rect.minX) / wavelength
+            let y = midY + sin(normalized * .pi * 2) * amplitude
+            path.addLine(to: CGPoint(x: x, y: y))
+            x += 3
+        }
+
+        return path
+    }
+}
+
+private struct ThemeTextureDial: View {
+    @Binding var value: Double
+    let accentHex: String
+    let isEnabled: Bool
+
+    @State private var dragValue: Double?
+
+    private let textureStepCount = 16
+    private let dialStartAngle = -CGFloat.pi * 0.75
+    private let dialSweepAngle = CGFloat.pi * 1.5
+
+    private var clampedValue: Double {
+        min(1, max(0, value))
+    }
+
+    private var displayedValue: Double {
+        dragValue ?? clampedValue
+    }
+
+    var body: some View {
+        GeometryReader { proxy in
+            let side = min(proxy.size.width, proxy.size.height)
+            let radius = side * 0.35
+            let activeValue = displayedValue
+
+            ZStack {
+                ForEach(0..<textureStepCount, id: \.self) { index in
+                    let stepValue = Double(index + 1) / Double(textureStepCount)
+                    let isActive = isEnabled && stepValue <= activeValue
+                    Circle()
+                        .fill(isActive ? Color(spaceHex: accentHex).opacity(0.74) : Color.primary.opacity(index % 4 == 0 ? 0.30 : 0.20))
+                        .frame(width: index % 4 == 0 ? 5 : 4, height: index % 4 == 0 ? 5 : 4)
+                        .position(point(for: stepValue, radius: radius, in: proxy.size))
+                }
+
+                Circle()
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                Color(spaceHex: accentHex).opacity(isEnabled ? 0.28 : 0.04),
+                                Color.primary.opacity(isEnabled ? 0.10 : 0.06)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .overlay {
+                        DotPattern(
+                            opacity: isEnabled ? 0.03 + activeValue * 0.20 : 0.035,
+                            spacing: 4,
+                            dotSize: 1.1
+                        )
+                        .clipShape(Circle())
+                    }
+                    .overlay {
+                        Circle()
+                            .stroke(Color.primary.opacity(0.16), lineWidth: 1)
+                    }
+                    .frame(width: side * 0.64, height: side * 0.64)
+                    .position(x: proxy.size.width / 2, y: proxy.size.height / 2)
+
+                Capsule(style: .continuous)
+                    .fill(Color.white.opacity(isEnabled ? 1 : 0.34))
+                    .frame(width: 7, height: 18)
+                    .rotationEffect(.degrees(activeValue * 360))
+                    .position(point(for: activeValue, radius: radius, in: proxy.size))
+                    .shadow(color: Color.black.opacity(isEnabled ? 0.18 : 0), radius: 3, x: 0, y: 1)
+            }
+            .frame(width: proxy.size.width, height: proxy.size.height)
+            .contentShape(Rectangle())
+            .highPriorityGesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { gesture in
+                        guard isEnabled else { return }
+                        let nextValue = steppedValue(for: dialValue(for: gesture.location, in: proxy.size))
+                        if textureStep(for: displayedValue) != textureStep(for: nextValue) {
+                            NSHapticFeedbackManager.defaultPerformer.perform(.alignment, performanceTime: .now)
+                        }
+                        setValueWithoutAnimation(nextValue)
+                    }
+                    .onEnded { _ in
+                        var transaction = Transaction()
+                        transaction.disablesAnimations = true
+                        withTransaction(transaction) {
+                            dragValue = nil
+                        }
+                    }
+            )
+        }
+    }
+
+    private func point(for value: Double, radius: CGFloat, in size: CGSize) -> CGPoint {
+        let angle = dialAngle(for: value)
+        return CGPoint(
+            x: size.width / 2 + sin(angle) * radius,
+            y: size.height / 2 - cos(angle) * radius
+        )
+    }
+
+    private func dialValue(for location: CGPoint, in size: CGSize) -> Double {
+        let center = CGPoint(x: size.width / 2, y: size.height / 2)
+        let rawAngle = normalizedAngle(atan2(location.y - center.y, location.x - center.x) + (.pi / 2))
+        let startAngle = normalizedAngle(dialStartAngle)
+        let distanceFromStart = positiveModulo(rawAngle - startAngle, .pi * 2)
+
+        if distanceFromStart <= dialSweepAngle {
+            return Double(distanceFromStart / dialSweepAngle)
+        }
+
+        let gapDistance = distanceFromStart - dialSweepAngle
+        let gapSize = (.pi * 2) - dialSweepAngle
+        return gapDistance < gapSize / 2 ? 1 : 0
+    }
+
+    private func dialAngle(for value: Double) -> CGFloat {
+        dialStartAngle + CGFloat(min(1, max(0, value))) * dialSweepAngle
+    }
+
+    private func normalizedAngle(_ angle: CGFloat) -> CGFloat {
+        positiveModulo(angle, .pi * 2)
+    }
+
+    private func positiveModulo(_ value: CGFloat, _ modulus: CGFloat) -> CGFloat {
+        let remainder = value.truncatingRemainder(dividingBy: modulus)
+        return remainder >= 0 ? remainder : remainder + modulus
+    }
+
+    private func steppedValue(for value: Double) -> Double {
+        Double(textureStep(for: value)) / Double(textureStepCount)
+    }
+
+    private func textureStep(for value: Double) -> Int {
+        min(textureStepCount, max(0, Int((min(1, max(0, value)) * Double(textureStepCount)).rounded())))
+    }
+
+    private func setValueWithoutAnimation(_ nextValue: Double) {
+        var transaction = Transaction()
+        transaction.disablesAnimations = true
+        withTransaction(transaction) {
+            dragValue = nextValue
+            value = nextValue
+        }
     }
 }
 
 private struct DotPattern: View {
-    var body: some View {
-        Canvas { context, size in
-            let spacing: CGFloat = 8
-            let dotSize: CGFloat = 2
-            let color = Color.primary.opacity(0.11)
+    var opacity: Double = 0.11
+    var spacing: CGFloat = 8
+    var dotSize: CGFloat = 2
 
+    var body: some View {
+        let clampedOpacity = min(1, max(0, opacity))
+
+        if clampedOpacity > 0 {
+            DotPatternCanvas(spacing: spacing, dotSize: dotSize)
+                .equatable()
+                .opacity(clampedOpacity)
+        }
+    }
+}
+
+private struct DotPatternCanvas: View, Equatable {
+    var spacing: CGFloat
+    var dotSize: CGFloat
+
+    var body: some View {
+        Canvas(rendersAsynchronously: true) { context, size in
+            guard spacing > 0, dotSize > 0 else { return }
+
+            var dots = Path()
             var x: CGFloat = 6
             while x < size.width {
                 var y: CGFloat = 6
                 while y < size.height {
-                    context.fill(
-                        Path(ellipseIn: CGRect(x: x, y: y, width: dotSize, height: dotSize)),
-                        with: .color(color)
-                    )
+                    dots.addEllipse(in: CGRect(x: x, y: y, width: dotSize, height: dotSize))
                     y += spacing
                 }
                 x += spacing
             }
+
+            context.fill(dots, with: .color(Color.primary))
         }
     }
 }
@@ -1064,36 +1897,6 @@ private enum SpaceIconPickerMode: String, CaseIterable, Identifiable {
             return "Search emojis"
         case .symbols, .icons:
             return "Search icons"
-        }
-    }
-}
-
-private enum SpaceThemeAppearance: String, CaseIterable, Identifiable {
-    case automatic
-    case light
-    case dark
-
-    var id: String { rawValue }
-
-    var title: String {
-        switch self {
-        case .automatic:
-            return "Automatic"
-        case .light:
-            return "Light"
-        case .dark:
-            return "Dark"
-        }
-    }
-
-    var symbolName: String {
-        switch self {
-        case .automatic:
-            return "sparkles"
-        case .light:
-            return "sun.max.fill"
-        case .dark:
-            return "moon.fill"
         }
     }
 }
@@ -1450,6 +2253,154 @@ enum LumaChromeStyle {
     static let surfaceBorder = Color(nsColor: .separatorColor).opacity(0.75)
     static let popoverBackground = Color(nsColor: .windowBackgroundColor)
     static let popoverBorder = Color(nsColor: .separatorColor).opacity(0.85)
+}
+
+struct SpaceThemeBackdrop: View {
+    let hexes: [String]
+    var intensity: Double = 1
+    var texture: Double = 0
+
+    private var palette: [String]? {
+        SpaceThemePalette.resolvedHexes(from: hexes)
+    }
+
+    private var clampedTexture: Double {
+        min(1, max(0, texture))
+    }
+
+    var body: some View {
+        GeometryReader { proxy in
+            let size = proxy.size
+            let longestSide = max(size.width, size.height)
+
+            if let palette {
+                ZStack {
+                    LinearGradient(
+                        colors: [
+                            Color(spaceHex: palette[0]).opacity(0.20 * intensity),
+                            Color(spaceHex: palette[1]).opacity(0.16 * intensity),
+                            Color(spaceHex: palette[2]).opacity(0.28 * intensity)
+                        ],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+
+                    radialColor(hex: palette[0], opacity: 0.34 * intensity, endRadius: longestSide * 0.48)
+                        .frame(width: longestSide * 0.95, height: longestSide * 0.95)
+                        .position(x: size.width * 0.08, y: size.height * 0.18)
+                        .blur(radius: 34)
+
+                    radialColor(hex: palette[1], opacity: 0.22 * intensity, endRadius: longestSide * 0.54)
+                        .frame(width: longestSide, height: longestSide)
+                        .position(x: size.width * 0.52, y: size.height * 0.38)
+                        .blur(radius: 42)
+
+                    radialColor(hex: palette[2], opacity: 0.38 * intensity, endRadius: longestSide * 0.56)
+                        .frame(width: longestSide * 1.05, height: longestSide * 1.05)
+                        .position(x: size.width * 0.96, y: size.height * 0.52)
+                        .blur(radius: 48)
+
+                    if clampedTexture > 0 {
+                        DotPattern(
+                            opacity: 0.025 + clampedTexture * 0.12,
+                            spacing: 5,
+                            dotSize: 1.2
+                        )
+                        .blendMode(.overlay)
+                    }
+                }
+            }
+        }
+        .compositingGroup()
+    }
+
+    private func radialColor(hex: String, opacity: Double, endRadius: CGFloat) -> some View {
+        Circle()
+            .fill(
+                RadialGradient(
+                    colors: [
+                        Color(spaceHex: hex).opacity(opacity),
+                        Color(spaceHex: hex).opacity(opacity * 0.28),
+                        Color.clear
+                    ],
+                    center: .center,
+                    startRadius: 12,
+                    endRadius: endRadius
+                )
+            )
+    }
+}
+
+private enum SpaceThemePalette {
+    static func resolvedHexes(from hexes: [String]) -> [String]? {
+        let cleaned = hexes.filter { !$0.isEmpty }
+        guard let primary = cleaned.first else { return nil }
+
+        if cleaned.count >= 3 {
+            return Array(cleaned.prefix(3))
+        }
+
+        if cleaned.count == 2 {
+            return [cleaned[0], shiftedHex(from: cleaned[0], hueOffset: 0.10, saturationScale: 0.72, brightnessScale: 1.08), cleaned[1]]
+        }
+
+        return [
+            shiftedHex(from: primary, hueOffset: -0.08, saturationScale: 0.68, brightnessScale: 1.04),
+            shiftedHex(from: primary, hueOffset: 0.10, saturationScale: 0.36, brightnessScale: 1.02),
+            shiftedHex(from: primary, hueOffset: 0.56, saturationScale: 0.62, brightnessScale: 0.96)
+        ]
+    }
+
+    private static func shiftedHex(
+        from hex: String,
+        hueOffset: CGFloat,
+        saturationScale: CGFloat,
+        brightnessScale: CGFloat
+    ) -> String {
+        guard let color = nsColor(from: hex) else {
+            return "#6E8BFF"
+        }
+
+        var hue: CGFloat = 0
+        var saturation: CGFloat = 0
+        var brightness: CGFloat = 0
+        var alpha: CGFloat = 0
+        color.getHue(&hue, saturation: &saturation, brightness: &brightness, alpha: &alpha)
+
+        let shiftedHue = (hue + hueOffset).truncatingRemainder(dividingBy: 1)
+        let normalizedHue = shiftedHue < 0 ? shiftedHue + 1 : shiftedHue
+        let shiftedColor = NSColor(
+            calibratedHue: normalizedHue,
+            saturation: min(0.94, max(0.16, saturation * saturationScale)),
+            brightness: min(0.98, max(0.24, brightness * brightnessScale)),
+            alpha: 1
+        )
+
+        guard let rgbColor = shiftedColor.usingColorSpace(.sRGB) else {
+            return hex
+        }
+
+        return String(
+            format: "#%02X%02X%02X",
+            Int(round(rgbColor.redComponent * 255)),
+            Int(round(rgbColor.greenComponent * 255)),
+            Int(round(rgbColor.blueComponent * 255))
+        )
+    }
+
+    private static func nsColor(from hex: String) -> NSColor? {
+        let hex = hex.trimmingCharacters(in: CharacterSet(charactersIn: "#"))
+        guard hex.count == 6, let value = Int(hex, radix: 16) else {
+            return nil
+        }
+
+        return NSColor(
+            calibratedRed: CGFloat((value >> 16) & 0xFF) / 255.0,
+            green: CGFloat((value >> 8) & 0xFF) / 255.0,
+            blue: CGFloat(value & 0xFF) / 255.0,
+            alpha: 1
+        )
+    }
 }
 
 // MARK: - Drag reordering

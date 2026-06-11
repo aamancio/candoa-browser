@@ -27,6 +27,10 @@
 		010000000000000000000118 /* TabSwitcherOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01000000000000000000001B /* TabSwitcherOverlay.swift */; };
 		010000000000000000000119 /* AppConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01000000000000000000001C /* AppConfiguration.swift */; };
 		010000000000000000000120 /* AppUpdateService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01000000000000000000001D /* AppUpdateService.swift */; };
+		010000000000000000000121 /* KeyboardShortcutMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000031 /* KeyboardShortcutMonitor.swift */; };
+		010000000000000000000122 /* SidebarRevealMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000032 /* SidebarRevealMonitor.swift */; };
+		010000000000000000000123 /* WindowInteractionConfigurator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000033 /* WindowInteractionConfigurator.swift */; };
+		010000000000000000000124 /* FloatingMiniPlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000034 /* FloatingMiniPlayer.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -53,6 +57,10 @@
 		01000000000000000000001B /* TabSwitcherOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabSwitcherOverlay.swift; sourceTree = "<group>"; };
 		01000000000000000000001C /* AppConfiguration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppConfiguration.swift; sourceTree = "<group>"; };
 		01000000000000000000001D /* AppUpdateService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppUpdateService.swift; sourceTree = "<group>"; };
+		010000000000000000000031 /* KeyboardShortcutMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardShortcutMonitor.swift; sourceTree = "<group>"; };
+		010000000000000000000032 /* SidebarRevealMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarRevealMonitor.swift; sourceTree = "<group>"; };
+		010000000000000000000033 /* WindowInteractionConfigurator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowInteractionConfigurator.swift; sourceTree = "<group>"; };
+		010000000000000000000034 /* FloatingMiniPlayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FloatingMiniPlayer.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -117,6 +125,10 @@
 				010000000000000000000016 /* TabRowView.swift */,
 				010000000000000000000017 /* SpaceSwitcherView.swift */,
 				01000000000000000000001B /* TabSwitcherOverlay.swift */,
+				010000000000000000000031 /* KeyboardShortcutMonitor.swift */,
+				010000000000000000000032 /* SidebarRevealMonitor.swift */,
+				010000000000000000000033 /* WindowInteractionConfigurator.swift */,
+				010000000000000000000034 /* FloatingMiniPlayer.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -247,6 +259,10 @@
 				010000000000000000000118 /* TabSwitcherOverlay.swift in Sources */,
 				010000000000000000000119 /* AppConfiguration.swift in Sources */,
 				010000000000000000000120 /* AppUpdateService.swift in Sources */,
+				010000000000000000000121 /* KeyboardShortcutMonitor.swift in Sources */,
+				010000000000000000000122 /* SidebarRevealMonitor.swift in Sources */,
+				010000000000000000000123 /* WindowInteractionConfigurator.swift in Sources */,
+				010000000000000000000124 /* FloatingMiniPlayer.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

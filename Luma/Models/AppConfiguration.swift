@@ -45,8 +45,8 @@ enum BrowserCommandTitles {
 enum BrowserDefaults {
     static let newTabTitle = BrowserCommandTitles.newTab
     static let addressPlaceholder = "Search or enter URL"
-    static let defaultHomeTitle = "Google"
-    static let defaultHomeURL = URL(string: "https://www.google.com/?hl=en&gl=us")!
+    static let defaultHomeTitle = "Luma"
+    static let googleHomeURL = URL(string: "https://www.google.com/?hl=en&gl=us")!
     static let googleSearchURL = URL(string: "https://www.google.com/search?hl=en&gl=us")!
 }
 

@@ -23,7 +23,7 @@ struct WebViewContainer: View {
                 } else {
                     browserSurface {
                         ActiveWebViewHost(tab: tab, store: store)
-                            .background(LumaChromeStyle.surfaceFill)
+                            .background(LumaChromeStyle.surfaceFill.opacity(0.72))
                     }
                     .padding(surfacePadding)
                 }
@@ -36,7 +36,16 @@ struct WebViewContainer: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(LumaChromeStyle.workspaceBackground)
+        .background {
+            ZStack {
+                LumaChromeStyle.workspaceBackground.opacity(0.70)
+                SpaceThemeBackdrop(
+                    hexes: store.activeThemeColorHexes,
+                    intensity: (store.isSpaceSetupPresented ? 0.92 : 0.22) * store.activeThemeIntensityMultiplier,
+                    texture: store.activeThemeTexture
+                )
+            }
+        }
         .overlay(alignment: .topTrailing) {
             if store.isFindBarPresented {
                 FindBarView(store: store)
@@ -57,7 +66,7 @@ struct WebViewContainer: View {
             }
             .background(
                 RoundedRectangle(cornerRadius: surfaceCornerRadius, style: .continuous)
-                    .fill(LumaChromeStyle.surfaceFill)
+                    .fill(LumaChromeStyle.surfaceFill.opacity(0.74))
             )
             .shadow(color: Color(nsColor: .shadowColor).opacity(0.20), radius: 18, x: 0, y: 6)
     }
@@ -141,7 +150,7 @@ struct WebViewContainer: View {
             .padding(.horizontal, 10)
             .padding(.vertical, 6)
             .foregroundStyle(LumaChromeStyle.sidebarTextSecondary)
-            .background(LumaChromeStyle.surfaceFill)
+            .background(LumaChromeStyle.surfaceFill.opacity(0.72))
 
             ProgressView(value: tab.loadingProgress)
                 .progressViewStyle(.linear)
@@ -150,7 +159,7 @@ struct WebViewContainer: View {
 
             WKWebViewRepresentable(tab: tab, store: store)
                 .id(tab.id)
-                .background(LumaChromeStyle.surfaceFill)
+                .background(LumaChromeStyle.surfaceFill.opacity(0.72))
         }
     }
 }

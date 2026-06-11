@@ -87,6 +87,7 @@ struct PersistenceService: @unchecked Sendable {
     private let container: NSPersistentContainer
     private let syncConfiguration: PersistenceSyncConfiguration
     private let remoteChangeObserver: NSObjectProtocol?
+    private let loadsLegacyJSONState: Bool
 
     var syncsWorkspaceWithICloud: Bool {
         syncConfiguration.syncsWorkspaceWithICloud
@@ -101,6 +102,7 @@ struct PersistenceService: @unchecked Sendable {
         syncConfiguration: PersistenceSyncConfiguration = .current
     ) {
         self.syncConfiguration = syncConfiguration
+        loadsLegacyJSONState = storeURL == nil
         let model = Self.makeModel()
         let usesCloudKit = syncConfiguration.syncsWorkspaceWithICloud || syncConfiguration.syncsHistoryWithICloud
         let container: NSPersistentContainer = usesCloudKit
@@ -228,7 +230,7 @@ struct PersistenceService: @unchecked Sendable {
             return state
         }
 
-        guard let legacyState = loadLegacyJSONState() else {
+        guard loadsLegacyJSONState, let legacyState = loadLegacyJSONState() else {
             return nil
         }
 
@@ -372,6 +374,9 @@ struct PersistenceService: @unchecked Sendable {
             object.setValue(space.name, forKey: Key.name)
             object.setValue(space.symbolName, forKey: Key.symbolName)
             object.setValue(space.themeColorHex, forKey: Key.themeColorHex)
+            object.setValue(space.themeAppearance.rawValue, forKey: Key.themeAppearance)
+            object.setValue(space.themeOpacity, forKey: Key.themeOpacity)
+            object.setValue(space.themeTexture, forKey: Key.themeTexture)
             object.setValue(space.dataStoreID, forKey: Key.dataStoreID)
             object.setValue(space.createdAt, forKey: Key.createdAt)
             spacesByID[space.id] = nil
@@ -548,7 +553,11 @@ struct PersistenceService: @unchecked Sendable {
             id: id,
             name: object.string(for: Key.name) ?? "Space",
             symbolName: object.string(for: Key.symbolName) ?? "sparkle",
-            themeColorHex: object.string(for: Key.themeColorHex) ?? "#6E8BFF",
+            themeColorHex: object.string(for: Key.themeColorHex),
+            themeAppearance: object.string(for: Key.themeAppearance)
+                .flatMap(SpaceThemeAppearance.init(rawValue:)) ?? .automatic,
+            themeOpacity: object.optionalDouble(for: Key.themeOpacity) ?? 0.5,
+            themeTexture: object.optionalDouble(for: Key.themeTexture) ?? 0,
             dataStoreID: object.uuid(for: Key.dataStoreID) ?? id,
             createdAt: object.date(for: Key.createdAt) ?? Date()
         )
@@ -638,7 +647,10 @@ struct PersistenceService: @unchecked Sendable {
                 attribute(Key.id, .UUIDAttributeType, optional: false),
                 attribute(Key.name, .stringAttributeType, optional: false),
                 attribute(Key.symbolName, .stringAttributeType, optional: false),
-                attribute(Key.themeColorHex, .stringAttributeType, optional: false),
+                attribute(Key.themeColorHex, .stringAttributeType),
+                attribute(Key.themeAppearance, .stringAttributeType),
+                attribute(Key.themeOpacity, .doubleAttributeType),
+                attribute(Key.themeTexture, .doubleAttributeType),
                 attribute(Key.dataStoreID, .UUIDAttributeType),
                 attribute(Key.createdAt, .dateAttributeType, optional: false)
             ]
@@ -740,6 +752,9 @@ private enum Key {
     static let name = "name"
     static let symbolName = "symbolName"
     static let themeColorHex = "themeColorHex"
+    static let themeAppearance = "themeAppearance"
+    static let themeOpacity = "themeOpacity"
+    static let themeTexture = "themeTexture"
     static let dataStoreID = "dataStoreID"
     static let createdAt = "createdAt"
     static let title = "title"
@@ -769,6 +784,10 @@ private extension NSManagedObject {
 
     func double(for key: String) -> Double {
         value(forKey: key) as? Double ?? 0
+    }
+
+    func optionalDouble(for key: String) -> Double? {
+        value(forKey: key) as? Double
     }
 
     func string(for key: String) -> String? {

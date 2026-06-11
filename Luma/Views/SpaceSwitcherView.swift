@@ -143,7 +143,7 @@ struct SpaceSwitcherView: View {
 
     private func workspaceButton(for space: BrowserSpace) -> some View {
         let isActive = space.id == store.activeSpaceID
-        let themeColor = Color(spaceHex: space.themeColorHex)
+        let themeColor = Color(spaceHex: space.themeColorHex ?? "#8A8F98")
 
         return Button {
             store.switchSpace(to: space.id)
@@ -174,11 +174,29 @@ struct SpaceSwitcherView: View {
             }
 
             Menu("Edit Theme Color") {
+                Button {
+                    store.updateSpaceTheme(space.id, colorHex: nil)
+                } label: {
+                    Label("Standard", systemImage: space.themeColorHex == nil ? "checkmark" : "circle")
+                }
+
+                Divider()
+
                 ForEach(themeOptions, id: \.hex) { option in
                     Button {
                         store.updateSpaceTheme(space.id, colorHex: option.hex)
                     } label: {
                         Label(option.name, systemImage: option.hex == space.themeColorHex ? "checkmark" : "circle.fill")
+                    }
+                }
+            }
+
+            Menu("Appearance") {
+                ForEach(SpaceThemeAppearance.allCases) { option in
+                    Button {
+                        store.updateSpaceThemeAppearance(space.id, appearance: option)
+                    } label: {
+                        Label(option.title, systemImage: option == space.themeAppearance ? "checkmark" : option.symbolName)
                     }
                 }
             }

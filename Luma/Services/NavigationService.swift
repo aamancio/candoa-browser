@@ -74,7 +74,7 @@ struct NavigationService {
             name: "Google",
             aliases: ["g", "search", "google.com", "www.google.com"],
             symbolName: "magnifyingglass",
-            homeURL: BrowserDefaults.defaultHomeURL,
+            homeURL: BrowserDefaults.googleHomeURL,
             baseURL: BrowserDefaults.googleSearchURL,
             queryItemName: "q"
         ),

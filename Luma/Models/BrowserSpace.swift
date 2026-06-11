@@ -1,10 +1,43 @@
 import Foundation
 
+enum SpaceThemeAppearance: String, CaseIterable, Codable, Hashable, Identifiable {
+    case automatic
+    case light
+    case dark
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .automatic:
+            return "Automatic"
+        case .light:
+            return "Light"
+        case .dark:
+            return "Dark"
+        }
+    }
+
+    var symbolName: String {
+        switch self {
+        case .automatic:
+            return "sparkles"
+        case .light:
+            return "sun.max.fill"
+        case .dark:
+            return "moon.fill"
+        }
+    }
+}
+
 struct BrowserSpace: Identifiable, Codable, Hashable {
     var id: UUID
     var name: String
     var symbolName: String
-    var themeColorHex: String
+    var themeColorHex: String?
+    var themeAppearance: SpaceThemeAppearance
+    var themeOpacity: Double
+    var themeTexture: Double
     var dataStoreID: UUID
     var createdAt: Date
 
@@ -12,7 +45,10 @@ struct BrowserSpace: Identifiable, Codable, Hashable {
         id: UUID = UUID(),
         name: String,
         symbolName: String = "sparkle",
-        themeColorHex: String = "#6E8BFF",
+        themeColorHex: String? = nil,
+        themeAppearance: SpaceThemeAppearance = .automatic,
+        themeOpacity: Double = 0.5,
+        themeTexture: Double = 0,
         dataStoreID: UUID? = nil,
         createdAt: Date = Date()
     ) {
@@ -20,6 +56,9 @@ struct BrowserSpace: Identifiable, Codable, Hashable {
         self.name = name
         self.symbolName = symbolName
         self.themeColorHex = themeColorHex
+        self.themeAppearance = themeAppearance
+        self.themeOpacity = min(0.9, max(0.3, themeOpacity))
+        self.themeTexture = min(1, max(0, themeTexture))
         self.dataStoreID = dataStoreID ?? id
         self.createdAt = createdAt
     }
@@ -29,6 +68,9 @@ struct BrowserSpace: Identifiable, Codable, Hashable {
         case name
         case symbolName
         case themeColorHex
+        case themeAppearance
+        case themeOpacity
+        case themeTexture
         case dataStoreID
         case createdAt
     }
@@ -38,7 +80,10 @@ struct BrowserSpace: Identifiable, Codable, Hashable {
         id = try container.decodeIfPresent(UUID.self, forKey: .id) ?? UUID()
         name = try container.decodeIfPresent(String.self, forKey: .name) ?? "Space"
         symbolName = try container.decodeIfPresent(String.self, forKey: .symbolName) ?? "sparkle"
-        themeColorHex = try container.decodeIfPresent(String.self, forKey: .themeColorHex) ?? "#6E8BFF"
+        themeColorHex = try container.decodeIfPresent(String.self, forKey: .themeColorHex)
+        themeAppearance = try container.decodeIfPresent(SpaceThemeAppearance.self, forKey: .themeAppearance) ?? .automatic
+        themeOpacity = min(0.9, max(0.3, try container.decodeIfPresent(Double.self, forKey: .themeOpacity) ?? 0.5))
+        themeTexture = min(1, max(0, try container.decodeIfPresent(Double.self, forKey: .themeTexture) ?? 0))
         dataStoreID = try container.decodeIfPresent(UUID.self, forKey: .dataStoreID) ?? id
         createdAt = try container.decodeIfPresent(Date.self, forKey: .createdAt) ?? Date()
     }
