@@ -3,12 +3,27 @@ import SwiftUI
 
 struct WebViewContainer: View {
     @ObservedObject var store: BrowserStore
-    private let surfaceCornerRadius: CGFloat = 16
+    private let surfaceCornerRadius: CGFloat = 12
     private let surfacePadding: CGFloat = 8
 
     var body: some View {
         ZStack {
-            if let tab = store.activeTab {
+            if store.isSpaceSetupPresented {
+                SpaceSetupCanvas(
+                    hexes: store.activeThemeColorHexes,
+                    intensity: store.activeThemeIntensityMultiplier,
+                    texture: store.activeThemeTexture
+                )
+                .padding(
+                    EdgeInsets(
+                        top: surfacePadding,
+                        leading: 0,
+                        bottom: surfacePadding,
+                        trailing: surfacePadding
+                    )
+                )
+                .transition(.opacity)
+            } else if let tab = store.activeTab {
                 if let splitTab = store.activeSplitTab {
                     HSplitView {
                         browserSurface {
@@ -38,10 +53,10 @@ struct WebViewContainer: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background {
             ZStack {
-                LumaChromeStyle.workspaceBackground.opacity(0.70)
+                LumaChromeStyle.workspaceBackground.opacity(store.isSpaceSetupPresented ? 0.34 : 0.70)
                 SpaceThemeBackdrop(
                     hexes: store.activeThemeColorHexes,
-                    intensity: (store.isSpaceSetupPresented ? 0.92 : 0.22) * store.activeThemeIntensityMultiplier,
+                    intensity: (store.isSpaceSetupPresented ? 0.12 : 0.22) * store.activeThemeIntensityMultiplier,
                     texture: store.activeThemeTexture
                 )
             }
@@ -68,7 +83,7 @@ struct WebViewContainer: View {
                 RoundedRectangle(cornerRadius: surfaceCornerRadius, style: .continuous)
                     .fill(LumaChromeStyle.surfaceFill.opacity(0.74))
             )
-            .shadow(color: Color(nsColor: .shadowColor).opacity(0.20), radius: 18, x: 0, y: 6)
+            .shadow(color: Color(nsColor: .shadowColor).opacity(0.14), radius: 12, x: 0, y: 4)
     }
 
     private struct FindBarView: View {
@@ -161,5 +176,54 @@ struct WebViewContainer: View {
                 .id(tab.id)
                 .background(LumaChromeStyle.surfaceFill.opacity(0.72))
         }
+    }
+}
+
+private struct SpaceSetupCanvas: View {
+    let hexes: [String]
+    let intensity: Double
+    let texture: Double
+
+    var body: some View {
+        ZStack(alignment: .trailing) {
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(canvasFill)
+
+            if !hexes.isEmpty {
+                SpaceThemeBackdrop(hexes: hexes, intensity: 0.18 * intensity, texture: texture)
+                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            }
+
+            LinearGradient(
+                colors: [
+                    Color.white.opacity(0.10),
+                    Color.black.opacity(0.035)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+
+            Image(systemName: "car.side.fill")
+                .font(.system(size: 146, weight: .regular))
+                .symbolRenderingMode(.hierarchical)
+                .foregroundStyle(Color.primary.opacity(0.052))
+                .padding(.trailing, 148)
+                .offset(y: 8)
+                .allowsHitTesting(false)
+        }
+        .overlay {
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .stroke(LumaChromeStyle.surfaceBorder.opacity(0.62), lineWidth: 1)
+        }
+        .shadow(color: Color(nsColor: .shadowColor).opacity(0.11), radius: 10, x: 0, y: 3)
+    }
+
+    private var canvasFill: Color {
+        guard let firstHex = hexes.first else {
+            return LumaChromeStyle.surfaceFill.opacity(0.88)
+        }
+
+        return Color(spaceHex: firstHex).opacity(0.74)
     }
 }

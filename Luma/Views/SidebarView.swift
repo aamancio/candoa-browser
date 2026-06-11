@@ -10,9 +10,9 @@ struct SidebarView: View {
 
     @State private var isHoveringNewTab = false
 
-    private let leadingInset: CGFloat = 10
-    private let trailingInset: CGFloat = 10
-    private let windowControlsWidth: CGFloat = 82
+    private let leadingInset: CGFloat = 9
+    private let trailingInset: CGFloat = 9
+    private let windowControlsWidth: CGFloat = 70
 
     /// Zen-style "Essentials" tiles: square-ish tiles that stretch to fill
     /// the row, so a few items span the full width like the reference.
@@ -28,6 +28,14 @@ struct SidebarView: View {
 
     private var hasActiveThemeTint: Bool {
         !store.activeThemeColorHexes.isEmpty
+    }
+
+    private var isSetupThemePreviewActive: Bool {
+        store.isSpaceSetupPresented && hasActiveThemeTint
+    }
+
+    private var sidebarIconColor: Color {
+        isSetupThemePreviewActive ? Color.black.opacity(0.34) : LumaChromeStyle.sidebarIcon
     }
 
     var body: some View {
@@ -75,17 +83,19 @@ struct SidebarView: View {
         .animation(.easeOut(duration: 0.16), value: store.mediaControllerTabID)
         .padding(.leading, leadingInset)
         .padding(.trailing, trailingInset)
-        .padding(.top, 9)
+        .padding(.top, 8)
         .padding(.bottom, 10)
         .background {
             ZStack {
                 LumaChromeStyle.sidebarBackground
                 SpaceThemeBackdrop(
                     hexes: store.activeThemeColorHexes,
-                    intensity: (store.isSpaceSetupPresented ? 0.72 : 0.24) * store.activeThemeIntensityMultiplier,
+                    intensity: (store.isSpaceSetupPresented ? (isSetupThemePreviewActive ? 0.26 : 0.08) : 0.16) * store.activeThemeIntensityMultiplier,
                     texture: store.activeThemeTexture
                 )
-                activeSpaceTint.opacity(hasActiveThemeTint ? (store.isSpaceSetupPresented ? 0.09 : 0.055) : 0)
+                LumaChromeStyle.setupNeutralTint.opacity(store.isSpaceSetupPresented && !isSetupThemePreviewActive ? 0.18 : 0)
+                activeSpaceTint.opacity(hasActiveThemeTint ? (store.isSpaceSetupPresented ? 0.42 : 0.050) : 0)
+                Color.black.opacity(isSetupThemePreviewActive ? 0.08 : 0)
             }
         }
         .ignoresSafeArea(.container, edges: .top)
@@ -94,7 +104,7 @@ struct SidebarView: View {
     // MARK: - Header
 
     private var sidebarHeader: some View {
-        HStack(spacing: 7) {
+        HStack(spacing: 6) {
             WindowControlsView()
                 .frame(width: windowControlsWidth, height: 24)
 
@@ -137,7 +147,7 @@ struct SidebarView: View {
             }
         }
         .buttonStyle(.plain)
-        .foregroundStyle(LumaChromeStyle.sidebarIcon)
+        .foregroundStyle(sidebarIconColor)
         .frame(height: 34)
         .overlay(alignment: .bottom) {
             SidebarLoadingBar(progress: store.activeTab?.loadingProgress ?? 0, tint: activeSpaceTint)
@@ -359,7 +369,7 @@ private struct CreateSpaceSidebarComposer: View {
 
     private let themeOptions: [(name: String, hex: String)] = [
         ("Blue", "#6E8BFF"),
-        ("Green", "#66BFA3"),
+        ("Green", "#74E0AA"),
         ("Gold", "#E0A84F"),
         ("Red", "#DA6A72"),
         ("Violet", "#9B7BE5"),
@@ -372,6 +382,42 @@ private struct CreateSpaceSidebarComposer: View {
         name.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
+    private var isThemePreviewActive: Bool {
+        themeColorHex != nil
+    }
+
+    private var textColor: Color {
+        isThemePreviewActive ? Color.black.opacity(0.78) : LumaChromeStyle.sidebarText
+    }
+
+    private var secondaryTextColor: Color {
+        isThemePreviewActive ? Color.black.opacity(0.48) : LumaChromeStyle.sidebarTextSecondary
+    }
+
+    private var iconColor: Color {
+        isThemePreviewActive ? Color.black.opacity(0.34) : LumaChromeStyle.sidebarIcon
+    }
+
+    private var controlFill: Color {
+        isThemePreviewActive ? Color.black.opacity(0.075) : LumaChromeStyle.spaceSetupControlFill
+    }
+
+    private var controlStroke: Color {
+        isThemePreviewActive ? Color.black.opacity(0.08) : LumaChromeStyle.spaceSetupControlStroke
+    }
+
+    private var pillFill: Color {
+        isThemePreviewActive ? Color.black.opacity(0.10) : LumaChromeStyle.spaceSetupPillFill
+    }
+
+    private var createButtonTextColor: Color {
+        if trimmedName.isEmpty {
+            return isThemePreviewActive ? Color.black.opacity(0.36) : LumaChromeStyle.sidebarTextSecondary
+        }
+
+        return isThemePreviewActive ? Color.white.opacity(0.92) : LumaChromeStyle.sidebarText
+    }
+
     private var themeAppearanceSelection: Binding<SpaceThemeAppearance> {
         Binding {
             themeAppearance
@@ -382,11 +428,11 @@ private struct CreateSpaceSidebarComposer: View {
     }
 
     private var createButtonBackground: Color {
-        guard let themeColorHex else {
-            return Color.primary.opacity(trimmedName.isEmpty ? 0.07 : 0.13)
+        guard themeColorHex != nil else {
+            return Color.primary.opacity(trimmedName.isEmpty ? 0.055 : 0.13)
         }
 
-        return Color(spaceHex: themeColorHex).opacity(trimmedName.isEmpty ? 0.16 : 0.36)
+        return trimmedName.isEmpty ? Color.black.opacity(0.075) : Color.black.opacity(0.28)
     }
 
     init(store: BrowserStore, mode: SpaceComposerMode = .create) {
@@ -414,9 +460,9 @@ private struct CreateSpaceSidebarComposer: View {
             }
             .buttonStyle(.plain)
             .font(.system(size: 13, weight: .semibold))
-            .foregroundStyle(trimmedName.isEmpty ? .secondary : .primary)
+            .foregroundStyle(createButtonTextColor)
             .frame(maxWidth: .infinity)
-            .frame(height: 34)
+            .frame(height: 36)
             .background(createButtonBackground)
             .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
             .disabled(trimmedName.isEmpty)
@@ -428,7 +474,7 @@ private struct CreateSpaceSidebarComposer: View {
                 }
                 .buttonStyle(.plain)
                 .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(.primary.opacity(0.86))
+                .foregroundStyle(isThemePreviewActive ? Color.black.opacity(0.74) : Color.primary.opacity(0.86))
                 .frame(maxWidth: .infinity)
                 .padding(.top, 8)
                 .padding(.bottom, 6)
@@ -447,16 +493,16 @@ private struct CreateSpaceSidebarComposer: View {
         VStack(spacing: 8) {
             Text(mode.title)
                 .font(.system(size: 20, weight: .heavy))
-                .foregroundStyle(LumaChromeStyle.sidebarText)
+                .foregroundStyle(textColor)
 
             Text(mode.subtitle)
                 .font(.system(size: 12.5, weight: .semibold))
-                .foregroundStyle(LumaChromeStyle.sidebarIcon)
+                .foregroundStyle(iconColor)
                 .multilineTextAlignment(.center)
                 .lineSpacing(1)
         }
         .frame(maxWidth: .infinity)
-        .padding(.top, 32)
+        .padding(.top, 34)
         .padding(.bottom, 32)
     }
 
@@ -479,6 +525,7 @@ private struct CreateSpaceSidebarComposer: View {
             TextField("Space Name", text: $name)
                 .textFieldStyle(.plain)
                 .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(textColor)
                 .lineLimit(1)
                 .focused($isNameFocused)
                 .onChange(of: name) { _, newValue in
@@ -489,12 +536,12 @@ private struct CreateSpaceSidebarComposer: View {
                 }
         }
         .padding(.horizontal, 8)
-        .frame(height: 42)
-        .background(LumaChromeStyle.spaceSetupControlFill)
+        .frame(height: 40)
+        .background(controlFill)
         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .stroke(LumaChromeStyle.spaceSetupControlStroke, lineWidth: 1)
+                .stroke(controlStroke, lineWidth: 1)
         }
     }
 
@@ -502,7 +549,7 @@ private struct CreateSpaceSidebarComposer: View {
         HStack(spacing: 10) {
             Text("Profile")
                 .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(LumaChromeStyle.sidebarText)
+                .foregroundStyle(textColor)
 
             Spacer(minLength: 8)
 
@@ -511,11 +558,11 @@ private struct CreateSpaceSidebarComposer: View {
             } label: {
                 Text(dataMode.title)
                     .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(LumaChromeStyle.sidebarText)
+                    .foregroundStyle(textColor)
                     .lineLimit(1)
                     .padding(.horizontal, 10)
                     .frame(height: 30)
-                    .background(LumaChromeStyle.spaceSetupPillFill)
+                    .background(pillFill)
                     .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
             }
             .buttonStyle(.plain)
@@ -527,12 +574,12 @@ private struct CreateSpaceSidebarComposer: View {
             }
         }
         .padding(.horizontal, 8)
-        .frame(height: 42)
-        .background(LumaChromeStyle.spaceSetupControlFill)
+        .frame(height: 40)
+        .background(controlFill)
         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .stroke(LumaChromeStyle.spaceSetupControlStroke, lineWidth: 1)
+                .stroke(controlStroke, lineWidth: 1)
         }
     }
 
@@ -551,16 +598,16 @@ private struct CreateSpaceSidebarComposer: View {
 
                 Text("Edit Theme")
                     .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(LumaChromeStyle.sidebarText)
+                    .foregroundStyle(textColor)
 
                 Spacer(minLength: 0)
             }
             .frame(height: 40)
-            .background(LumaChromeStyle.spaceSetupControlFill)
+            .background(controlFill)
             .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .stroke(LumaChromeStyle.spaceSetupControlStroke, lineWidth: 1)
+                    .stroke(controlStroke, lineWidth: 1)
             }
         }
         .buttonStyle(.plain)
@@ -1125,10 +1172,9 @@ private struct SpaceThemePanel: View {
             }
             .disabled(selectedHex == nil && auxiliaryHexes.isEmpty)
 
-            ThemeIconButton(systemName: "circle.grid.3x3.fill", help: "Toggle Harmony") {
+            ThemeHarmonyButton(isActive: usesHarmony, isEnabled: activeHexes.count > 1) {
                 usesHarmony.toggle()
             }
-            .opacity(usesHarmony ? 1 : 0.62)
         }
     }
 
@@ -1581,6 +1627,62 @@ private struct ThemeIconButton: View {
     }
 }
 
+private struct ThemeHarmonyButton: View {
+    let isActive: Bool
+    let isEnabled: Bool
+    let action: () -> Void
+
+    @State private var isHovering = false
+    @State private var didPushNotAllowedCursor = false
+
+    var body: some View {
+        Button {
+            guard isEnabled else { return }
+            action()
+        } label: {
+            Image(systemName: "point.3.connected.trianglepath.dotted")
+                .font(.system(size: 17, weight: .semibold))
+                .symbolRenderingMode(.hierarchical)
+                .foregroundStyle(LumaChromeStyle.sidebarText.opacity(isEnabled ? (isActive ? 0.94 : 0.54) : 0.30))
+                .frame(width: 34, height: 32)
+                .background(
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .fill(isActive && isEnabled ? Color.primary.opacity(0.13) : Color.clear)
+                )
+                .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .help(isEnabled ? "Auto-arrange colors" : "Add another color to use harmony")
+        .onHover { hovering in
+            isHovering = hovering
+            updateCursor()
+        }
+        .onChange(of: isEnabled) { _, _ in
+            updateCursor()
+        }
+        .onDisappear {
+            popNotAllowedCursorIfNeeded()
+        }
+    }
+
+    private func updateCursor() {
+        guard isHovering, !isEnabled else {
+            popNotAllowedCursorIfNeeded()
+            return
+        }
+
+        guard !didPushNotAllowedCursor else { return }
+        NSCursor.operationNotAllowed.push()
+        didPushNotAllowedCursor = true
+    }
+
+    private func popNotAllowedCursorIfNeeded() {
+        guard didPushNotAllowedCursor else { return }
+        NSCursor.pop()
+        didPushNotAllowedCursor = false
+    }
+}
+
 private struct ThemeWaveSlider: View {
     @Binding var value: Double
     let accentHex: String
@@ -1668,8 +1770,9 @@ private struct ThemeTextureDial: View {
     @State private var dragValue: Double?
 
     private let textureStepCount = 16
-    private let dialStartAngle = -CGFloat.pi * 0.75
-    private let dialSweepAngle = CGFloat.pi * 1.5
+    private var maxTextureStep: Int {
+        textureStepCount - 1
+    }
 
     private var clampedValue: Double {
         min(1, max(0, value))
@@ -1684,15 +1787,15 @@ private struct ThemeTextureDial: View {
             let side = min(proxy.size.width, proxy.size.height)
             let radius = side * 0.35
             let activeValue = displayedValue
+            let activeStep = textureStep(for: activeValue)
 
             ZStack {
                 ForEach(0..<textureStepCount, id: \.self) { index in
-                    let stepValue = Double(index + 1) / Double(textureStepCount)
-                    let isActive = isEnabled && stepValue <= activeValue
+                    let isActive = isEnabled && activeValue > 0 && index <= activeStep
                     Circle()
                         .fill(isActive ? Color(spaceHex: accentHex).opacity(0.74) : Color.primary.opacity(index % 4 == 0 ? 0.30 : 0.20))
                         .frame(width: index % 4 == 0 ? 5 : 4, height: index % 4 == 0 ? 5 : 4)
-                        .position(point(for: stepValue, radius: radius, in: proxy.size))
+                        .position(point(forStep: index, radius: radius, in: proxy.size))
                 }
 
                 Circle()
@@ -1724,8 +1827,8 @@ private struct ThemeTextureDial: View {
                 Capsule(style: .continuous)
                     .fill(Color.white.opacity(isEnabled ? 1 : 0.34))
                     .frame(width: 7, height: 18)
-                    .rotationEffect(.degrees(activeValue * 360))
-                    .position(point(for: activeValue, radius: radius, in: proxy.size))
+                    .rotationEffect(.degrees(rotationDegrees(forStep: activeStep)))
+                    .position(point(forStep: activeStep, radius: radius, in: proxy.size))
                     .shadow(color: Color.black.opacity(isEnabled ? 0.18 : 0), radius: 3, x: 0, y: 1)
             }
             .frame(width: proxy.size.width, height: proxy.size.height)
@@ -1751,8 +1854,8 @@ private struct ThemeTextureDial: View {
         }
     }
 
-    private func point(for value: Double, radius: CGFloat, in size: CGSize) -> CGPoint {
-        let angle = dialAngle(for: value)
+    private func point(forStep step: Int, radius: CGFloat, in size: CGSize) -> CGPoint {
+        let angle = angle(forStep: step)
         return CGPoint(
             x: size.width / 2 + sin(angle) * radius,
             y: size.height / 2 - cos(angle) * radius
@@ -1761,21 +1864,16 @@ private struct ThemeTextureDial: View {
 
     private func dialValue(for location: CGPoint, in size: CGSize) -> Double {
         let center = CGPoint(x: size.width / 2, y: size.height / 2)
-        let rawAngle = normalizedAngle(atan2(location.y - center.y, location.x - center.x) + (.pi / 2))
-        let startAngle = normalizedAngle(dialStartAngle)
-        let distanceFromStart = positiveModulo(rawAngle - startAngle, .pi * 2)
-
-        if distanceFromStart <= dialSweepAngle {
-            return Double(distanceFromStart / dialSweepAngle)
-        }
-
-        let gapDistance = distanceFromStart - dialSweepAngle
-        let gapSize = (.pi * 2) - dialSweepAngle
-        return gapDistance < gapSize / 2 ? 1 : 0
+        let angle = normalizedAngle(atan2(location.y - center.y, location.x - center.x) + (.pi / 2))
+        return Double(angle / (.pi * 2))
     }
 
-    private func dialAngle(for value: Double) -> CGFloat {
-        dialStartAngle + CGFloat(min(1, max(0, value))) * dialSweepAngle
+    private func angle(forStep step: Int) -> CGFloat {
+        CGFloat(min(maxTextureStep, max(0, step))) / CGFloat(textureStepCount) * .pi * 2
+    }
+
+    private func rotationDegrees(forStep step: Int) -> Double {
+        Double(min(maxTextureStep, max(0, step))) / Double(textureStepCount) * 360
     }
 
     private func normalizedAngle(_ angle: CGFloat) -> CGFloat {
@@ -1788,11 +1886,11 @@ private struct ThemeTextureDial: View {
     }
 
     private func steppedValue(for value: Double) -> Double {
-        Double(textureStep(for: value)) / Double(textureStepCount)
+        Double(textureStep(for: value)) / Double(maxTextureStep)
     }
 
     private func textureStep(for value: Double) -> Int {
-        min(textureStepCount, max(0, Int((min(1, max(0, value)) * Double(textureStepCount)).rounded())))
+        min(maxTextureStep, max(0, Int((min(1, max(0, value)) * Double(maxTextureStep)).rounded())))
     }
 
     private func setValueWithoutAnimation(_ nextValue: Double) {
@@ -2213,9 +2311,9 @@ private struct ToolbarIconButtonModifier: ViewModifier {
     func body(content: Content) -> some View {
         content
             .buttonStyle(.plain)
-            .font(.system(size: 17, weight: .medium))
+            .font(.system(size: 15, weight: .medium))
             .symbolRenderingMode(.hierarchical)
-            .frame(width: 29, height: 29)
+            .frame(width: 25, height: 25)
             .contentShape(Rectangle())
     }
 }
@@ -2229,28 +2327,29 @@ private extension View {
 // MARK: - Shared chrome styling
 
 enum LumaChromeStyle {
-    static let sidebarWidth: CGFloat = 300
+    static let sidebarWidth: CGFloat = 234
+    static let setupNeutralTint = Color.primary.opacity(0.10)
     static let windowBackground = Color(nsColor: .windowBackgroundColor)
     static let workspaceBackground = Color(nsColor: .controlBackgroundColor)
-    static let sidebarBackground = Color(nsColor: .windowBackgroundColor).opacity(0.86)
-    static let sidebarBorder = Color(nsColor: .separatorColor).opacity(0.70)
-    static let sidebarSeparator = Color(nsColor: .separatorColor).opacity(0.60)
+    static let sidebarBackground = Color(nsColor: .windowBackgroundColor).opacity(0.90)
+    static let sidebarBorder = Color.primary.opacity(0.12)
+    static let sidebarSeparator = Color.primary.opacity(0.08)
     static let sidebarControlFill = Color.primary.opacity(0.055)
-    static let sidebarControlFillHover = Color.primary.opacity(0.085)
+    static let sidebarControlFillHover = Color.primary.opacity(0.080)
     static let sidebarControlFillActive = Color.accentColor.opacity(0.16)
-    static let sidebarControlStroke = Color(nsColor: .separatorColor).opacity(0.75)
-    static let spaceSetupControlFill = Color.primary.opacity(0.075)
-    static let spaceSetupControlStroke = Color.primary.opacity(0.035)
-    static let spaceSetupPillFill = Color.primary.opacity(0.13)
+    static let sidebarControlStroke = Color.primary.opacity(0.08)
+    static let spaceSetupControlFill = Color.primary.opacity(0.060)
+    static let spaceSetupControlStroke = Color.primary.opacity(0.08)
+    static let spaceSetupPillFill = Color.primary.opacity(0.075)
     static let updateBannerFill = Color.primary.opacity(0.075)
     static let updateBannerFillHover = Color.primary.opacity(0.105)
     static let updateBannerStroke = Color.primary.opacity(0.20)
-    static let sidebarText = Color.primary.opacity(0.92)
-    static let sidebarTextSecondary = Color(nsColor: .secondaryLabelColor)
-    static let sidebarIcon = Color(nsColor: .tertiaryLabelColor)
+    static let sidebarText = Color.primary.opacity(0.88)
+    static let sidebarTextSecondary = Color.primary.opacity(0.62)
+    static let sidebarIcon = Color.primary.opacity(0.38)
     static let windowControlInactive = Color.primary.opacity(0.14)
     static let surfaceFill = Color(nsColor: .controlBackgroundColor)
-    static let surfaceBorder = Color(nsColor: .separatorColor).opacity(0.75)
+    static let surfaceBorder = Color.primary.opacity(0.12)
     static let popoverBackground = Color(nsColor: .windowBackgroundColor)
     static let popoverBorder = Color(nsColor: .separatorColor).opacity(0.85)
 }
@@ -2277,25 +2376,25 @@ struct SpaceThemeBackdrop: View {
                 ZStack {
                     LinearGradient(
                         colors: [
-                            Color(spaceHex: palette[0]).opacity(0.20 * intensity),
-                            Color(spaceHex: palette[1]).opacity(0.16 * intensity),
-                            Color(spaceHex: palette[2]).opacity(0.28 * intensity)
+                            Color(spaceHex: palette[0]).opacity(0.34 * intensity),
+                            Color(spaceHex: palette[1]).opacity(0.30 * intensity),
+                            Color(spaceHex: palette[2]).opacity(0.42 * intensity)
                         ],
                         startPoint: .leading,
                         endPoint: .trailing
                     )
 
-                    radialColor(hex: palette[0], opacity: 0.34 * intensity, endRadius: longestSide * 0.48)
+                    radialColor(hex: palette[0], opacity: 0.50 * intensity, endRadius: longestSide * 0.48)
                         .frame(width: longestSide * 0.95, height: longestSide * 0.95)
                         .position(x: size.width * 0.08, y: size.height * 0.18)
                         .blur(radius: 34)
 
-                    radialColor(hex: palette[1], opacity: 0.22 * intensity, endRadius: longestSide * 0.54)
+                    radialColor(hex: palette[1], opacity: 0.38 * intensity, endRadius: longestSide * 0.54)
                         .frame(width: longestSide, height: longestSide)
                         .position(x: size.width * 0.52, y: size.height * 0.38)
                         .blur(radius: 42)
 
-                    radialColor(hex: palette[2], opacity: 0.38 * intensity, endRadius: longestSide * 0.56)
+                    radialColor(hex: palette[2], opacity: 0.54 * intensity, endRadius: longestSide * 0.56)
                         .frame(width: longestSide * 1.05, height: longestSide * 1.05)
                         .position(x: size.width * 0.96, y: size.height * 0.52)
                         .blur(radius: 48)
@@ -2345,9 +2444,9 @@ private enum SpaceThemePalette {
         }
 
         return [
-            shiftedHex(from: primary, hueOffset: -0.08, saturationScale: 0.68, brightnessScale: 1.04),
-            shiftedHex(from: primary, hueOffset: 0.10, saturationScale: 0.36, brightnessScale: 1.02),
-            shiftedHex(from: primary, hueOffset: 0.56, saturationScale: 0.62, brightnessScale: 0.96)
+            shiftedHex(from: primary, hueOffset: -0.015, saturationScale: 1.08, brightnessScale: 1.08),
+            primary,
+            shiftedHex(from: primary, hueOffset: 0.045, saturationScale: 0.72, brightnessScale: 0.92)
         ]
     }
 

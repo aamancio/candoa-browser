@@ -54,10 +54,13 @@ Other browser actions:
 - Reload webpage: Command-R
 - Find in webpage: Command-F
 
-Use Zen Browser as an additional open-source layout reference:
+Use Zen Browser as an additional open-source product and implementation reference:
 - Reference: https://github.com/zen-browser/desktop
-- Use Zen only for layout and interaction inspiration.
-- Do not copy Zen code, branding, assets, or Firefox-specific architecture.
+- Treat the Zen Browser desktop codebase as available reference material for layout, interaction behavior, theme behavior, browser chrome structure, workspace/space flows, and detailed UI mechanics when Luma is implementing a comparable feature.
+- When a Luma behavior is unclear, inspect Zen's repository and source files to understand the product intent and mechanics before inventing a new interaction.
+- Translate useful Zen concepts into Luma's architecture using Swift, SwiftUI, AppKit where needed, and WKWebView. Preserve a native macOS feel and SwiftUI implementation style.
+- Do not copy Zen code, branding, icons, assets, exact visual identity, Firefox-specific architecture, XUL/CSS implementation details, or browser engine assumptions.
+- Zen is a reference for behavior and structure, not a dependency or source to paste from.
 
 ## Technical Guardrails
 

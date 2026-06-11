@@ -16,7 +16,7 @@ struct SpaceSwitcherView: View {
 
     private let themeOptions: [(name: String, hex: String)] = [
         ("Blue", "#6E8BFF"),
-        ("Green", "#66BFA3"),
+        ("Green", "#74E0AA"),
         ("Gold", "#E0A84F"),
         ("Red", "#DA6A72"),
         ("Violet", "#9B7BE5"),

@@ -46,7 +46,7 @@ struct ContentView: View {
         ZStack(alignment: .leading) {
             SpaceThemeBackdrop(
                 hexes: activeThemeHexes,
-                intensity: (store.isSpaceSetupPresented ? 0.82 : 0.20) * activeThemeIntensityMultiplier,
+                intensity: (store.isSpaceSetupPresented ? 0.16 : 0.20) * activeThemeIntensityMultiplier,
                 texture: store.activeThemeTexture
             )
             .ignoresSafeArea()
@@ -55,21 +55,6 @@ struct ContentView: View {
             WebViewContainer(store: store)
                 .ignoresSafeArea(.container, edges: .top)
                 .padding(.leading, isSidebarVisible ? sidebarTotalWidth : 0)
-                .blur(radius: store.isSpaceSetupPresented ? 7 : 0)
-                .animation(.easeOut(duration: 0.16), value: store.isSpaceSetupPresented)
-
-            if store.isSpaceSetupPresented {
-                SpaceThemeBackdrop(
-                    hexes: activeThemeHexes,
-                    intensity: 0.48 * activeThemeIntensityMultiplier,
-                    texture: store.activeThemeTexture
-                )
-                    .ignoresSafeArea()
-                    .padding(.leading, isSidebarVisible ? sidebarTotalWidth : 0)
-                    .allowsHitTesting(false)
-                    .transition(.opacity)
-                    .zIndex(1)
-            }
 
             sidebarLayout
                 .offset(x: isSidebarPresented ? 0 : -sidebarTotalWidth)
@@ -124,7 +109,7 @@ struct ContentView: View {
                 LumaChromeStyle.windowBackground
                 SpaceThemeBackdrop(
                     hexes: activeThemeHexes,
-                    intensity: (store.isSpaceSetupPresented ? 0.64 : 0.16) * activeThemeIntensityMultiplier,
+                    intensity: (store.isSpaceSetupPresented ? 0.10 : 0.16) * activeThemeIntensityMultiplier,
                     texture: store.activeThemeTexture
                 )
             }
@@ -260,17 +245,19 @@ struct ContentView: View {
                 LumaChromeStyle.sidebarBackground
                 SpaceThemeBackdrop(
                     hexes: activeThemeHexes,
-                    intensity: (store.isSpaceSetupPresented ? 0.72 : 0.24) * activeThemeIntensityMultiplier,
+                    intensity: (store.isSpaceSetupPresented ? 0.10 : 0.18) * activeThemeIntensityMultiplier,
                     texture: store.activeThemeTexture
                 )
             }
         }
-        .overlay(alignment: .trailing) {
-            Rectangle()
-                .fill(LumaChromeStyle.sidebarBorder)
-                .frame(width: 1)
-        }
-        .shadow(color: Color(nsColor: .shadowColor).opacity(isSidebarVisible ? 0.18 : 0), radius: 18, x: 8, y: 0)
+        .shadow(
+            color: Color(nsColor: .shadowColor).opacity(
+                isSidebarVisible ? (store.isSpaceSetupPresented && !activeThemeHexes.isEmpty ? 0.12 : 0.08) : 0
+            ),
+            radius: store.isSpaceSetupPresented && !activeThemeHexes.isEmpty ? 16 : 10,
+            x: store.isSpaceSetupPresented && !activeThemeHexes.isEmpty ? 3 : 3,
+            y: 0
+        )
     }
 
     private func toggleSidebar() {

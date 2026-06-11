@@ -91,7 +91,7 @@ final class BrowserStore: ObservableObject {
     ]
     private let spaceThemeColors = [
         "#6E8BFF",
-        "#66BFA3",
+        "#74E0AA",
         "#E0A84F",
         "#DA6A72",
         "#9B7BE5",
