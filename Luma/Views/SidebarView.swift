@@ -35,7 +35,20 @@ struct SidebarView: View {
     }
 
     private var sidebarIconColor: Color {
-        isSetupThemePreviewActive ? Color.black.opacity(0.34) : LumaChromeStyle.sidebarIcon
+        isSetupThemePreviewActive ? Color.white.opacity(0.42) : LumaChromeStyle.sidebarIcon
+    }
+
+    private var sidebarThemeBackdropIntensity: Double {
+        if store.isSpaceSetupPresented {
+            return isSetupThemePreviewActive ? 0.13 : 0.08
+        }
+
+        return 0.16
+    }
+
+    private var activeSpaceTintOpacity: Double {
+        guard hasActiveThemeTint else { return 0 }
+        return store.isSpaceSetupPresented ? 0.12 : 0.050
     }
 
     var body: some View {
@@ -90,12 +103,11 @@ struct SidebarView: View {
                 LumaChromeStyle.sidebarBackground
                 SpaceThemeBackdrop(
                     hexes: store.activeThemeColorHexes,
-                    intensity: (store.isSpaceSetupPresented ? (isSetupThemePreviewActive ? 0.18 : 0.08) : 0.16) * store.activeThemeIntensityMultiplier,
+                    intensity: sidebarThemeBackdropIntensity * store.activeThemeIntensityMultiplier,
                     texture: store.activeThemeTexture
                 )
                 LumaChromeStyle.setupNeutralTint.opacity(store.isSpaceSetupPresented && !isSetupThemePreviewActive ? 0.18 : 0)
-                activeSpaceTint.opacity(hasActiveThemeTint ? (store.isSpaceSetupPresented ? 0.24 : 0.050) : 0)
-                Color.black.opacity(isSetupThemePreviewActive ? 0.012 : 0)
+                activeSpaceTint.opacity(activeSpaceTintOpacity)
             }
         }
         .ignoresSafeArea(.container, edges: .top)
@@ -387,32 +399,32 @@ private struct CreateSpaceSidebarComposer: View {
     }
 
     private var textColor: Color {
-        isThemePreviewActive ? Color.black.opacity(0.78) : LumaChromeStyle.sidebarText
+        isThemePreviewActive ? Color.white.opacity(0.88) : LumaChromeStyle.sidebarText
     }
 
     private var secondaryTextColor: Color {
-        isThemePreviewActive ? Color.black.opacity(0.48) : LumaChromeStyle.sidebarTextSecondary
+        isThemePreviewActive ? Color.white.opacity(0.58) : LumaChromeStyle.sidebarTextSecondary
     }
 
     private var iconColor: Color {
-        isThemePreviewActive ? Color.black.opacity(0.34) : LumaChromeStyle.sidebarIcon
+        isThemePreviewActive ? Color.white.opacity(0.42) : LumaChromeStyle.sidebarIcon
     }
 
     private var controlFill: Color {
-        isThemePreviewActive ? Color.black.opacity(0.075) : LumaChromeStyle.spaceSetupControlFill
+        isThemePreviewActive ? Color.white.opacity(0.075) : LumaChromeStyle.spaceSetupControlFill
     }
 
     private var controlStroke: Color {
-        isThemePreviewActive ? Color.black.opacity(0.08) : LumaChromeStyle.spaceSetupControlStroke
+        isThemePreviewActive ? Color.white.opacity(0.08) : LumaChromeStyle.spaceSetupControlStroke
     }
 
     private var pillFill: Color {
-        isThemePreviewActive ? Color.black.opacity(0.10) : LumaChromeStyle.spaceSetupPillFill
+        isThemePreviewActive ? Color.white.opacity(0.10) : LumaChromeStyle.spaceSetupPillFill
     }
 
     private var createButtonTextColor: Color {
         if trimmedName.isEmpty {
-            return isThemePreviewActive ? Color.black.opacity(0.36) : LumaChromeStyle.sidebarTextSecondary
+            return isThemePreviewActive ? Color.white.opacity(0.34) : LumaChromeStyle.sidebarTextSecondary
         }
 
         return isThemePreviewActive ? Color.white.opacity(0.92) : LumaChromeStyle.sidebarText
@@ -432,7 +444,7 @@ private struct CreateSpaceSidebarComposer: View {
             return Color.primary.opacity(trimmedName.isEmpty ? 0.055 : 0.13)
         }
 
-        return trimmedName.isEmpty ? Color.black.opacity(0.075) : Color.black.opacity(0.28)
+        return trimmedName.isEmpty ? Color.white.opacity(0.065) : Color.white.opacity(0.18)
     }
 
     init(store: BrowserStore, mode: SpaceComposerMode = .create) {
@@ -474,7 +486,7 @@ private struct CreateSpaceSidebarComposer: View {
                 }
                 .buttonStyle(.plain)
                 .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(isThemePreviewActive ? Color.black.opacity(0.74) : Color.primary.opacity(0.86))
+                .foregroundStyle(isThemePreviewActive ? Color.white.opacity(0.82) : Color.primary.opacity(0.86))
                 .frame(maxWidth: .infinity)
                 .padding(.top, 8)
                 .padding(.bottom, 6)

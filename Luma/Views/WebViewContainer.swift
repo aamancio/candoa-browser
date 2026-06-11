@@ -14,7 +14,7 @@ struct WebViewContainer: View {
                     intensity: store.activeThemeIntensityMultiplier,
                     texture: store.activeThemeTexture
                 )
-                .padding(.trailing, surfacePadding)
+                .padding(surfacePadding)
                 .transition(.opacity)
             } else if let tab = store.activeTab {
                 if let splitTab = store.activeSplitTab {
