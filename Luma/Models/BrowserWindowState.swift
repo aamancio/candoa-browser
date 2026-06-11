@@ -1,6 +1,6 @@
 import Foundation
 
-struct BrowserWindowState: Codable {
+struct BrowserWindowState: Codable, Equatable {
     var spaces: [BrowserSpace]
     var tabs: [BrowserTab]
     var activeSpaceID: UUID

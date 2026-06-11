@@ -37,6 +37,8 @@ This project is currently built around my personal browsing workflow. For develo
 - Favicon fetching and caching
 - Session restore with local Core Data / SQLite persistence
 - Local-only history visit recording
+- Optional iCloud sync preparation for Spaces, open tabs, and pinned tabs through CloudKit
+- Optional separate iCloud history sync toggle, off by default
 - Space-scoped WebKit website data stores for isolated cookies, cache, localStorage, and IndexedDB
 - `Cmd+L` focuses the address/search bar
 - `Cmd+T` opens the command/new-tab surface
@@ -97,6 +99,20 @@ xcodebuild -project "Luma.xcodeproj" -scheme "Luma" -configuration Debug -derive
 open "build/DerivedData/Build/Products/Debug/Luma.app"
 ```
 
+## iCloud Sync
+
+Luma is local-only by default. The Browser > iCloud Sync menu can opt the app into syncing workspace state through the user's private iCloud database. History has a separate opt-in toggle and stays local-only unless explicitly enabled.
+
+The sync layer intentionally does not sync cookies, cache, localStorage, IndexedDB, website sessions, downloads, or private browsing state. Those remain in the local `WKWebsiteDataStore`.
+
+To test real iCloud sync, enable the iCloud capability in Xcode with an Apple Developer team and add a CloudKit container named:
+
+```text
+iCloud.org.lumabrowser.LumaBrowser
+```
+
+The project currently keeps that entitlement out of source control because the default manual/ad-hoc signing setup cannot build with iCloud entitlements and no provisioning profile. Once the capability is enabled for your team, turn on Browser > iCloud Sync > Enable iCloud Sync for Spaces and Tabs, relaunch Luma, and test with another signed-in Mac using the same iCloud account.
+
 ## Folder Structure
 
 ```text
@@ -112,7 +128,9 @@ Luma/
 ## Architecture
 
 - `BrowserStore` owns browser state and exposes actions for views.
-- `PersistenceService` saves spaces, tabs, active selection, Space data-store identifiers, and history visits in `~/Library/Application Support/Luma/Luma.sqlite`.
+- `PersistenceService` saves Spaces, tabs, active selection, and Space data-store identifiers in `~/Library/Application Support/Luma/LumaSession.sqlite`.
+- `PersistenceService` saves history visits in `~/Library/Application Support/Luma/LumaHistory.sqlite`.
+- Legacy `~/Library/Application Support/Luma/Luma.sqlite` data is migrated into the split stores on first launch.
 - `NavigationService` normalizes URL input and search queries.
 - `WebViewCoordinator` owns and reuses `WKWebView` instances per tab, creating them with the active Space's WebKit website data store.
 - `FaviconService` fetches page-discovered icons with a lightweight in-memory cache.

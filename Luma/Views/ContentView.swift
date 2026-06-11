@@ -4,6 +4,7 @@ import SwiftUI
 struct ContentView: View {
     @StateObject private var store = BrowserStore()
     @StateObject private var updateService = AppUpdateService()
+    @Environment(\.scenePhase) private var scenePhase
     @SceneStorage("luma.windowAutosaveID") private var windowAutosaveID = UUID().uuidString
     @State private var isSidebarVisible = true
     @State private var isSidebarHoverRevealed = false
@@ -118,11 +119,34 @@ struct ContentView: View {
         .animation(.easeOut(duration: 0.18), value: isSidebarPresented)
         .animation(.easeOut(duration: 0.18), value: isSidebarVisible)
         .focusedSceneValue(\.browserCommandActions, browserCommandActions)
+        .alert(
+            "Relaunch Luma",
+            isPresented: Binding(
+                get: { store.syncRestartMessage != nil },
+                set: { isPresented in
+                    if !isPresented {
+                        store.syncRestartMessage = nil
+                    }
+                }
+            )
+        ) {
+            Button("OK", role: .cancel) {
+                store.syncRestartMessage = nil
+            }
+        } message: {
+            Text(store.syncRestartMessage ?? "")
+        }
         .onAppear {
             updateService.startCheckingForUpdates()
         }
         .onDisappear {
+            store.flushSession()
             updateService.stopCheckingForUpdates()
+        }
+        .onChange(of: scenePhase) { _, phase in
+            if phase != .active {
+                store.flushSession()
+            }
         }
     }
 
@@ -152,7 +176,11 @@ struct ContentView: View {
             zoomOut: store.zoomOutActiveTab,
             resetZoom: store.resetZoomForActiveTab,
             addSplitView: addSplitView,
-            closeSplitView: store.closeSplitView
+            closeSplitView: store.closeSplitView,
+            isWorkspaceICloudSyncEnabled: store.iCloudWorkspaceSyncEnabled,
+            isHistoryICloudSyncEnabled: store.iCloudHistorySyncEnabled,
+            setWorkspaceICloudSyncEnabled: store.setWorkspaceICloudSyncEnabled,
+            setHistoryICloudSyncEnabled: store.setHistoryICloudSyncEnabled
         )
     }
 

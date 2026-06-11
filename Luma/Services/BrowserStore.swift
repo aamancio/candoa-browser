@@ -53,6 +53,11 @@ final class BrowserStore: ObservableObject {
     @Published var isMiniPlayerMinimized = false
     @Published private(set) var dismissedMiniPlayerTabID: UUID?
     @Published private(set) var retainedPausedMiniPlayerTabID: UUID?
+    @Published private(set) var iCloudWorkspaceSyncEnabled =
+        LumaCloudKitEntitlements.hasConfiguredContainer && LumaSyncPreferences.syncsWorkspaceWithICloud
+    @Published private(set) var iCloudHistorySyncEnabled =
+        LumaCloudKitEntitlements.hasConfiguredContainer && LumaSyncPreferences.syncsHistoryWithICloud
+    @Published var syncRestartMessage: String?
 
     private var recentlyClosedTabs: [ClosedTabSnapshot] = []
     private static let recentlyClosedTabLimit = 50
@@ -63,9 +68,11 @@ final class BrowserStore: ObservableObject {
     private let persistenceService: PersistenceService
     private let faviconService: FaviconService
     private var saveCancellable: AnyCancellable?
+    private var remoteChangeCancellable: AnyCancellable?
     private var tabSwitcherHideWorkItem: DispatchWorkItem?
     private var tabSwitcherShowWorkItem: DispatchWorkItem?
     private var tabSwitcherCandidates: [BrowserTab] = []
+    private var isApplyingRemoteState = false
     private let spaceSymbols = [
         "circle.grid.2x2",
         "sparkle",
@@ -171,6 +178,7 @@ final class BrowserStore: ObservableObject {
         }
         updateNavigationState()
         configureAutosave()
+        configureRemoteSyncObservation()
     }
 
     func focusAddressBar() {
@@ -258,6 +266,7 @@ final class BrowserStore: ObservableObject {
         spaces.append(space)
         switchSpace(to: space.id)
         _ = newTab()
+        flushSession()
         return space
     }
 
@@ -305,17 +314,20 @@ final class BrowserStore: ObservableObject {
         )
         repairSessionState()
         updateNavigationState()
+        flushSession()
     }
 
     func renameSpace(_ id: UUID, to name: String) {
         let normalizedName = Self.normalizedSpaceName(name)
         guard !normalizedName.isEmpty, let index = spaces.firstIndex(where: { $0.id == id }) else { return }
         spaces[index].name = normalizedName
+        flushSession()
     }
 
     func updateSpaceTheme(_ id: UUID, colorHex: String) {
         guard let index = spaces.firstIndex(where: { $0.id == id }) else { return }
         spaces[index].themeColorHex = colorHex
+        flushSession()
     }
 
     func cycleSpaceIcon(_ id: UUID) {
@@ -323,6 +335,7 @@ final class BrowserStore: ObservableObject {
         let currentSymbolIndex = spaceSymbols.firstIndex(of: spaces[index].symbolName) ?? -1
         let nextSymbolIndex = (currentSymbolIndex + 1 + spaceSymbols.count) % spaceSymbols.count
         spaces[index].symbolName = spaceSymbols[nextSymbolIndex]
+        flushSession()
     }
 
     func deleteSpace(_ id: UUID) {
@@ -349,6 +362,7 @@ final class BrowserStore: ObservableObject {
 
         repairSessionState()
         updateNavigationState()
+        flushSession()
     }
 
     func moveTab(_ tabID: UUID, toSpace targetSpaceID: UUID) {
@@ -387,6 +401,7 @@ final class BrowserStore: ObservableObject {
         }
 
         normalizeSortOrder()
+        flushSession()
     }
 
     @discardableResult
@@ -939,6 +954,53 @@ final class BrowserStore: ObservableObject {
         persistenceService.recentHistory(matching: query, in: activeSpaceID, limit: limit)
     }
 
+    func flushSession() {
+        saveSnapshot()
+    }
+
+    func setWorkspaceICloudSyncEnabled(_ enabled: Bool) {
+        guard iCloudWorkspaceSyncEnabled != enabled else { return }
+
+        if enabled, !LumaCloudKitEntitlements.hasConfiguredContainer {
+            syncRestartMessage = """
+            This build is not signed with the CloudKit entitlement yet. Enable the iCloud capability for iCloud.org.lumabrowser.LumaBrowser in Xcode, then build with your Apple Developer team.
+            """
+            return
+        }
+
+        iCloudWorkspaceSyncEnabled = enabled
+        LumaSyncPreferences.syncsWorkspaceWithICloud = enabled
+
+        if !enabled {
+            iCloudHistorySyncEnabled = false
+        }
+
+        syncRestartMessage = enabled
+            ? "Luma will start syncing Spaces and tabs through your private iCloud database after you relaunch the app."
+            : "Luma will return to local-only Spaces and tabs after you relaunch the app."
+    }
+
+    func setHistoryICloudSyncEnabled(_ enabled: Bool) {
+        guard iCloudHistorySyncEnabled != enabled else { return }
+
+        if enabled, !LumaCloudKitEntitlements.hasConfiguredContainer {
+            syncRestartMessage = """
+            This build is not signed with the CloudKit entitlement yet. Enable the iCloud capability for iCloud.org.lumabrowser.LumaBrowser in Xcode before syncing history.
+            """
+            return
+        }
+
+        if enabled, !iCloudWorkspaceSyncEnabled {
+            setWorkspaceICloudSyncEnabled(true)
+        }
+
+        iCloudHistorySyncEnabled = enabled
+        LumaSyncPreferences.syncsHistoryWithICloud = enabled
+        syncRestartMessage = enabled
+            ? "Luma will sync browsing history through your private iCloud database after you relaunch the app."
+            : "Luma will keep browsing history local-only after you relaunch the app."
+    }
+
     func setLoading(_ isLoading: Bool, for tabID: UUID) {
         guard let index = tabs.firstIndex(where: { $0.id == tabID }) else { return }
         tabs[index].isLoading = isLoading
@@ -990,24 +1052,83 @@ final class BrowserStore: ObservableObject {
             }
     }
 
-    private func saveSnapshot() {
-        guard !isInitialSpaceSetupPresented else { return }
+    private func configureRemoteSyncObservation() {
+        guard persistenceService.syncsWorkspaceWithICloud else { return }
 
-        persistenceService.saveState(
-            BrowserWindowState(
-                spaces: spaces,
-                tabs: tabs.map { tab in
-                    var persistedTab = tab
-                    persistedTab.isLoading = false
-                    persistedTab.loadingProgress = 0
-                    return persistedTab
-                },
-                activeSpaceID: activeSpaceID,
-                activeTabID: activeTabID,
-                splitTabID: splitTabID,
-                isSplitViewEnabled: isSplitViewEnabled
-            )
+        remoteChangeCancellable = NotificationCenter.default
+            .publisher(for: PersistenceService.remoteStoreDidChange)
+            .debounce(for: .milliseconds(250), scheduler: RunLoop.main)
+            .sink { [weak self] _ in
+                Task { @MainActor in
+                    self?.applyRemoteStateIfNeeded()
+                }
+            }
+    }
+
+    private func saveSnapshot() {
+        guard !isInitialSpaceSetupPresented, !isApplyingRemoteState else { return }
+
+        persistenceService.saveState(currentSnapshot())
+    }
+
+    private func currentSnapshot() -> BrowserWindowState {
+        BrowserWindowState(
+            spaces: spaces,
+            tabs: tabs.map { tab in
+                var persistedTab = tab
+                persistedTab.isLoading = false
+                persistedTab.loadingProgress = 0
+                return persistedTab
+            },
+            activeSpaceID: activeSpaceID,
+            activeTabID: activeTabID,
+            splitTabID: splitTabID,
+            isSplitViewEnabled: isSplitViewEnabled
         )
+    }
+
+    private func applyRemoteStateIfNeeded() {
+        guard
+            let remoteState = persistenceService.loadState(),
+            !remoteState.spaces.isEmpty,
+            remoteState != currentSnapshot()
+        else {
+            return
+        }
+
+        let previousTabs = tabs
+        let previousSpaceDataStores = Dictionary(uniqueKeysWithValues: spaces.map { ($0.id, $0.dataStoreID) })
+        isApplyingRemoteState = true
+        defer { isApplyingRemoteState = false }
+
+        spaces = remoteState.spaces
+        tabs = remoteState.tabs
+        activeSpaceID = remoteState.activeSpaceID
+        activeTabID = remoteState.activeTabID
+        splitTabID = remoteState.splitTabID
+        isSplitViewEnabled = remoteState.isSplitViewEnabled
+        clearLegacyDefaultSpaceName()
+        repairSessionState()
+        isInitialSpaceSetupPresented = needsInitialSpaceSetup()
+        if !isInitialSpaceSetupPresented {
+            isCreateSpacePresented = false
+        }
+
+        let tabIDs = Set(tabs.map(\.id))
+        for previousTab in previousTabs where !tabIDs.contains(previousTab.id) {
+            webCoordinator.removeWebView(for: previousTab.id)
+        }
+
+        for tab in tabs {
+            guard let previousTab = previousTabs.first(where: { $0.id == tab.id }) else { continue }
+            let previousDataStoreID = previousSpaceDataStores[previousTab.spaceID] ?? previousTab.spaceID
+            if previousTab.spaceID != tab.spaceID || previousDataStoreID != dataStoreID(for: tab.spaceID) {
+                webCoordinator.removeWebView(for: tab.id)
+            }
+        }
+
+        restoreVisibleWebViews()
+        updateNavigationState()
     }
 
     private func switchTab(offset: Int) {

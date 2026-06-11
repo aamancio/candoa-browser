@@ -36,6 +36,10 @@ enum BrowserCommandTitles {
     static let resetZoom = "Reset Zoom"
     static let addSplitView = "Add Split View"
     static let closeSplitView = "Close Split View"
+    static let enableWorkspaceICloudSync = "Enable iCloud Sync for Spaces and Tabs"
+    static let disableWorkspaceICloudSync = "Disable iCloud Sync for Spaces and Tabs"
+    static let enableHistoryICloudSync = "Enable iCloud Sync for History"
+    static let disableHistoryICloudSync = "Disable iCloud Sync for History"
 }
 
 enum BrowserDefaults {

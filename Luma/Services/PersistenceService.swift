@@ -1,5 +1,6 @@
 import CoreData
 import Foundation
+import Security
 
 struct HistoryVisit: Identifiable, Hashable {
     let id: UUID
@@ -10,26 +11,132 @@ struct HistoryVisit: Identifiable, Hashable {
     let visitedAt: Date
 }
 
-struct PersistenceService {
+struct PersistenceSyncConfiguration: Equatable {
+    static let cloudKitContainerIdentifier = "iCloud.org.lumabrowser.LumaBrowser"
+
+    var syncsWorkspaceWithICloud: Bool
+    var syncsHistoryWithICloud: Bool
+    var cloudKitContainerIdentifier: String
+
+    static var current: PersistenceSyncConfiguration {
+        let canUseICloud = LumaCloudKitEntitlements.hasConfiguredContainer
+        return PersistenceSyncConfiguration(
+            syncsWorkspaceWithICloud: canUseICloud && LumaSyncPreferences.syncsWorkspaceWithICloud,
+            syncsHistoryWithICloud: canUseICloud
+                && LumaSyncPreferences.syncsWorkspaceWithICloud
+                && LumaSyncPreferences.syncsHistoryWithICloud,
+            cloudKitContainerIdentifier: cloudKitContainerIdentifier
+        )
+    }
+
+    static var localOnly: PersistenceSyncConfiguration {
+        PersistenceSyncConfiguration(
+            syncsWorkspaceWithICloud: false,
+            syncsHistoryWithICloud: false,
+            cloudKitContainerIdentifier: cloudKitContainerIdentifier
+        )
+    }
+}
+
+enum LumaSyncPreferences {
+    private static let workspaceKey = "Luma.Sync.WorkspaceWithICloud"
+    private static let historyKey = "Luma.Sync.HistoryWithICloud"
+
+    static var syncsWorkspaceWithICloud: Bool {
+        get { UserDefaults.standard.bool(forKey: workspaceKey) }
+        set {
+            UserDefaults.standard.set(newValue, forKey: workspaceKey)
+            if !newValue {
+                syncsHistoryWithICloud = false
+            }
+        }
+    }
+
+    static var syncsHistoryWithICloud: Bool {
+        get { UserDefaults.standard.bool(forKey: historyKey) }
+        set { UserDefaults.standard.set(newValue, forKey: historyKey) }
+    }
+}
+
+enum LumaCloudKitEntitlements {
+    static var hasConfiguredContainer: Bool {
+        guard let task = SecTaskCreateFromSelf(nil) else { return false }
+        guard let value = SecTaskCopyValueForEntitlement(
+            task,
+            "com.apple.developer.icloud-container-identifiers" as CFString,
+            nil
+        ) else {
+            return false
+        }
+
+        if let containers = value as? [String] {
+            return containers.contains(PersistenceSyncConfiguration.cloudKitContainerIdentifier)
+        }
+
+        return false
+    }
+}
+
+struct PersistenceService: @unchecked Sendable {
     static let shared = PersistenceService()
+    static let remoteStoreDidChange = Notification.Name("Luma.PersistenceService.RemoteStoreDidChange")
 
     private static let appName = "Luma"
     private static let legacyAppName = "Luma Browser"
 
     private let container: NSPersistentContainer
+    private let syncConfiguration: PersistenceSyncConfiguration
+    private let remoteChangeObserver: NSObjectProtocol?
 
-    init(storeURL: URL? = nil) {
+    var syncsWorkspaceWithICloud: Bool {
+        syncConfiguration.syncsWorkspaceWithICloud
+    }
+
+    var syncsHistoryWithICloud: Bool {
+        syncConfiguration.syncsHistoryWithICloud
+    }
+
+    init(
+        storeURL: URL? = nil,
+        syncConfiguration: PersistenceSyncConfiguration = .current
+    ) {
+        self.syncConfiguration = syncConfiguration
         let model = Self.makeModel()
-        let container = NSPersistentContainer(name: "Luma", managedObjectModel: model)
-        let resolvedStoreURL = storeURL ?? Self.applicationSupportURL.appendingPathComponent("Luma.sqlite")
-        let folderURL = resolvedStoreURL.deletingLastPathComponent()
-        let storeDescription = NSPersistentStoreDescription(url: resolvedStoreURL)
-        storeDescription.shouldMigrateStoreAutomatically = true
-        storeDescription.shouldInferMappingModelAutomatically = true
-        container.persistentStoreDescriptions = [storeDescription]
+        let usesCloudKit = syncConfiguration.syncsWorkspaceWithICloud || syncConfiguration.syncsHistoryWithICloud
+        let container: NSPersistentContainer = usesCloudKit
+            ? NSPersistentCloudKitContainer(name: "Luma", managedObjectModel: model)
+            : NSPersistentContainer(name: "Luma", managedObjectModel: model)
+        let storeURLs = Self.storeURLs(from: storeURL)
+        let needsLegacyMigration = storeURL == nil
+            && !FileManager.default.fileExists(atPath: storeURLs.session.path)
+            && FileManager.default.fileExists(atPath: Self.legacyCombinedStoreURL.path)
+
+        container.persistentStoreDescriptions = [
+            Self.storeDescription(
+                url: storeURLs.session,
+                configuration: StoreConfiguration.session,
+                cloudKitContainerIdentifier: syncConfiguration.syncsWorkspaceWithICloud
+                    ? syncConfiguration.cloudKitContainerIdentifier
+                    : nil
+            ),
+            Self.storeDescription(
+                url: storeURLs.history,
+                configuration: StoreConfiguration.history,
+                cloudKitContainerIdentifier: syncConfiguration.syncsHistoryWithICloud
+                    ? syncConfiguration.cloudKitContainerIdentifier
+                    : nil
+            )
+        ]
 
         do {
-            try FileManager.default.createDirectory(at: folderURL, withIntermediateDirectories: true)
+            try FileManager.default.createDirectory(
+                at: storeURLs.session.deletingLastPathComponent(),
+                withIntermediateDirectories: true
+            )
+            try FileManager.default.createDirectory(
+                at: storeURLs.history.deletingLastPathComponent(),
+                withIntermediateDirectories: true
+            )
         } catch {
             NSLog("\(Self.appName) failed to create persistence folder: \(error.localizedDescription)")
         }
@@ -40,7 +147,59 @@ struct PersistenceService {
             }
         }
 
+        container.viewContext.automaticallyMergesChangesFromParent = true
+        container.viewContext.mergePolicy = NSMergePolicy(merge: .mergeByPropertyObjectTrumpMergePolicyType)
+
         self.container = container
+        remoteChangeObserver = NotificationCenter.default.addObserver(
+            forName: .NSPersistentStoreRemoteChange,
+            object: container.persistentStoreCoordinator,
+            queue: .main
+        ) { _ in
+            NotificationCenter.default.post(name: Self.remoteStoreDidChange, object: nil)
+        }
+
+        if needsLegacyMigration {
+            migrateLegacyCombinedStore(from: Self.legacyCombinedStoreURL)
+        }
+    }
+
+    private static func storeURLs(from baseStoreURL: URL?) -> (session: URL, history: URL) {
+        guard let baseStoreURL else {
+            return (
+                applicationSupportURL.appendingPathComponent("LumaSession.sqlite"),
+                applicationSupportURL.appendingPathComponent("LumaHistory.sqlite")
+            )
+        }
+
+        let directory = baseStoreURL.deletingLastPathComponent()
+        let baseName = baseStoreURL.deletingPathExtension().lastPathComponent
+        return (
+            directory.appendingPathComponent("\(baseName)-Session.sqlite"),
+            directory.appendingPathComponent("\(baseName)-History.sqlite")
+        )
+    }
+
+    private static func storeDescription(
+        url: URL,
+        configuration: String,
+        cloudKitContainerIdentifier: String?
+    ) -> NSPersistentStoreDescription {
+        let description = NSPersistentStoreDescription(url: url)
+        description.configuration = configuration
+        description.shouldMigrateStoreAutomatically = true
+        description.shouldInferMappingModelAutomatically = true
+        description.shouldAddStoreAsynchronously = false
+        description.setOption(true as NSNumber, forKey: NSPersistentHistoryTrackingKey)
+        description.setOption(true as NSNumber, forKey: NSPersistentStoreRemoteChangeNotificationPostOptionKey)
+
+        if let cloudKitContainerIdentifier {
+            description.cloudKitContainerOptions = NSPersistentCloudKitContainerOptions(
+                containerIdentifier: cloudKitContainerIdentifier
+            )
+        }
+
+        return description
     }
 
     private static var applicationSupportURL: URL {
@@ -54,6 +213,10 @@ struct PersistenceService {
         }
 
         return currentURL
+    }
+
+    private static var legacyCombinedStoreURL: URL {
+        applicationSupportURL.appendingPathComponent("Luma.sqlite")
     }
 
     private static var legacyStateURL: URL {
@@ -79,8 +242,7 @@ struct PersistenceService {
 
         context.performAndWait {
             do {
-                try deleteExistingState(in: context)
-                insert(state, in: context)
+                try upsert(state, in: context)
                 try context.save()
             } catch {
                 context.rollback()
@@ -91,15 +253,17 @@ struct PersistenceService {
 
     func recordVisit(title: String, url: URL, tabID: UUID, spaceID: UUID, visitedAt: Date = Date()) {
         let context = container.newBackgroundContext()
+        let visit = HistoryVisit(
+            id: UUID(),
+            title: title,
+            url: url,
+            tabID: tabID,
+            spaceID: spaceID,
+            visitedAt: visitedAt
+        )
 
         context.perform {
-            let object = NSEntityDescription.insertNewObject(forEntityName: Entity.historyVisit, into: context)
-            object.setValue(UUID(), forKey: Key.id)
-            object.setValue(title, forKey: Key.title)
-            object.setValue(url.absoluteString, forKey: Key.urlString)
-            object.setValue(tabID, forKey: Key.tabID)
-            object.setValue(spaceID, forKey: Key.spaceID)
-            object.setValue(visitedAt, forKey: Key.visitedAt)
+            Self.insert(visit, in: context)
 
             do {
                 try context.save()
@@ -173,7 +337,152 @@ struct PersistenceService {
 
     private func loadCoreDataState() -> BrowserWindowState? {
         let context = container.viewContext
-        return context.performAndWait {
+        return Self.loadCoreDataState(in: context)
+    }
+
+    private func loadLegacyJSONState() -> BrowserWindowState? {
+        do {
+            let data = try Data(contentsOf: Self.legacyStateURL)
+            return try JSONDecoder.luma.decode(BrowserWindowState.self, from: data)
+        } catch {
+            return nil
+        }
+    }
+
+    private func upsert(_ state: BrowserWindowState, in context: NSManagedObjectContext) throws {
+        let session = try fetchSession(in: context)
+        session.setValue("main", forKey: Key.id)
+        session.setValue(state.activeSpaceID, forKey: Key.activeSpaceID)
+        session.setValue(state.activeTabID, forKey: Key.activeTabID)
+        session.setValue(state.splitTabID, forKey: Key.splitTabID)
+        session.setValue(state.isSplitViewEnabled, forKey: Key.isSplitViewEnabled)
+
+        let existingSpaces = try fetchObjects(entityName: Entity.space, in: context)
+        var spacesByID = Dictionary(
+            uniqueKeysWithValues: existingSpaces.compactMap { object -> (UUID, NSManagedObject)? in
+                guard let id = object.uuid(for: Key.id) else { return nil }
+                return (id, object)
+            }
+        )
+
+        for space in state.spaces {
+            let object = spacesByID[space.id]
+                ?? NSEntityDescription.insertNewObject(forEntityName: Entity.space, into: context)
+            object.setValue(space.id, forKey: Key.id)
+            object.setValue(space.name, forKey: Key.name)
+            object.setValue(space.symbolName, forKey: Key.symbolName)
+            object.setValue(space.themeColorHex, forKey: Key.themeColorHex)
+            object.setValue(space.dataStoreID, forKey: Key.dataStoreID)
+            object.setValue(space.createdAt, forKey: Key.createdAt)
+            spacesByID[space.id] = nil
+        }
+
+        for object in spacesByID.values {
+            context.delete(object)
+        }
+
+        let existingTabs = try fetchObjects(entityName: Entity.tab, in: context)
+        var tabsByID = Dictionary(
+            uniqueKeysWithValues: existingTabs.compactMap { object -> (UUID, NSManagedObject)? in
+                guard let id = object.uuid(for: Key.id) else { return nil }
+                return (id, object)
+            }
+        )
+        let spaceIDs = Set(state.spaces.map(\.id))
+
+        for tab in state.tabs {
+            guard spaceIDs.contains(tab.spaceID) else { continue }
+            let object = tabsByID[tab.id]
+                ?? NSEntityDescription.insertNewObject(forEntityName: Entity.tab, into: context)
+            object.setValue(tab.id, forKey: Key.id)
+            object.setValue(tab.title, forKey: Key.title)
+            object.setValue(tab.url?.absoluteString, forKey: Key.urlString)
+            object.setValue(tab.faviconSymbol, forKey: Key.faviconSymbol)
+            object.setValue(tab.faviconData, forKey: Key.faviconData)
+            object.setValue(tab.isPinned, forKey: Key.isPinned)
+            object.setValue(tab.spaceID, forKey: Key.spaceID)
+            object.setValue(tab.sortOrder, forKey: Key.sortOrder)
+            object.setValue(tab.lastAccessedAt, forKey: Key.lastAccessedAt)
+            tabsByID[tab.id] = nil
+        }
+
+        for object in tabsByID.values {
+            context.delete(object)
+        }
+    }
+
+    private func fetchSession(in context: NSManagedObjectContext) throws -> NSManagedObject {
+        let request = NSFetchRequest<NSManagedObject>(entityName: Entity.session)
+        request.predicate = NSPredicate(format: "%K == %@", Key.id, "main")
+        request.fetchLimit = 1
+
+        if let session = try context.fetch(request).first {
+            return session
+        }
+
+        return NSEntityDescription.insertNewObject(forEntityName: Entity.session, into: context)
+    }
+
+    private func fetchObjects(entityName: String, in context: NSManagedObjectContext) throws -> [NSManagedObject] {
+        let request = NSFetchRequest<NSManagedObject>(entityName: entityName)
+        return try context.fetch(request)
+    }
+
+    private func migrateLegacyCombinedStore(from legacyURL: URL) {
+        let snapshot = Self.loadLegacyCombinedStore(from: legacyURL)
+
+        if let state = snapshot.state {
+            saveState(state)
+        }
+
+        guard !snapshot.historyVisits.isEmpty else { return }
+        let context = container.newBackgroundContext()
+
+        context.performAndWait {
+            do {
+                for visit in snapshot.historyVisits {
+                    Self.insert(visit, in: context)
+                }
+                try context.save()
+            } catch {
+                context.rollback()
+                NSLog("\(Self.appName) failed to migrate local history: \(error.localizedDescription)")
+            }
+        }
+    }
+
+    private static func loadLegacyCombinedStore(from legacyURL: URL) -> (
+        state: BrowserWindowState?,
+        historyVisits: [HistoryVisit]
+    ) {
+        let legacyContainer = NSPersistentContainer(
+            name: "LumaLegacy",
+            managedObjectModel: makeModel(configuresStoreConfigurations: false)
+        )
+        let description = NSPersistentStoreDescription(url: legacyURL)
+        description.shouldAddStoreAsynchronously = false
+        description.shouldMigrateStoreAutomatically = true
+        description.shouldInferMappingModelAutomatically = true
+        legacyContainer.persistentStoreDescriptions = [description]
+
+        var loadError: Error?
+        legacyContainer.loadPersistentStores { _, error in
+            loadError = error
+        }
+
+        if let loadError {
+            NSLog("\(appName) failed to load legacy persistence store: \(loadError.localizedDescription)")
+            return (nil, [])
+        }
+
+        let context = legacyContainer.viewContext
+        let state = loadCoreDataState(in: context)
+        let visits = loadHistoryVisits(in: context)
+        return (state, visits)
+    }
+
+    private static func loadCoreDataState(in context: NSManagedObjectContext) -> BrowserWindowState? {
+        context.performAndWait {
             do {
                 let sessionRequest = NSFetchRequest<NSManagedObject>(entityName: Entity.session)
                 sessionRequest.fetchLimit = 1
@@ -188,8 +497,8 @@ struct PersistenceService {
                 let tabRequest = NSFetchRequest<NSManagedObject>(entityName: Entity.tab)
                 tabRequest.sortDescriptors = [NSSortDescriptor(key: Key.sortOrder, ascending: true)]
 
-                let spaces = try context.fetch(spaceRequest).compactMap(Self.space(from:))
-                let tabs = try context.fetch(tabRequest).compactMap(Self.tab(from:))
+                let spaces = try context.fetch(spaceRequest).compactMap(space(from:))
+                let tabs = try context.fetch(tabRequest).compactMap(tab(from:))
                 guard let activeSpaceID = session.uuid(for: Key.activeSpaceID) ?? spaces.first?.id else {
                     return nil
                 }
@@ -203,67 +512,33 @@ struct PersistenceService {
                     isSplitViewEnabled: session.bool(for: Key.isSplitViewEnabled)
                 )
             } catch {
-                NSLog("\(Self.appName) failed to load session: \(error.localizedDescription)")
+                NSLog("\(appName) failed to load session: \(error.localizedDescription)")
                 return nil
             }
         }
     }
 
-    private func loadLegacyJSONState() -> BrowserWindowState? {
-        do {
-            let data = try Data(contentsOf: Self.legacyStateURL)
-            return try JSONDecoder.luma.decode(BrowserWindowState.self, from: data)
-        } catch {
-            return nil
-        }
-    }
-
-    private func deleteExistingState(in context: NSManagedObjectContext) throws {
-        for entityName in [Entity.session, Entity.space, Entity.tab] {
-            let request = NSFetchRequest<NSFetchRequestResult>(entityName: entityName)
-            let deleteRequest = NSBatchDeleteRequest(fetchRequest: request)
-            deleteRequest.resultType = .resultTypeObjectIDs
-
-            if let result = try context.execute(deleteRequest) as? NSBatchDeleteResult,
-               let objectIDs = result.result as? [NSManagedObjectID] {
-                NSManagedObjectContext.mergeChanges(
-                    fromRemoteContextSave: [NSDeletedObjectsKey: objectIDs],
-                    into: [context]
-                )
+    private static func loadHistoryVisits(in context: NSManagedObjectContext) -> [HistoryVisit] {
+        context.performAndWait {
+            do {
+                let request = NSFetchRequest<NSManagedObject>(entityName: Entity.historyVisit)
+                request.sortDescriptors = [NSSortDescriptor(key: Key.visitedAt, ascending: true)]
+                return try context.fetch(request).compactMap(historyVisit(from:))
+            } catch {
+                NSLog("\(appName) failed to load legacy history: \(error.localizedDescription)")
+                return []
             }
         }
     }
 
-    private func insert(_ state: BrowserWindowState, in context: NSManagedObjectContext) {
-        let session = NSEntityDescription.insertNewObject(forEntityName: Entity.session, into: context)
-        session.setValue("main", forKey: Key.id)
-        session.setValue(state.activeSpaceID, forKey: Key.activeSpaceID)
-        session.setValue(state.activeTabID, forKey: Key.activeTabID)
-        session.setValue(state.splitTabID, forKey: Key.splitTabID)
-        session.setValue(state.isSplitViewEnabled, forKey: Key.isSplitViewEnabled)
-
-        for space in state.spaces {
-            let object = NSEntityDescription.insertNewObject(forEntityName: Entity.space, into: context)
-            object.setValue(space.id, forKey: Key.id)
-            object.setValue(space.name, forKey: Key.name)
-            object.setValue(space.symbolName, forKey: Key.symbolName)
-            object.setValue(space.themeColorHex, forKey: Key.themeColorHex)
-            object.setValue(space.dataStoreID, forKey: Key.dataStoreID)
-            object.setValue(space.createdAt, forKey: Key.createdAt)
-        }
-
-        for tab in state.tabs {
-            let object = NSEntityDescription.insertNewObject(forEntityName: Entity.tab, into: context)
-            object.setValue(tab.id, forKey: Key.id)
-            object.setValue(tab.title, forKey: Key.title)
-            object.setValue(tab.url?.absoluteString, forKey: Key.urlString)
-            object.setValue(tab.faviconSymbol, forKey: Key.faviconSymbol)
-            object.setValue(tab.faviconData, forKey: Key.faviconData)
-            object.setValue(tab.isPinned, forKey: Key.isPinned)
-            object.setValue(tab.spaceID, forKey: Key.spaceID)
-            object.setValue(tab.sortOrder, forKey: Key.sortOrder)
-            object.setValue(tab.lastAccessedAt, forKey: Key.lastAccessedAt)
-        }
+    private static func insert(_ visit: HistoryVisit, in context: NSManagedObjectContext) {
+        let object = NSEntityDescription.insertNewObject(forEntityName: Entity.historyVisit, into: context)
+        object.setValue(visit.id, forKey: Key.id)
+        object.setValue(visit.title, forKey: Key.title)
+        object.setValue(visit.url.absoluteString, forKey: Key.urlString)
+        object.setValue(visit.tabID, forKey: Key.tabID)
+        object.setValue(visit.spaceID, forKey: Key.spaceID)
+        object.setValue(visit.visitedAt, forKey: Key.visitedAt)
     }
 
     private static func space(from object: NSManagedObject) -> BrowserSpace? {
@@ -326,14 +601,20 @@ struct PersistenceService {
         )
     }
 
-    private static func makeModel() -> NSManagedObjectModel {
+    private static func makeModel(configuresStoreConfigurations: Bool = true) -> NSManagedObjectModel {
         let model = NSManagedObjectModel()
-        model.entities = [
+        let sessionEntities = [
             makeSessionEntity(),
             makeSpaceEntity(),
-            makeTabEntity(),
-            makeHistoryVisitEntity()
+            makeTabEntity()
         ]
+        let historyEntities = [makeHistoryVisitEntity()]
+
+        model.entities = sessionEntities + historyEntities
+        if configuresStoreConfigurations {
+            model.setEntities(sessionEntities, forConfigurationName: StoreConfiguration.session)
+            model.setEntities(historyEntities, forConfigurationName: StoreConfiguration.history)
+        }
         return model
     }
 
@@ -412,8 +693,35 @@ struct PersistenceService {
         attribute.name = name
         attribute.attributeType = type
         attribute.isOptional = optional
+        if !optional {
+            attribute.defaultValue = defaultValue(for: type)
+        }
         return attribute
     }
+
+    private static func defaultValue(for type: NSAttributeType) -> Any? {
+        switch type {
+        case .stringAttributeType:
+            return ""
+        case .UUIDAttributeType:
+            return UUID()
+        case .dateAttributeType:
+            return Date(timeIntervalSince1970: 0)
+        case .booleanAttributeType:
+            return false
+        case .doubleAttributeType:
+            return 0
+        case .binaryDataAttributeType:
+            return nil
+        default:
+            return nil
+        }
+    }
+}
+
+private enum StoreConfiguration {
+    static let session = "SessionState"
+    static let history = "History"
 }
 
 private enum Entity {

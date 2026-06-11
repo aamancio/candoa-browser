@@ -182,6 +182,30 @@ private struct BrowserCommands: Commands {
             }
             .keyboardShortcut(.leftArrow, modifiers: [.command, .option])
             .disabled(actions == nil)
+
+            Divider()
+
+            Menu("iCloud Sync") {
+                Button(
+                    actions?.isWorkspaceICloudSyncEnabled == true
+                        ? BrowserCommandTitles.disableWorkspaceICloudSync
+                        : BrowserCommandTitles.enableWorkspaceICloudSync
+                ) {
+                    guard let actions else { return }
+                    actions.setWorkspaceICloudSyncEnabled(!actions.isWorkspaceICloudSyncEnabled)
+                }
+                .disabled(actions == nil)
+
+                Button(
+                    actions?.isHistoryICloudSyncEnabled == true
+                        ? BrowserCommandTitles.disableHistoryICloudSync
+                        : BrowserCommandTitles.enableHistoryICloudSync
+                ) {
+                    guard let actions else { return }
+                    actions.setHistoryICloudSyncEnabled(!actions.isHistoryICloudSyncEnabled)
+                }
+                .disabled(actions == nil || actions?.isWorkspaceICloudSyncEnabled != true)
+            }
         }
     }
 }
@@ -212,6 +236,10 @@ struct BrowserCommandActions {
     var resetZoom: () -> Void
     var addSplitView: () -> Void
     var closeSplitView: () -> Void
+    var isWorkspaceICloudSyncEnabled: Bool
+    var isHistoryICloudSyncEnabled: Bool
+    var setWorkspaceICloudSyncEnabled: (Bool) -> Void
+    var setHistoryICloudSyncEnabled: (Bool) -> Void
 }
 
 private struct BrowserCommandActionsKey: FocusedValueKey {
