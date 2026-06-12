@@ -38,11 +38,13 @@ struct WebViewContainer: View {
                     .padding(surfacePadding)
                 }
             } else {
-                ContentUnavailableView(
-                    "No Active Tab",
-                    systemImage: "sidebar.left",
-                    description: Text("Create a tab to start browsing.")
+                SpaceSetupCanvas(
+                    hexes: store.activeThemeColorHexes,
+                    intensity: store.activeThemeIntensityMultiplier,
+                    texture: store.activeThemeTexture
                 )
+                .padding(surfacePadding)
+                .transition(.opacity)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)

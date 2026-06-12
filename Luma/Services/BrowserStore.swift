@@ -197,11 +197,10 @@ final class BrowserStore: ObservableObject {
             isSplitViewEnabled = restoredState.isSplitViewEnabled && splitTabID != nil && splitTabID != activeTabID
         } else {
             let defaultSpace = BrowserSpace(name: "", symbolName: "circle.grid.2x2")
-            let defaultTab = Self.homeTab(spaceID: defaultSpace.id)
             spaces = [defaultSpace]
-            tabs = [defaultTab]
+            tabs = []
             activeSpaceID = defaultSpace.id
-            activeTabID = defaultTab.id
+            activeTabID = nil
             splitTabID = nil
             isSplitViewEnabled = false
             shouldPresentInitialSpaceSetup = restoredState?.spaces.isEmpty ?? true
@@ -495,10 +494,6 @@ final class BrowserStore: ObservableObject {
         tabs[tabIndex].spaceID = targetSpaceID
         tabs[tabIndex].sortOrder = nextSortOrder(spaceID: targetSpaceID, pinned: tabs[tabIndex].isPinned)
 
-        if !tabs.contains(where: { $0.spaceID == sourceSpaceID }) {
-            tabs.append(Self.homeTab(spaceID: sourceSpaceID, sortOrder: 0))
-        }
-
         if sourceDataStoreID != targetDataStoreID {
             webCoordinator.removeWebView(for: tabID)
         }
@@ -559,11 +554,6 @@ final class BrowserStore: ObservableObject {
         if splitTabID == id {
             splitTabID = replacementSplitTab(excluding: id)?.id
             isSplitViewEnabled = splitTabID != nil
-        }
-
-        if tabs.filter({ $0.spaceID == closingTab.spaceID }).isEmpty {
-            _ = newInternalBlankTab(in: closingTab.spaceID)
-            return
         }
 
         if activeTabID == id {
@@ -1020,14 +1010,22 @@ final class BrowserStore: ObservableObject {
     ) {
         guard let index = tabs.firstIndex(where: { $0.id == tabID }) else { return }
 
-        if let title, !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+        // The internal home page is loaded via loadHTMLString and WebKit
+        // reports it as about:blank; keep the tab URL-less instead of
+        // surfacing the placeholder in the tab row and address bar.
+        let isInternalHomePage = Self.isLegacyBlankPlaceholderURL(url)
+        let reportedURL = isInternalHomePage ? nil : url
+
+        if isInternalHomePage {
+            tabs[index].title = BrowserDefaults.newTabTitle
+        } else if let title, !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             tabs[index].title = title
-        } else if let url {
-            tabs[index].title = self.title(for: url)
+        } else if let reportedURL {
+            tabs[index].title = self.title(for: reportedURL)
         }
 
-        tabs[index].url = url
-        tabs[index].faviconSymbol = faviconService.placeholderSymbol(for: url)
+        tabs[index].url = reportedURL
+        tabs[index].faviconSymbol = faviconService.placeholderSymbol(for: reportedURL)
         tabs[index].isLoading = isLoading
         tabs[index].loadingProgress = loadingProgress
 
@@ -1045,7 +1043,8 @@ final class BrowserStore: ObservableObject {
     func recordHistoryVisit(tabID: UUID, title: String?, url: URL?) {
         guard
             let index = tabs.firstIndex(where: { $0.id == tabID }),
-            let url
+            let url,
+            !Self.isLegacyBlankPlaceholderURL(url)
         else {
             return
         }
@@ -1444,17 +1443,6 @@ final class BrowserStore: ObservableObject {
         }
     }
 
-    private static func homeTab(spaceID: UUID, sortOrder: Double = 0, pinned: Bool = false) -> BrowserTab {
-        BrowserTab(
-            title: BrowserDefaults.defaultHomeTitle,
-            url: nil,
-            faviconSymbol: "sparkle",
-            isPinned: pinned,
-            spaceID: spaceID,
-            sortOrder: sortOrder
-        )
-    }
-
     private func repairSessionState() {
         if spaces.isEmpty {
             spaces = [BrowserSpace(name: "", symbolName: "circle.grid.2x2")]
@@ -1467,16 +1455,9 @@ final class BrowserStore: ObservableObject {
         let spaceIDs = Set(spaces.map(\.id))
         tabs = tabs.filter { spaceIDs.contains($0.spaceID) }
 
-        for index in tabs.indices where Self.isLegacyHomePlaceholder(tabs[index]) {
-            tabs[index].url = nil
-            tabs[index].title = BrowserDefaults.defaultHomeTitle
-            tabs[index].faviconSymbol = "sparkle"
-            tabs[index].faviconData = nil
-        }
-
-        for space in spaces where !tabs.contains(where: { $0.spaceID == space.id }) {
-            tabs.append(Self.homeTab(spaceID: space.id, sortOrder: 0))
-        }
+        // Placeholder home tabs (about:blank / legacy Google home) are
+        // transient; spaces restore empty rather than with a stale blank tab.
+        tabs.removeAll(where: Self.isLegacyHomePlaceholder)
 
         if !spaceIDs.contains(activeSpaceID) {
             activeSpaceID = spaces[0].id

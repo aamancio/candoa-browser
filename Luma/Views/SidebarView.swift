@@ -287,15 +287,18 @@ struct SidebarView: View {
         Button {
             store.openNewTabCommandPalette()
         } label: {
+            // contentShape must live inside the label: applied outside the
+            // Button it doesn't extend the clickable area, leaving only the
+            // glyphs hit-testable.
             Label(BrowserCommandTitles.newTab, systemImage: "plus")
                 .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 6)
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .font(.system(size: 13.5, weight: .semibold))
         .foregroundStyle(LumaChromeStyle.sidebarTextSecondary)
-        .padding(.horizontal, 8)
-        .padding(.vertical, 6)
-        .contentShape(Rectangle())
         .background(isHoveringNewTab ? LumaChromeStyle.sidebarControlFillHover : Color.clear)
         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
         .onHover { isHoveringNewTab = $0 }
