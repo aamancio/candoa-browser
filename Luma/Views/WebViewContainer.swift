@@ -261,9 +261,11 @@ private struct LoadingPillCore: View {
     }
 
     /// Zen: color-mix(in srgb, primary, light-dark(black 50%, white 50%) 70%).
+    /// color-mix premultiplies alpha, so the 50%-alpha blend at 70% weight
+    /// resolves to ~54% of the blend color at 0.65 total alpha.
     private var pillColor: Color {
         let blend: NSColor = colorScheme == .dark ? .white : .black
-        let mixed = NSColor(tint).usingColorSpace(.sRGB)?.blended(withFraction: 0.7, of: blend) ?? blend
+        let mixed = NSColor(tint).usingColorSpace(.sRGB)?.blended(withFraction: 0.35 / 0.65, of: blend) ?? blend
         return Color(nsColor: mixed).opacity(0.65)
     }
 

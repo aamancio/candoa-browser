@@ -146,11 +146,6 @@ struct SidebarView: View {
         .buttonStyle(.plain)
         .foregroundStyle(sidebarIconColor)
         .frame(height: 34)
-        .overlay(alignment: .bottom) {
-            SidebarLoadingBar(progress: store.activeTab?.loadingProgress ?? 0, tint: activeSpaceTint)
-                .opacity(store.activeTab?.isLoading == true && !store.isSpaceSetupPresented ? 1 : 0)
-                .offset(y: 5)
-        }
     }
 
     private var addressPill: some View {
@@ -2238,26 +2233,6 @@ private enum SpaceDataMode: String, CaseIterable, Identifiable {
         case .shopping:
             return UUID(uuidString: "72BC27D2-3D02-459A-A0AF-98036B15CF13")!
         }
-    }
-}
-
-private struct SidebarLoadingBar: View {
-    let progress: Double
-    let tint: Color
-
-    private var clampedProgress: CGFloat {
-        CGFloat(min(max(progress, 0), 1))
-    }
-
-    var body: some View {
-        GeometryReader { proxy in
-            Rectangle()
-                .fill(tint.opacity(0.70))
-                .frame(width: proxy.size.width * clampedProgress, height: 1)
-                .frame(maxWidth: .infinity, alignment: .leading)
-        }
-        .frame(height: 1)
-        .allowsHitTesting(false)
     }
 }
 

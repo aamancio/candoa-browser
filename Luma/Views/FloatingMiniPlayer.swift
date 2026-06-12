@@ -110,7 +110,10 @@ struct FloatingMiniPlayerContainer: View {
     }
 
     private func dragGesture(in availableSize: CGSize) -> some Gesture {
-        DragGesture(minimumDistance: 4)
+        // Track in global space: the gesture is attached to the view being
+        // moved, so local-space translations shift under the cursor each
+        // frame and the player jitters.
+        DragGesture(minimumDistance: 4, coordinateSpace: .global)
             .onChanged { value in
                 guard !isProgressScrubbing else {
                     dragStartOrigin = nil
@@ -136,7 +139,7 @@ struct FloatingMiniPlayerContainer: View {
     }
 
     private func resizeGesture(_ edge: MiniPlayerResizeEdge, in availableSize: CGSize) -> some Gesture {
-        DragGesture(minimumDistance: 2)
+        DragGesture(minimumDistance: 2, coordinateSpace: .global)
             .onChanged { value in
                 if resizeStartSize == nil {
                     resizeStartSize = currentSize
