@@ -100,6 +100,33 @@ struct ContentView: View {
                 .zIndex(1)
             }
         }
+        .overlay {
+            // Zen anchors its toast container at the window's absolute
+            // top-right (8px in from both edges), floating over the title
+            // bar — so the pill must escape the top safe area.
+            ZStack(alignment: .topTrailing) {
+                Color.clear
+                    .allowsHitTesting(false)
+
+                if let toast = store.copiedURLToast {
+                    CopiedURLToastView(
+                        toast: toast,
+                        themeColorHex: store.activeThemeColorHexes.first,
+                        onShareInteractionChanged: { store.setCopiedURLToastSharing($0) }
+                    )
+                    .onHover { store.setCopiedURLToastHovered($0) }
+                    .padding(.top, CopiedURLToastView.windowEdgeSpacing)
+                    .padding(.trailing, CopiedURLToastView.windowEdgeSpacing)
+                    .transition(.asymmetric(
+                        insertion: .scale(scale: 0.01, anchor: .top),
+                        removal: .scale(scale: 0.5, anchor: .top).combined(with: .opacity)
+                    ))
+                    .id(toast.id)
+                }
+            }
+            .ignoresSafeArea(.container, edges: .top)
+        }
+        .animation(.spring(duration: 0.5, bounce: 0.2), value: store.copiedURLToast)
         .background {
             LumaWindowBackdrop(store: store)
                 .ignoresSafeArea()

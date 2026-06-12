@@ -5,6 +5,7 @@ struct CommandPaletteView: View {
     @ObservedObject var store: BrowserStore
     @State private var query = ""
     @State private var selectedSearchProvider: SearchProvider?
+    @State private var selectedCommandIndex = 0
     @State private var fieldFocusRequestID = UUID()
     @FocusState private var isSearchFocused: Bool
     @Environment(\.colorScheme) private var colorScheme
@@ -41,18 +42,22 @@ struct CommandPaletteView: View {
                     if let headerSearchProvider {
                         Spacer(minLength: 12)
 
-                        Text("Search \(headerSearchProvider.name)")
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
+                        HStack(spacing: 8) {
+                            Text("Search \(headerSearchProvider.name)")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
 
-                        Text("Tab")
-                            .font(.system(size: 14, weight: .bold))
-                            .foregroundStyle(.secondary)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 5)
-                            .background(Color.primary.opacity(0.08))
-                            .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
+                            Text("Tab")
+                                .font(.system(size: 14, weight: .bold))
+                                .foregroundStyle(.secondary)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 5)
+                                .background(Color.primary.opacity(0.08))
+                                .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
+                        }
+                        .fixedSize(horizontal: true, vertical: false)
+                        .layoutPriority(2)
                     }
                 }
                 .padding(.horizontal, 16)
@@ -64,13 +69,13 @@ struct CommandPaletteView: View {
 
                 ScrollView {
                     LazyVStack(spacing: 7) {
-                        ForEach(Array(filteredCommands.prefix(6).enumerated()), id: \.element.id) { index, command in
+                        ForEach(Array(visibleCommands.enumerated()), id: \.element.id) { index, command in
                             Button {
                                 run(command)
                             } label: {
                                 PaletteCommandRow(
                                     command: command,
-                                    isSelected: index == 0,
+                                    isSelected: index == selectedCommandIndex,
                                     selectedTint: activeTint
                                 )
                             }
@@ -94,12 +99,15 @@ struct CommandPaletteView: View {
         .background(
             CommandPaletteKeyMonitor(
                 isProviderChipDeletable: selectedSearchProvider != nil && query.isEmpty,
-                onDeleteProviderChip: deleteSelectedSearchProvider
+                onDeleteProviderChip: deleteSelectedSearchProvider,
+                onMoveSelection: moveSelection,
+                onCancel: { store.dismissCommandPalette() }
             )
         )
         .onAppear {
             query = store.commandPaletteInitialText
             selectedSearchProvider = nil
+            selectedCommandIndex = 0
             fieldFocusRequestID = UUID()
             focusSearchField()
         }
@@ -109,6 +117,24 @@ struct CommandPaletteView: View {
         .onChange(of: fieldFocusRequestID) { _, _ in
             focusSearchField()
         }
+        .onChange(of: query) { _, _ in
+            selectedCommandIndex = 0
+        }
+        .onChange(of: selectedSearchProvider) { _, _ in
+            selectedCommandIndex = 0
+        }
+    }
+
+    private var visibleCommands: [PaletteCommand] {
+        Array(filteredCommands.prefix(6))
+    }
+
+    /// Arc/Zen-style result navigation: Up/Down arrows and Control-P/N move
+    /// the highlight through the visible results, wrapping at the ends.
+    private func moveSelection(by delta: Int) {
+        let count = visibleCommands.count
+        guard count > 0 else { return }
+        selectedCommandIndex = ((selectedCommandIndex + delta) % count + count) % count
     }
 
     private var searchField: some View {
@@ -131,7 +157,7 @@ struct CommandPaletteView: View {
                 .font(.system(size: 17, weight: .medium))
                 .foregroundStyle(.primary)
                 .focused($isSearchFocused)
-                .onSubmit(performFirstCommand)
+                .onSubmit(performSelectedCommand)
                 .onKeyPress(.tab) {
                     activateSearchProviderFromQuery()
                     return .handled
@@ -167,9 +193,15 @@ struct CommandPaletteView: View {
         isResumingSearchURL ? "globe" : "magnifyingglass"
     }
 
+    /// The provider the Tab key would activate right now. Mirrors
+    /// `activateSearchProviderFromQuery` exactly so the "Search X — Tab" hint
+    /// never appears when pressing Tab wouldn't start a site search.
     private var headerSearchProvider: SearchProvider? {
         guard selectedSearchProvider == nil, !isResumingSearchURL else { return nil }
-        return autocompleteSuggestion?.provider ?? store.navigationService.searchProvider(matching: query)
+        if let autocompleteSuggestion {
+            return autocompleteSuggestion.provider
+        }
+        return store.navigationService.searchProvider(matching: commandQueryText)
     }
 
     private var placeholderText: String {
@@ -348,7 +380,13 @@ struct CommandPaletteView: View {
         }
     }
 
-    private func performFirstCommand() {
+    private func performSelectedCommand() {
+        let commands = visibleCommands
+        if selectedCommandIndex > 0, selectedCommandIndex < commands.count {
+            run(commands[selectedCommandIndex])
+            return
+        }
+
         let trimmedQuery = commandQueryText.trimmingCharacters(in: .whitespacesAndNewlines)
         if let selectedSearchProvider, !trimmedQuery.isEmpty {
             run(
@@ -361,7 +399,7 @@ struct CommandPaletteView: View {
             return
         }
 
-        guard let command = filteredCommands.first else { return }
+        guard let command = commands.first else { return }
         run(command)
     }
 
@@ -609,11 +647,15 @@ private struct PaletteBackground: View {
 private struct CommandPaletteKeyMonitor: NSViewRepresentable {
     let isProviderChipDeletable: Bool
     let onDeleteProviderChip: () -> Void
+    let onMoveSelection: (Int) -> Void
+    let onCancel: () -> Void
 
     func makeCoordinator() -> Coordinator {
         Coordinator(
             isProviderChipDeletable: isProviderChipDeletable,
-            onDeleteProviderChip: onDeleteProviderChip
+            onDeleteProviderChip: onDeleteProviderChip,
+            onMoveSelection: onMoveSelection,
+            onCancel: onCancel
         )
     }
 
@@ -625,25 +667,47 @@ private struct CommandPaletteKeyMonitor: NSViewRepresentable {
     func updateNSView(_ nsView: NSView, context: Context) {
         context.coordinator.isProviderChipDeletable = isProviderChipDeletable
         context.coordinator.onDeleteProviderChip = onDeleteProviderChip
+        context.coordinator.onMoveSelection = onMoveSelection
+        context.coordinator.onCancel = onCancel
         context.coordinator.installMonitorIfNeeded()
     }
 
     final class Coordinator {
         var isProviderChipDeletable: Bool
         var onDeleteProviderChip: () -> Void
+        var onMoveSelection: (Int) -> Void
+        var onCancel: () -> Void
         private var monitor: Any?
 
-        init(isProviderChipDeletable: Bool, onDeleteProviderChip: @escaping () -> Void) {
+        init(
+            isProviderChipDeletable: Bool,
+            onDeleteProviderChip: @escaping () -> Void,
+            onMoveSelection: @escaping (Int) -> Void,
+            onCancel: @escaping () -> Void
+        ) {
             self.isProviderChipDeletable = isProviderChipDeletable
             self.onDeleteProviderChip = onDeleteProviderChip
+            self.onMoveSelection = onMoveSelection
+            self.onCancel = onCancel
         }
 
         func installMonitorIfNeeded() {
             guard monitor == nil else { return }
 
             monitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown]) { [weak self] event in
+                guard let self else { return event }
+
+                if Self.isPlainEscape(event) {
+                    onCancel()
+                    return nil
+                }
+
+                if let delta = Self.selectionDelta(for: event) {
+                    onMoveSelection(delta)
+                    return nil
+                }
+
                 guard
-                    let self,
                     isProviderChipDeletable,
                     Self.isPlainDelete(event)
                 else {
@@ -653,6 +717,39 @@ private struct CommandPaletteKeyMonitor: NSViewRepresentable {
                 onDeleteProviderChip()
                 return nil
             }
+        }
+
+        /// Up/Down arrows and the standard Control-P/Control-N field-editor
+        /// bindings move the result selection, matching Arc and Zen.
+        private static func selectionDelta(for event: NSEvent) -> Int? {
+            let modifiers = event.modifierFlags
+                .intersection(.deviceIndependentFlagsMask)
+                .subtracting([.capsLock, .function, .numericPad])
+
+            if modifiers.isEmpty {
+                switch event.keyCode {
+                case 125: return 1   // Down Arrow
+                case 126: return -1  // Up Arrow
+                default: return nil
+                }
+            }
+
+            if modifiers == .control {
+                switch event.keyCode {
+                case 45: return 1    // Control-N
+                case 35: return -1   // Control-P
+                default: return nil
+                }
+            }
+
+            return nil
+        }
+
+        private static func isPlainEscape(_ event: NSEvent) -> Bool {
+            let modifiers = event.modifierFlags
+                .intersection(.deviceIndependentFlagsMask)
+                .subtracting([.capsLock, .function, .numericPad])
+            return modifiers.isEmpty && event.keyCode == 53
         }
 
         private static func isPlainDelete(_ event: NSEvent) -> Bool {

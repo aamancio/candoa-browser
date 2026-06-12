@@ -48,10 +48,13 @@ struct SidebarView: View {
             sidebarHeader
             
             if store.isSpaceSetupPresented {
-                CreateSpaceSidebarComposer(
+                UpsertSpaceSidebarComposer(
                     store: store,
-                    mode: store.isInitialSpaceSetupPresented ? .initial : .create
+                    mode: store.isInitialSpaceSetupPresented
+                        ? .initial
+                        : (store.editingSpaceID != nil ? .edit : .create)
                 )
+                .id(store.editingSpaceID)
             } else {
                 addressPill
 
@@ -66,8 +69,10 @@ struct SidebarView: View {
                             .padding(.top, 3)
                             .padding(.bottom, 2)
 
-                        newTabButton
-                        tabsSection
+                        VStack(alignment: .leading, spacing: 2) {
+                            newTabButton
+                            tabsSection
+                        }
                     }
                     .padding(.top, 1)
                 }
@@ -198,7 +203,7 @@ struct SidebarView: View {
                     ForEach(pinned) { tab in
                         EssentialTileView(
                             tab: tab,
-                            isActive: tab.id == store.activeTabID,
+                            isActive: tab.id == store.activeTabID && !store.isNewTabPaletteActive,
                             accentColor: activeSpaceTint,
                             onSelect: { store.switchTab(to: tab.id) },
                             onClose: { store.closeTab(tab.id) },
@@ -255,7 +260,7 @@ struct SidebarView: View {
                     ForEach(tabs) { tab in
                         TabRowView(
                             tab: tab,
-                            isActive: tab.id == store.activeTabID,
+                            isActive: tab.id == store.activeTabID && !store.isNewTabPaletteActive,
                             isSplit: tab.id == store.splitTabID,
                             accentColor: activeSpaceTint,
                             onSelect: { store.switchTab(to: tab.id) },
@@ -284,32 +289,58 @@ struct SidebarView: View {
     }
 
     private var newTabButton: some View {
-        Button {
+        // While the ⌘T palette is open this button wears the active-tab
+        // highlight — Arc's "selected without navigating" new-tab state.
+        let isArmed = store.isNewTabPaletteActive
+
+        return Button {
             store.openNewTabCommandPalette()
         } label: {
             // contentShape must live inside the label: applied outside the
             // Button it doesn't extend the clickable area, leaving only the
-            // glyphs hit-testable.
-            Label(BrowserCommandTitles.newTab, systemImage: "plus")
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 6)
-                .contentShape(Rectangle())
+            // glyphs hit-testable. The layout mirrors TabRowView so the
+            // button reads as one of the tab rows.
+            HStack(spacing: 8) {
+                Image(systemName: "plus")
+                    .font(.system(size: 14.5, weight: .medium))
+                    .foregroundStyle(isArmed ? LumaChromeStyle.sidebarText : LumaChromeStyle.sidebarIcon)
+                    .frame(width: 16, height: 16)
+
+                Text(BrowserCommandTitles.newTab)
+                    .lineLimit(1)
+                    .font(.system(size: 13.5, weight: .semibold))
+                    .foregroundStyle(isArmed ? LumaChromeStyle.sidebarText : LumaChromeStyle.sidebarTextSecondary)
+
+                Spacer(minLength: 8)
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 6)
+            .frame(minHeight: 32)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .font(.system(size: 13.5, weight: .semibold))
-        .foregroundStyle(LumaChromeStyle.sidebarTextSecondary)
-        .background(isHoveringNewTab ? LumaChromeStyle.sidebarControlFillHover : Color.clear)
+        .background(newTabButtonBackground(isArmed: isArmed))
         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
         .onHover { isHoveringNewTab = $0 }
         .overlay {
-            if isHoveringNewTab {
+            if isHoveringNewTab && !isArmed {
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
                     .stroke(LumaChromeStyle.sidebarControlStroke, lineWidth: 1)
                     .allowsHitTesting(false)
             }
         }
         .animation(.easeOut(duration: 0.10), value: isHoveringNewTab)
+        .animation(.easeOut(duration: 0.12), value: isArmed)
+    }
+
+    private func newTabButtonBackground(isArmed: Bool) -> Color {
+        if isArmed {
+            return activeSpaceTint.opacity(0.18)
+        }
+        if isHoveringNewTab {
+            return LumaChromeStyle.sidebarControlFillHover
+        }
+        return Color.clear
     }
 }
 
@@ -345,7 +376,7 @@ private struct AppUpdateBanner: View {
     }
 }
 
-private struct CreateSpaceSidebarComposer: View {
+private struct UpsertSpaceSidebarComposer: View {
     @ObservedObject var store: BrowserStore
     let mode: SpaceComposerMode
 
@@ -453,7 +484,11 @@ private struct CreateSpaceSidebarComposer: View {
 
             nameField
 
-            profileRow
+            // Edit keeps the space's existing profile; switching a live
+            // space's data store means migrating its web views.
+            if mode != .edit {
+                profileRow
+            }
 
             themeButton
 
@@ -474,10 +509,14 @@ private struct CreateSpaceSidebarComposer: View {
             .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
             .disabled(trimmedName.isEmpty)
 
-            if mode == .create {
+            if mode != .initial {
                 Button("Cancel") {
                     store.clearSpaceThemePreview()
-                    store.isCreateSpacePresented = false
+                    if mode == .edit {
+                        store.editingSpaceID = nil
+                    } else {
+                        store.isCreateSpacePresented = false
+                    }
                 }
                 .buttonStyle(.plain)
                 .font(.system(size: 13, weight: .semibold))
@@ -488,6 +527,14 @@ private struct CreateSpaceSidebarComposer: View {
             }
         }
         .onAppear {
+            if mode == .edit, let space = store.editingSpace {
+                name = space.name
+                symbolName = space.symbolName
+                themeColorHex = space.themeColorHex
+                themeAppearance = space.themeAppearance
+                themeOpacity = space.themeOpacity
+                themeTexture = space.themeTexture
+            }
             isNameFocused = true
             publishCurrentThemePreview()
         }
@@ -661,6 +708,22 @@ private struct CreateSpaceSidebarComposer: View {
     }
 
     private func createSpace() {
+        if mode == .edit {
+            if let editingSpaceID = store.editingSpaceID {
+                store.updateSpace(
+                    editingSpaceID,
+                    name: trimmedName,
+                    symbolName: symbolName,
+                    themeColorHex: themeColorHex,
+                    themeAppearance: themeAppearance,
+                    themeOpacity: themeOpacity,
+                    themeTexture: themeTexture
+                )
+            }
+            store.clearSpaceThemePreview()
+            return
+        }
+
         if mode == .initial {
             store.completeInitialSpaceSetup(
                 name: trimmedName,
@@ -2052,21 +2115,32 @@ private enum SpaceIconPickerMode: String, CaseIterable, Identifiable {
 private enum SpaceComposerMode {
     case create
     case initial
+    case edit
 
     var title: String {
-        "Create a Space"
+        switch self {
+        case .create, .initial:
+            return "Create a Space"
+        case .edit:
+            return "Edit Space"
+        }
     }
 
     var subtitle: String {
-        "Spaces organize your tabs and sessions."
+        switch self {
+        case .create, .initial:
+            return "Spaces organize your tabs and sessions."
+        case .edit:
+            return "Update this Space's name, icon, and theme."
+        }
     }
 
     var primaryButtonTitle: String {
         switch self {
-        case .create:
+        case .create, .initial:
             return BrowserCommandTitles.createSpace
-        case .initial:
-            return BrowserCommandTitles.createSpace
+        case .edit:
+            return "Save Changes"
         }
     }
 }

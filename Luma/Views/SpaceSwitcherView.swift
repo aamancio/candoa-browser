@@ -10,20 +10,7 @@ struct SpaceSwitcherView: View {
     @State private var isHoveringDownloads = false
     @State private var isActionMenuPresented = false
     @State private var isHoveringAddSpace = false
-    @State private var renamingSpace: BrowserSpace?
-    @State private var renameDraft = ""
     @State private var deletingSpace: BrowserSpace?
-
-    private let themeOptions: [(name: String, hex: String)] = [
-        ("Blue", "#6E8BFF"),
-        ("Green", "#74E0AA"),
-        ("Gold", "#E0A84F"),
-        ("Red", "#DA6A72"),
-        ("Violet", "#9B7BE5"),
-        ("Cyan", "#5CA8D8"),
-        ("Pink", "#D17FB3"),
-        ("Olive", "#8E9A5B")
-    ]
 
     var body: some View {
         HStack(spacing: 8) {
@@ -48,39 +35,6 @@ struct SpaceSwitcherView: View {
             addSpaceButton
         }
         .frame(height: 32)
-        .overlay(alignment: .bottomLeading) {
-            if isDownloadsPresented {
-                DownloadsPopoverView {
-                    isDownloadsPresented = false
-                    openDownloadsFolder()
-                }
-                .frame(width: 520)
-                .offset(x: 1, y: -43)
-                .transition(.scale(scale: 0.98, anchor: .bottomLeading).combined(with: .opacity))
-                .zIndex(30)
-            }
-        }
-        .zIndex(isDownloadsPresented ? 30 : 0)
-        .animation(.easeOut(duration: 0.14), value: isDownloadsPresented)
-        .alert("Rename Space", isPresented: isRenameAlertPresented) {
-            TextField("Name", text: $renameDraft)
-                .onChange(of: renameDraft) { _, newValue in
-                    let limitedName = BrowserStore.limitedSpaceNameInput(newValue)
-                    if limitedName != newValue {
-                        renameDraft = limitedName
-                    }
-                }
-
-            Button("Rename") {
-                guard let renamingSpace else { return }
-                store.renameSpace(renamingSpace.id, to: renameDraft)
-                self.renamingSpace = nil
-            }
-
-            Button("Cancel", role: .cancel) {
-                renamingSpace = nil
-            }
-        }
         .alert("Delete Space", isPresented: isDeleteAlertPresented, presenting: deletingSpace) { space in
             Button("Delete", role: .destructive) {
                 store.deleteSpace(space.id)
@@ -109,6 +63,12 @@ struct SpaceSwitcherView: View {
         .buttonStyle(.plain)
         .onHover { isHoveringDownloads = $0 }
         .help("Downloads")
+        .popover(isPresented: $isDownloadsPresented, arrowEdge: .bottom) {
+            DownloadsPopoverView {
+                isDownloadsPresented = false
+                openDownloadsFolder()
+            }
+        }
     }
 
     private var addSpaceButton: some View {
@@ -177,41 +137,30 @@ struct SpaceSwitcherView: View {
         .buttonStyle(.plain)
         .help(space.name)
         .contextMenu {
-            Button("Rename Space...") {
-                beginRenaming(space)
+            Button("Edit Space...") {
+                store.beginSpaceEditing(space.id)
             }
 
-            Button("Change Space Icon") {
-                store.cycleSpaceIcon(space.id)
+            Divider()
+
+            Button("Move Space Left") {
+                store.moveSpace(space.id, by: -1)
+            }
+            .disabled(store.spaces.first?.id == space.id)
+
+            Button("Move Space Right") {
+                store.moveSpace(space.id, by: 1)
+            }
+            .disabled(store.spaces.last?.id == space.id)
+
+            Button("Unload Space") {
+                store.unloadSpace(space.id)
             }
 
-            Menu("Edit Theme Color") {
-                Button {
-                    store.updateSpaceTheme(space.id, colorHex: nil)
-                } label: {
-                    Label("Standard", systemImage: space.themeColorHex == nil ? "checkmark" : "circle")
-                }
-
-                Divider()
-
-                ForEach(themeOptions, id: \.hex) { option in
-                    Button {
-                        store.updateSpaceTheme(space.id, colorHex: option.hex)
-                    } label: {
-                        Label(option.name, systemImage: option.hex == space.themeColorHex ? "checkmark" : "circle.fill")
-                    }
-                }
+            Button("Unload All Other Spaces") {
+                store.unloadAllOtherSpaces(except: space.id)
             }
-
-            Menu("Appearance") {
-                ForEach(SpaceThemeAppearance.allCases) { option in
-                    Button {
-                        store.updateSpaceThemeAppearance(space.id, appearance: option)
-                    } label: {
-                        Label(option.title, systemImage: option == space.themeAppearance ? "checkmark" : option.symbolName)
-                    }
-                }
-            }
+            .disabled(store.spaces.count <= 1)
 
             Divider()
 
@@ -240,17 +189,6 @@ struct SpaceSwitcherView: View {
         NSWorkspace.shared.open(downloadsURL)
     }
 
-    private var isRenameAlertPresented: Binding<Bool> {
-        Binding(
-            get: { renamingSpace != nil },
-            set: { isPresented in
-                if !isPresented {
-                    renamingSpace = nil
-                }
-            }
-        )
-    }
-
     private var isDeleteAlertPresented: Binding<Bool> {
         Binding(
             get: { deletingSpace != nil },
@@ -262,76 +200,49 @@ struct SpaceSwitcherView: View {
         )
     }
 
-    private func beginRenaming(_ space: BrowserSpace) {
-        renamingSpace = space
-        renameDraft = space.name
-    }
 }
 
 private struct DownloadsPopoverView: View {
     let onShowAllDownloads: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
+        VStack(alignment: .leading, spacing: 2) {
             Text("No downloads for this session.")
-                .font(.system(size: 18, weight: .semibold))
-                .foregroundStyle(.primary)
-                .padding(.horizontal, 24)
-                .padding(.top, 25)
-                .padding(.bottom, 28)
+                .font(.system(size: 13))
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 7)
 
-            Rectangle()
-                .fill(LumaChromeStyle.popoverBorder)
-                .frame(height: 1)
-                .padding(.horizontal, 24)
+            Divider()
+                .padding(.vertical, 5)
 
-            Button(action: onShowAllDownloads) {
-                Text("Show all downloads")
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(.primary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, 24)
-                    .padding(.vertical, 24)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
+            DownloadsPopoverRow(title: "Show all downloads", action: onShowAllDownloads)
         }
-        .background(
-            RoundedRectangle(cornerRadius: 25, style: .continuous)
-                .fill(LumaChromeStyle.popoverBackground)
-        )
-        .overlay {
-            RoundedRectangle(cornerRadius: 25, style: .continuous)
-                .stroke(LumaChromeStyle.popoverBorder, lineWidth: 1)
-        }
-        .overlay(alignment: .bottomLeading) {
-            DownloadsPopoverTail()
-                .fill(LumaChromeStyle.popoverBackground)
-                .frame(width: 34, height: 24)
-                .overlay {
-                    DownloadsPopoverTail()
-                        .stroke(LumaChromeStyle.popoverBorder, lineWidth: 1)
-                }
-                .offset(x: 13, y: 15)
-        }
-        .shadow(color: Color(nsColor: .shadowColor).opacity(0.24), radius: 18, x: 0, y: 10)
+        .padding(10)
+        .frame(width: 240)
     }
 }
 
-private struct DownloadsPopoverTail: Shape {
-    func path(in rect: CGRect) -> Path {
-        var path = Path()
-        path.move(to: CGPoint(x: rect.minX + 4, y: rect.minY))
-        path.addQuadCurve(
-            to: CGPoint(x: rect.midX - 1, y: rect.maxY - 1),
-            control: CGPoint(x: rect.minX + 7, y: rect.maxY * 0.70)
-        )
-        path.addQuadCurve(
-            to: CGPoint(x: rect.maxX - 3, y: rect.minY),
-            control: CGPoint(x: rect.midX + 6, y: rect.maxY * 0.70)
-        )
-        path.closeSubpath()
-        return path
+private struct DownloadsPopoverRow: View {
+    let title: String
+    let action: () -> Void
+
+    @State private var isHovering = false
+
+    var body: some View {
+        Button(action: action) {
+            Text(title)
+                .font(.system(size: 14, weight: .medium))
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 7)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .background(isHovering ? Color.primary.opacity(0.05) : Color.clear)
+        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .onHover { isHovering = $0 }
+        .animation(.easeOut(duration: 0.10), value: isHovering)
     }
 }
 

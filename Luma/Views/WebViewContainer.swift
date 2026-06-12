@@ -6,6 +6,10 @@ struct WebViewContainer: View {
     private let surfaceCornerRadius: CGFloat = 12
     private let surfacePadding: CGFloat = 8
 
+    private var spaceTint: Color {
+        Color(spaceHex: store.activeThemeColorHexes.first ?? "#8A8F98")
+    }
+
     var body: some View {
         ZStack {
             if store.isSpaceSetupPresented {
@@ -34,6 +38,11 @@ struct WebViewContainer: View {
                     browserSurface {
                         ActiveWebViewHost(tab: tab, store: store)
                             .background(LumaChromeStyle.surfaceFill.opacity(0.72))
+                            .overlay(alignment: .top) {
+                                PageLoadingPill(isLoading: tab.isLoading, tint: spaceTint)
+                                    .padding(.top, 2)
+                                    .id(tab.id)
+                            }
                     }
                     .padding(surfacePadding)
                 }
@@ -156,15 +165,110 @@ struct WebViewContainer: View {
             .foregroundStyle(LumaChromeStyle.sidebarTextSecondary)
             .background(LumaChromeStyle.surfaceFill.opacity(0.72))
 
-            ProgressView(value: tab.loadingProgress)
-                .progressViewStyle(.linear)
-                .opacity(tab.isLoading ? 1 : 0)
-                .frame(height: 2)
-
             WKWebViewRepresentable(tab: tab, store: store)
                 .id(tab.id)
                 .background(LumaChromeStyle.surfaceFill.opacity(0.72))
+                .overlay(alignment: .top) {
+                    PageLoadingPill(isLoading: tab.isLoading, tint: spaceTint)
+                        .padding(.top, 2)
+                        .id(tab.id)
+                }
         }
+    }
+}
+
+/// Zen-style loading pill: a small capsule centered at the top of the web
+/// surface that pulses while the page loads, settles into a wide shimmering
+/// track on long loads (3s+), and shrink-fades away once the page lands.
+/// Shape, timing, and color mix mirror Zen's #zen-loading-progress-bar.
+private struct PageLoadingPill: View {
+    let isLoading: Bool
+    let tint: Color
+
+    var body: some View {
+        ZStack {
+            if isLoading {
+                LoadingPillCore(tint: tint)
+                    .transition(
+                        .asymmetric(
+                            insertion: .opacity,
+                            removal: .opacity.combined(with: .scale(scale: 0.8))
+                        )
+                    )
+            }
+        }
+        .animation(.easeInOut(duration: isLoading ? 0.4 : 0.3), value: isLoading)
+        .allowsHitTesting(false)
+    }
+}
+
+private struct LoadingPillCore: View {
+    let tint: Color
+
+    @Environment(\.colorScheme) private var colorScheme
+
+    @State private var isPulsedUp = false
+    @State private var isLongLoad = false
+    @State private var isShimmerSwept = false
+
+    private let pillWidth: CGFloat = 80
+    private let longLoadWidth: CGFloat = 160
+    private let pillHeight: CGFloat = 6
+    private let longLoadDelay: Duration = .seconds(3)
+
+    var body: some View {
+        Capsule()
+            .fill(isLongLoad ? trackColor : pillColor)
+            .overlay {
+                if isLongLoad {
+                    shimmer
+                }
+            }
+            .clipShape(Capsule())
+            .frame(width: isLongLoad ? longLoadWidth : pillWidth, height: pillHeight)
+            .scaleEffect(isLongLoad ? 1 : (isPulsedUp ? 0.95 : 0.85))
+            .opacity(isLongLoad ? 1 : (isPulsedUp ? 1 : 0.6))
+            .onAppear {
+                withAnimation(.easeInOut(duration: 1).repeatForever(autoreverses: true)) {
+                    isPulsedUp = true
+                }
+            }
+            .task {
+                try? await Task.sleep(for: longLoadDelay)
+                guard !Task.isCancelled else { return }
+                withAnimation(.easeOut(duration: 0.3)) {
+                    isLongLoad = true
+                }
+            }
+    }
+
+    /// Long-load state: the pill becomes a faint track with a tinted
+    /// segment sweeping through it, like an indeterminate marquee.
+    private var shimmer: some View {
+        GeometryReader { proxy in
+            Capsule()
+                .fill(pillColor)
+                .frame(width: proxy.size.width * 0.75)
+                .offset(x: isShimmerSwept ? proxy.size.width : -proxy.size.width * 0.75)
+                .onAppear {
+                    withAnimation(
+                        .easeInOut(duration: 1).repeatForever(autoreverses: false).delay(0.3)
+                    ) {
+                        isShimmerSwept = true
+                    }
+                }
+        }
+    }
+
+    /// Zen: color-mix(in srgb, primary, light-dark(black 50%, white 50%) 70%).
+    private var pillColor: Color {
+        let blend: NSColor = colorScheme == .dark ? .white : .black
+        let mixed = NSColor(tint).usingColorSpace(.sRGB)?.blended(withFraction: 0.7, of: blend) ?? blend
+        return Color(nsColor: mixed).opacity(0.65)
+    }
+
+    private var trackColor: Color {
+        (colorScheme == .dark ? Color.white : Color.black).opacity(0.1)
     }
 }
 
@@ -174,7 +278,7 @@ private struct SpaceSetupCanvas: View {
     let texture: Double
 
     var body: some View {
-        ZStack(alignment: .trailing) {
+        ZStack {
             RoundedRectangle(cornerRadius: 12, style: .continuous)
                 .fill(canvasFill)
 
@@ -201,14 +305,6 @@ private struct SpaceSetupCanvas: View {
             )
             .blendMode(.overlay)
             .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-
-            Image(systemName: "car.side.fill")
-                .font(.system(size: 146, weight: .regular))
-                .symbolRenderingMode(.hierarchical)
-                .foregroundStyle(Color.primary.opacity(0.052))
-                .padding(.trailing, 148)
-                .offset(y: 8)
-                .allowsHitTesting(false)
         }
         .overlay {
             ZStack {

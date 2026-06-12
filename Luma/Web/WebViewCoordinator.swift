@@ -105,6 +105,13 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
                 forMainFrameOnly: true
             )
         )
+        contentController.addUserScript(
+            WKUserScript(
+                source: Self.overlayScrollbarScript,
+                injectionTime: .atDocumentStart,
+                forMainFrameOnly: false
+            )
+        )
 
         webViews[tabID] = webView
         tabIDsByWebView.setObject(tabID.uuidString as NSString, forKey: webView)
@@ -351,6 +358,19 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         }
     }
 
+    /// Manual "Unload Space": hibernates every eligible tab in the given
+    /// spaces immediately, waiving only the idle-time requirement. The
+    /// hibernation exemptions (active tab, split tab, pinned tabs, media,
+    /// popups awaiting first load, unsaved input) still apply.
+    func unloadTabs(inSpaces spaceIDs: Set<UUID>) {
+        guard let store else { return }
+
+        for tab in store.tabs
+        where spaceIDs.contains(tab.spaceID) && webViews[tab.id] != nil && isHibernatable(tab, idleBefore: .distantFuture) {
+            hibernateIfNoUnsavedInput(tab.id, idleBefore: .distantFuture)
+        }
+    }
+
     private func isHibernatable(_ tab: BrowserTab, idleBefore cutoff: Date) -> Bool {
         guard let store else { return false }
         return tab.id != store.activeTabID
@@ -366,24 +386,24 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
             && !restoringTabIDs.contains(tab.id)
     }
 
-    private func hibernateIfNoUnsavedInput(_ tabID: UUID) {
+    private func hibernateIfNoUnsavedInput(_ tabID: UUID, idleBefore cutoff: Date = Date()) {
         guard let webView = webViews[tabID] else { return }
 
         webView.evaluateJavaScript(Self.unsavedInputCheckScript) { [weak self] value, error in
             Task { @MainActor in
                 guard error == nil, (value as? Bool) == false else { return }
-                self?.hibernate(tabID)
+                self?.hibernate(tabID, idleBefore: cutoff)
             }
         }
     }
 
-    private func hibernate(_ tabID: UUID) {
+    private func hibernate(_ tabID: UUID, idleBefore cutoff: Date = Date()) {
         guard
             let store,
             let webView = webViews[tabID],
             let tab = store.tabs.first(where: { $0.id == tabID }),
             // State may have changed while the unsaved-input check ran.
-            isHibernatable(tab, idleBefore: Date())
+            isHibernatable(tab, idleBefore: cutoff)
         else { return }
 
         if let interactionState = webView.interactionState as? Data {
@@ -391,6 +411,59 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         }
         removeWebView(for: tabID, keepingHibernationData: true)
     }
+
+    /// Injected at document start into every frame; replaces the system
+    /// always-visible scrollbar with a transparent overlay whose thumb is
+    /// shown only while the page is actively scrolling.
+    private static let overlayScrollbarScript = """
+    (() => {
+      if (window.__lumaOverlayScrollbar) { return; }
+      window.__lumaOverlayScrollbar = true;
+
+      const scrollingClass = "__luma-scrolling";
+      const style = document.createElement("style");
+      style.textContent = `
+        ::-webkit-scrollbar {
+          width: 9px;
+          height: 9px;
+          background: transparent !important;
+        }
+        ::-webkit-scrollbar-track,
+        ::-webkit-scrollbar-corner {
+          background: transparent !important;
+        }
+        ::-webkit-scrollbar-thumb {
+          background: transparent;
+          border-radius: 9px;
+        }
+        html.${scrollingClass} ::-webkit-scrollbar-thumb {
+          background: rgba(128, 128, 128, 0.55);
+        }
+        ::-webkit-scrollbar-thumb:hover {
+          background: rgba(128, 128, 128, 0.75) !important;
+        }
+      `;
+
+      const attachStyle = () => {
+        if (document.documentElement) {
+          document.documentElement.appendChild(style);
+        } else {
+          document.addEventListener("DOMContentLoaded", attachStyle, { once: true });
+        }
+      };
+      attachStyle();
+
+      let hideTimer = null;
+      const revealScrollbar = () => {
+        document.documentElement.classList.add(scrollingClass);
+        if (hideTimer) { clearTimeout(hideTimer); }
+        hideTimer = setTimeout(() => {
+          document.documentElement.classList.remove(scrollingClass);
+        }, 900);
+      };
+      window.addEventListener("scroll", revealScrollbar, { capture: true, passive: true });
+    })();
+    """
 
     /// Hibernation guard: anything the user may have typed keeps the page
     /// alive, because tearing down the web view would lose that input.

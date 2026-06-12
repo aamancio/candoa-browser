@@ -38,6 +38,7 @@ final class BrowserStore: ObservableObject {
     @Published var commandPaletteSessionID = UUID()
     @Published private(set) var commandPaletteOpensNewTab = false
     @Published var isCreateSpacePresented = false
+    @Published var editingSpaceID: UUID?
     @Published private(set) var isInitialSpaceSetupPresented = false
     @Published private(set) var spaceThemeAppearancePreview: SpaceThemeAppearance?
     @Published private(set) var isSpaceThemeColorPreviewActive = false
@@ -64,6 +65,7 @@ final class BrowserStore: ObservableObject {
     @Published private(set) var iCloudHistorySyncEnabled =
         LumaCloudKitEntitlements.hasConfiguredContainer && LumaSyncPreferences.syncsHistoryWithICloud
     @Published var syncRestartMessage: String?
+    @Published private(set) var copiedURLToast: CopiedURLToast?
 
     private var recentlyClosedTabs: [ClosedTabSnapshot] = []
     private static let recentlyClosedTabLimit = 50
@@ -77,6 +79,8 @@ final class BrowserStore: ObservableObject {
     private var remoteChangeCancellable: AnyCancellable?
     private var tabSwitcherHideWorkItem: DispatchWorkItem?
     private var tabSwitcherShowWorkItem: DispatchWorkItem?
+    private var copiedURLToastHideWorkItem: DispatchWorkItem?
+    private var isCopiedURLToastSharing = false
     private var tabSwitcherCandidates: [BrowserTab] = []
     private var isApplyingRemoteState = false
     private let spaceSymbols = [
@@ -138,7 +142,12 @@ final class BrowserStore: ObservableObject {
     }
 
     var isSpaceSetupPresented: Bool {
-        isCreateSpacePresented || isInitialSpaceSetupPresented
+        isCreateSpacePresented || isInitialSpaceSetupPresented || editingSpaceID != nil
+    }
+
+    var editingSpace: BrowserSpace? {
+        guard let editingSpaceID else { return nil }
+        return spaces.first { $0.id == editingSpaceID }
     }
 
     var activeTab: BrowserTab? {
@@ -256,6 +265,13 @@ final class BrowserStore: ObservableObject {
         commandPaletteOpensNewTab = false
     }
 
+    /// Arc-style ⌘T: no tab exists yet — the sidebar's New Tab button takes
+    /// the selection highlight while the palette is open, and the real tab is
+    /// only created when a result is picked.
+    var isNewTabPaletteActive: Bool {
+        isCommandPalettePresented && commandPaletteOpensNewTab
+    }
+
     func consumeCommandPaletteNewTabIntent() -> Bool {
         let opensNewTab = commandPaletteOpensNewTab
         commandPaletteOpensNewTab = false
@@ -266,7 +282,17 @@ final class BrowserStore: ObservableObject {
         guard !isInitialSpaceSetupPresented else { return }
         isCommandPalettePresented = false
         commandPaletteOpensNewTab = false
+        editingSpaceID = nil
         isCreateSpacePresented = true
+    }
+
+    func beginSpaceEditing(_ id: UUID) {
+        guard !isInitialSpaceSetupPresented, spaces.contains(where: { $0.id == id }) else { return }
+        isCommandPalettePresented = false
+        commandPaletteOpensNewTab = false
+        isCreateSpacePresented = false
+        switchSpace(to: id)
+        editingSpaceID = id
     }
 
     @discardableResult
@@ -376,6 +402,30 @@ final class BrowserStore: ObservableObject {
         flushSession()
     }
 
+    func updateSpace(
+        _ id: UUID,
+        name: String,
+        symbolName: String,
+        themeColorHex: String?,
+        themeAppearance: SpaceThemeAppearance,
+        themeOpacity: Double,
+        themeTexture: Double
+    ) {
+        let normalizedName = Self.normalizedSpaceName(name)
+        guard !normalizedName.isEmpty, let index = spaces.firstIndex(where: { $0.id == id }) else { return }
+
+        spaces[index].name = normalizedName
+        spaces[index].symbolName = symbolName
+        spaces[index].themeColorHex = themeColorHex
+        spaces[index].themeAppearance = themeAppearance
+        spaces[index].themeOpacity = min(0.9, max(0.3, themeOpacity))
+        spaces[index].themeTexture = min(1, max(0, themeTexture))
+
+        editingSpaceID = nil
+        updateNavigationState()
+        flushSession()
+    }
+
     func updateSpaceTheme(_ id: UUID, colorHex: String?) {
         guard let index = spaces.firstIndex(where: { $0.id == id }) else { return }
         spaces[index].themeColorHex = colorHex
@@ -454,6 +504,10 @@ final class BrowserStore: ObservableObject {
     func deleteSpace(_ id: UUID) {
         guard spaces.count > 1, let deletedSpaceIndex = spaces.firstIndex(where: { $0.id == id }) else { return }
 
+        if editingSpaceID == id {
+            editingSpaceID = nil
+        }
+
         let removedTabIDs = tabs.filter { $0.spaceID == id }.map(\.id)
         tabs.removeAll { $0.spaceID == id }
         removedTabIDs.forEach { webCoordinator.removeWebView(for: $0) }
@@ -476,6 +530,22 @@ final class BrowserStore: ObservableObject {
         repairSessionState()
         updateNavigationState()
         flushSession()
+    }
+
+    func moveSpace(_ id: UUID, by offset: Int) {
+        guard let index = spaces.firstIndex(where: { $0.id == id }) else { return }
+        let targetIndex = index + offset
+        guard spaces.indices.contains(targetIndex) else { return }
+        spaces.swapAt(index, targetIndex)
+        flushSession()
+    }
+
+    func unloadSpace(_ id: UUID) {
+        webCoordinator.unloadTabs(inSpaces: [id])
+    }
+
+    func unloadAllOtherSpaces(except id: UUID) {
+        webCoordinator.unloadTabs(inSpaces: Set(spaces.map(\.id)).subtracting([id]))
     }
 
     func moveTab(_ tabID: UUID, toSpace targetSpaceID: UUID) {
@@ -633,6 +703,57 @@ final class BrowserStore: ObservableObject {
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
         pasteboard.setString(value, forType: .string)
+        presentCopiedURLToast(
+            title: asMarkdown ? "Copied URL as Markdown" : "Copied current URL",
+            url: url
+        )
+    }
+
+    private func presentCopiedURLToast(title: String, url: URL) {
+        isCopiedURLToastSharing = false
+        copiedURLToast = CopiedURLToast(id: UUID(), title: title, url: url)
+        scheduleCopiedURLToastDismissal()
+    }
+
+    /// Zen keeps the toast alive while hovered and restarts the dismissal
+    /// timer on mouse-out.
+    func setCopiedURLToastHovered(_ hovered: Bool) {
+        guard copiedURLToast != nil, !isCopiedURLToastSharing else { return }
+        if hovered {
+            copiedURLToastHideWorkItem?.cancel()
+            copiedURLToastHideWorkItem = nil
+        } else {
+            scheduleCopiedURLToastDismissal()
+        }
+    }
+
+    /// While the share picker spawned from the toast is open, the toast must
+    /// not auto-dismiss (tearing down its anchor would close the picker).
+    func setCopiedURLToastSharing(_ sharing: Bool) {
+        guard copiedURLToast != nil else {
+            isCopiedURLToastSharing = false
+            return
+        }
+        isCopiedURLToastSharing = sharing
+        if sharing {
+            copiedURLToastHideWorkItem?.cancel()
+            copiedURLToastHideWorkItem = nil
+        } else {
+            scheduleCopiedURLToastDismissal()
+        }
+    }
+
+    private func scheduleCopiedURLToastDismissal() {
+        copiedURLToastHideWorkItem?.cancel()
+        let workItem = DispatchWorkItem { [weak self] in
+            Task { @MainActor in
+                guard let self else { return }
+                self.copiedURLToast = nil
+                self.copiedURLToastHideWorkItem = nil
+            }
+        }
+        copiedURLToastHideWorkItem = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0, execute: workItem)
     }
 
     func showFindBar() {
@@ -836,6 +957,12 @@ final class BrowserStore: ObservableObject {
     /// Leaving a media tab refreshes playback state so the in-app mini player
     /// can attach to the background web view immediately.
     private func handleActiveTabChange(from previousID: UUID?) {
+        // Returning to a dismissed media tab re-arms the mini player so the
+        // next switch away can summon it again.
+        if activeTabID == dismissedMiniPlayerTabID {
+            dismissedMiniPlayerTabID = nil
+        }
+
         if
             let previousID,
             previousID != splitTabID,
@@ -971,10 +1098,17 @@ final class BrowserStore: ObservableObject {
 
     func navigateNewTab(to rawInput: String) {
         guard let url = navigationService.destinationURL(for: rawInput) else { return }
-        newTab(url: url)
+        navigateNewTab(to: url)
     }
 
     func navigateNewTab(to url: URL) {
+        // Already sitting on an empty tab: fill it instead of stacking
+        // another "New Tab" in the sidebar.
+        if let activeTab, activeTab.url == nil {
+            navigateActiveTab(to: url)
+            return
+        }
+
         newTab(url: url)
     }
 
@@ -1229,6 +1363,9 @@ final class BrowserStore: ObservableObject {
         isInitialSpaceSetupPresented = needsInitialSpaceSetup()
         if !isInitialSpaceSetupPresented {
             isCreateSpacePresented = false
+        }
+        if let editingSpaceID, !spaces.contains(where: { $0.id == editingSpaceID }) {
+            self.editingSpaceID = nil
         }
 
         let tabIDs = Set(tabs.map(\.id))

@@ -42,15 +42,34 @@ is what makes the claim credible to developers.
 Subtract the baseline run's package power from each browser's to get the
 browser-attributable power. Report both raw and baseline-corrected numbers.
 
+## Memory benchmark
+
+`memory-bench.sh` samples the browser's total resident memory (no sudo
+needed) and is designed to capture the hibernation cliff:
+
+1. Open the identical tab set, then hands off the machine — interacting with
+   tabs resets their idle timers.
+2. Run for 40 minutes: `./memory-bench.sh luma 'Luma|com.apple.WebKit' 2400`
+   (same process patterns as the battery script).
+3. The `final_mb` column is the headline: after the 15-minute idle threshold,
+   Luma's background tabs give up their WebContent processes while Chromium
+   (Arc, Brave) and Gecko (Zen) stay flat or grow. Plot the per-label
+   `results/<label>-memory.csv` time series for the chart — the cliff is the
+   story.
+
+Caveat to state when publishing: RSS over-counts memory shared between
+processes, but it over-counts every browser the same way, so the comparison
+is fair even though absolute numbers read high.
+
 ## Results
 
-| Browser | Avg CPU (all processes) | Pkg power vs baseline | Energy (10 min) |
-|---|---|---|---|
-| Luma | | | |
-| Luma (tabs hibernated) | | | |
-| Arc | | | |
-| Brave | | | |
-| Zen | | | |
+| Browser | Avg CPU (all processes) | Pkg power vs baseline | Energy (10 min) | Memory at T+40min |
+|---|---|---|---|---|
+| Luma | | | | |
+| Luma (tabs hibernated) | | | | |
+| Arc | | | | |
+| Brave | | | | |
+| Zen | | | | |
 
 ## Post template
 

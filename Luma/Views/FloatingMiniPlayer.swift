@@ -89,12 +89,15 @@ struct FloatingMiniPlayerContainer: View {
             }
         }
         .frame(width: size.width, height: size.height)
+        // Hit testing and the drag gesture must attach to the sized frame;
+        // .position expands to fill the whole content area, so applying them
+        // after it would swallow scroll and click events over the page.
+        .contentShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
+        .gesture(dragGesture(in: availableSize))
         .position(
             x: resolvedOrigin.x + size.width / 2,
             y: resolvedOrigin.y + size.height / 2
         )
-        .contentShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
-        .gesture(dragGesture(in: availableSize))
         .onAppear {
             clampLayout()
         }
