@@ -32,7 +32,9 @@ struct SpaceSwitcherView: View {
             Spacer(minLength: 8)
 
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 14) {
+                // 22pt items + 8pt spacing keeps the same 30pt center rhythm
+                // the old 16pt items had with 14pt spacing.
+                HStack(spacing: 8) {
                     ForEach(store.spaces) { space in
                         workspaceButton(for: space)
                     }
@@ -148,19 +150,29 @@ struct SpaceSwitcherView: View {
         return Button {
             store.switchSpace(to: space.id)
         } label: {
-            Circle()
-                .fill(isActive ? themeColor : themeColor.opacity(0.50))
-                .frame(width: isActive ? 8 : 7, height: isActive ? 8 : 7)
-                .frame(width: 16, height: 28)
-                .overlay {
-                    if isActive {
-                        Circle()
-                            .stroke(themeColor.opacity(0.28), lineWidth: 5)
-                            .frame(width: 16, height: 16)
-                            .allowsHitTesting(false)
-                    }
+            Group {
+                if let emoji = space.iconEmoji {
+                    Text(emoji)
+                        .font(.system(size: 13))
+                        .opacity(isActive ? 1 : 0.55)
+                } else {
+                    Circle()
+                        .fill(isActive ? themeColor : themeColor.opacity(0.50))
+                        .frame(width: isActive ? 8 : 7, height: isActive ? 8 : 7)
+                        .overlay {
+                            if isActive {
+                                Circle()
+                                    .stroke(themeColor.opacity(0.28), lineWidth: 5)
+                                    .frame(width: 16, height: 16)
+                                    .allowsHitTesting(false)
+                            }
+                        }
                 }
-                .contentShape(Rectangle())
+            }
+            // 22pt fits the active ring (16pt circle + 5pt stroke = 21pt) so
+            // the ScrollView's clip no longer cuts it off.
+            .frame(width: 22, height: 28)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .help(space.name)
@@ -344,8 +356,7 @@ private struct SpaceActionMenu: View {
             }
 
             menuButton(BrowserCommandTitles.newTab, systemImage: "plus") {
-                store.newTab()
-                store.focusAddressBar()
+                store.openNewTabCommandPalette()
             }
         }
         .padding(10)

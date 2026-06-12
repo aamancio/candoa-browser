@@ -285,8 +285,7 @@ struct SidebarView: View {
 
     private var newTabButton: some View {
         Button {
-            store.newTab()
-            store.focusAddressBar()
+            store.openNewTabCommandPalette()
         } label: {
             Label(BrowserCommandTitles.newTab, systemImage: "plus")
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -670,7 +669,7 @@ private struct CreateSpaceSidebarComposer: View {
                 dataStoreID: dataMode.dataStoreID(current: store.activeSpace?.dataStoreID)
             )
             store.clearSpaceThemePreview()
-            store.focusAddressBar()
+            store.openNewTabCommandPalette()
             return
         }
 
@@ -685,7 +684,7 @@ private struct CreateSpaceSidebarComposer: View {
         )
         store.clearSpaceThemePreview()
         store.isCreateSpacePresented = false
-        store.focusAddressBar()
+        store.openNewTabCommandPalette()
     }
 
 }
@@ -2016,7 +2015,7 @@ private struct SpaceIconOption: Identifiable {
         return String(symbolName.dropFirst(emojiPrefix.count))
     }
 
-    private static let emojiPrefix = "emoji:"
+    private static let emojiPrefix = BrowserSpace.emojiSymbolPrefix
 }
 
 private enum SpaceIconPickerMode: String, CaseIterable, Identifiable {

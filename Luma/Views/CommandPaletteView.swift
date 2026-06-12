@@ -403,8 +403,7 @@ struct CommandPaletteView: View {
 
         switch command.action {
         case .newTab:
-            store.newTab()
-            store.focusAddressBar()
+            store.openNewTabCommandPalette()
         case .closeCurrentTab:
             store.closeCurrentTab()
         case .duplicateCurrentTab:

@@ -310,7 +310,6 @@ final class BrowserStore: ObservableObject {
         )
         spaces.append(space)
         switchSpace(to: space.id)
-        _ = newTab()
         flushSession()
         return space
     }
@@ -965,13 +964,17 @@ final class BrowserStore: ObservableObject {
     }
 
     func navigateActiveTab(to rawInput: String) {
-        guard let tabID = activeTabID, let url = navigationService.destinationURL(for: rawInput) else { return }
-        setURL(url, title: title(for: url), for: tabID)
-        webCoordinator.load(url, in: tabID)
+        guard let url = navigationService.destinationURL(for: rawInput) else { return }
+        navigateActiveTab(to: url)
     }
 
     func navigateActiveTab(to url: URL) {
-        guard let tabID = activeTabID else { return }
+        // Empty spaces have no active tab; navigating from the address
+        // dialog should open one rather than dropping the input.
+        guard let tabID = activeTabID else {
+            _ = newTab(url: url)
+            return
+        }
         setURL(url, title: title(for: url), for: tabID)
         webCoordinator.load(url, in: tabID)
     }
@@ -1492,7 +1495,14 @@ final class BrowserStore: ObservableObject {
     }
 
     private func clearLegacyDefaultSpaceName() {
-        guard spaces.count == 1, spaces[0].name == "Personal" else { return }
+        // Only the untouched legacy default ("Personal" + original symbol,
+        // no theme) goes back through onboarding. A user-created space that
+        // happens to be named "Personal" must keep its name.
+        guard spaces.count == 1,
+              spaces[0].name == "Personal",
+              spaces[0].symbolName == "circle.grid.2x2",
+              spaces[0].themeColorHex == nil
+        else { return }
         spaces[0].name = ""
     }
 

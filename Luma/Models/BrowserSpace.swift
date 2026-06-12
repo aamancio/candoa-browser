@@ -31,6 +31,10 @@ enum SpaceThemeAppearance: String, CaseIterable, Codable, Hashable, Identifiable
 }
 
 struct BrowserSpace: Identifiable, Codable, Hashable {
+    /// Emoji icons are stored in `symbolName` behind this prefix to keep the
+    /// persisted field a single string alongside SF Symbol names.
+    static let emojiSymbolPrefix = "emoji:"
+
     var id: UUID
     var name: String
     var symbolName: String
@@ -61,6 +65,11 @@ struct BrowserSpace: Identifiable, Codable, Hashable {
         self.themeTexture = min(1, max(0, themeTexture))
         self.dataStoreID = dataStoreID ?? id
         self.createdAt = createdAt
+    }
+
+    var iconEmoji: String? {
+        guard symbolName.hasPrefix(Self.emojiSymbolPrefix) else { return nil }
+        return String(symbolName.dropFirst(Self.emojiSymbolPrefix.count))
     }
 
     private enum CodingKeys: String, CodingKey {
