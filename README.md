@@ -164,6 +164,16 @@ Please keep changes aligned with the project direction:
 - Avoid copying Arc or Zen branding, icons, assets, or exact UI.
 - Keep the codebase approachable for a small open-source project.
 
+By submitting a contribution, you agree it is provided under the project's MPL-2.0 license.
+
 ## License
 
-MIT License. See `LICENSE`.
+Luma is open source under the Mozilla Public License 2.0 (MPL-2.0) — the same license used by Firefox, Zen, and Brave. See `LICENSE`.
+
+In short: you are free to use, build, modify, and redistribute Luma, but if you distribute modified versions of Luma's source files, those files must remain available under MPL-2.0. This is not legal advice; the `LICENSE` text is what governs.
+
+Code contributed before the license change was published under the MIT License; from this point forward the project is MPL-2.0.
+
+## Trademark
+
+"Luma" and the Luma app identity are not covered by the source-code license. You may not use the Luma name, icon, or branding for forks, modified builds, or derived products without permission. Forks must ship under a different name and identity.
