@@ -81,3 +81,27 @@ enum TabSwitcherConfiguration {
     /// preview overlay only appears if Control is still held after this delay.
     static let holdRevealDelay: TimeInterval = 0.25
 }
+
+extension URL {
+    /// Arc's local-development detection: localhost, loopback addresses, and
+    /// *.localhost hosts get developer chrome (info icon, full URL, dev bar).
+    var isLocalDevelopment: Bool {
+        guard let host = host(percentEncoded: false) else { return false }
+        let normalizedHost = host.lowercased()
+        return normalizedHost == "localhost"
+            || normalizedHost.hasSuffix(".localhost")
+            || normalizedHost == "::1"
+            || normalizedHost == "0.0.0.0"
+            || normalizedHost.hasPrefix("127.")
+    }
+
+    /// Full URL text for developer chrome — scheme, port, and path, with a
+    /// bare trailing slash trimmed.
+    var localDevelopmentDisplayText: String {
+        var text = absoluteString
+        if path() == "/", query() == nil, text.hasSuffix("/") {
+            text.removeLast()
+        }
+        return text
+    }
+}

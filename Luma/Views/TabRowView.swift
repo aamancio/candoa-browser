@@ -6,11 +6,13 @@ struct TabRowView: View {
     let isActive: Bool
     let isSplit: Bool
     let accentColor: Color
+    let mediaState: TabMediaState?
     let onSelect: () -> Void
     let onClose: () -> Void
     let onDuplicate: () -> Void
     let onOpenInSplit: () -> Void
     let onTogglePin: () -> Void
+    let onToggleMute: () -> Void
 
     @State private var isHovering = false
 
@@ -27,6 +29,19 @@ struct TabRowView: View {
                 }
             }
             .frame(width: 16, height: 16)
+
+            if let audioIndicatorIcon {
+                Button(action: onToggleMute) {
+                    Image(systemName: audioIndicatorIcon)
+                        .font(.system(size: 10.5, weight: .semibold))
+                        .frame(width: 16, height: 16)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(isActive ? LumaChromeStyle.sidebarText : LumaChromeStyle.sidebarIcon)
+                .help(mediaState?.isMuted == true ? "Unmute Tab" : "Mute Tab")
+                .transition(.opacity)
+            }
 
             Text(tab.title)
                 .lineLimit(1)
@@ -65,6 +80,9 @@ struct TabRowView: View {
             onSelect()
         }
         .contextMenu {
+            if mediaState?.hasMedia == true {
+                Button(mediaState?.isMuted == true ? "Unmute Tab" : "Mute Tab", action: onToggleMute)
+            }
             Button(tab.isPinned ? "Unpin Tab" : "Pin Tab", action: onTogglePin)
             Button(BrowserCommandTitles.duplicateTab, action: onDuplicate)
             Button("Open in Split View", action: onOpenInSplit)
@@ -78,6 +96,19 @@ struct TabRowView: View {
             }
         }
         .animation(.easeOut(duration: 0.10), value: isHovering)
+        // Selection moves with a fast fade rather than a hard swap, and the
+        // speaker indicator eases in instead of shoving the title sideways.
+        .animation(.easeOut(duration: 0.12), value: isActive)
+        .animation(.easeOut(duration: 0.14), value: audioIndicatorIcon)
+    }
+
+    // Muted shows whenever the page holds media (so the user can find and
+    // unmute it later); the speaker only shows while audio is playing.
+    private var audioIndicatorIcon: String? {
+        guard let mediaState, mediaState.hasMedia else { return nil }
+        if mediaState.isMuted { return "speaker.slash.fill" }
+        if mediaState.isPlaying { return "speaker.wave.2.fill" }
+        return nil
     }
 
     private var rowBackground: Color {
@@ -118,12 +149,13 @@ private struct TabHoverTracker: NSViewRepresentable {
 
     func updateNSView(_ view: TrackingView, context: Context) {
         view.onHoverChange = { isHovering = $0 }
-        view.syncHoverState()
+        view.scheduleHoverSync()
     }
 
     final class TrackingView: NSView {
         var onHoverChange: ((Bool) -> Void)?
         private var trackingArea: NSTrackingArea?
+        private var pendingHoverSync = false
 
         override func updateTrackingAreas() {
             if let trackingArea {
@@ -142,14 +174,12 @@ private struct TabHoverTracker: NSViewRepresentable {
             self.trackingArea = trackingArea
 
             super.updateTrackingAreas()
-            syncHoverState()
+            scheduleHoverSync()
         }
 
         override func viewDidMoveToWindow() {
             super.viewDidMoveToWindow()
-            DispatchQueue.main.async { [weak self] in
-                self?.syncHoverState()
-            }
+            scheduleHoverSync()
         }
 
         // The first syncHoverState can run before SwiftUI has sized this
@@ -157,7 +187,7 @@ private struct TabHoverTracker: NSViewRepresentable {
         // is actually over the row. Re-sync once real geometry arrives.
         override func layout() {
             super.layout()
-            syncHoverState()
+            scheduleHoverSync()
         }
 
         override func mouseEntered(with event: NSEvent) {
@@ -172,7 +202,21 @@ private struct TabHoverTracker: NSViewRepresentable {
             syncHoverState()
         }
 
-        func syncHoverState() {
+        // Layout-driven syncs (updateNSView, layout, updateTrackingAreas)
+        // run inside SwiftUI's view update, where writing the hover binding
+        // is undefined behavior — defer those one runloop turn. Mouse event
+        // handlers stay synchronous.
+        func scheduleHoverSync() {
+            guard !pendingHoverSync else { return }
+            pendingHoverSync = true
+            DispatchQueue.main.async { [weak self] in
+                guard let self else { return }
+                self.pendingHoverSync = false
+                self.syncHoverState()
+            }
+        }
+
+        private func syncHoverState() {
             guard let window else {
                 onHoverChange?(false)
                 return

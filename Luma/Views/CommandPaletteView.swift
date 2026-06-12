@@ -5,13 +5,17 @@ struct CommandPaletteView: View {
     @ObservedObject var store: BrowserStore
     @State private var query = ""
     @State private var selectedSearchProvider: SearchProvider?
+    @State private var isActionsMode = false
     @State private var selectedCommandIndex = 0
     @State private var fieldFocusRequestID = UUID()
     @FocusState private var isSearchFocused: Bool
     @Environment(\.colorScheme) private var colorScheme
 
+    /// Arc's command bar accent — the one selection color everywhere.
+    static let paletteTint = Color(red: 0.26, green: 0.27, blue: 0.88)
+
     private var activeTint: Color {
-        selectedSearchProvider?.paletteColor ?? Color(red: 0.26, green: 0.27, blue: 0.88)
+        selectedSearchProvider?.paletteColor ?? Self.paletteTint
     }
 
     var body: some View {
@@ -33,7 +37,9 @@ struct CommandPaletteView: View {
                     )
 
                     if let selectedSearchProvider {
-                        SearchProviderChip(provider: selectedSearchProvider)
+                        PaletteChip(text: selectedSearchProvider.name, color: selectedSearchProvider.paletteColor)
+                    } else if isActionsMode {
+                        PaletteChip(text: "Actions", color: Self.paletteTint)
                     }
 
                     searchField
@@ -85,9 +91,16 @@ struct CommandPaletteView: View {
                     .padding(.horizontal, 12)
                     .padding(.vertical, 11)
                 }
-                .frame(maxHeight: 320)
+                // ScrollView always claims its max height; with few rows
+                // that left a dead slab under the results. Size it to the
+                // rows instead (Arc's bar hugs its content).
+                .frame(height: resultsHeight)
             }
-            .frame(width: 860)
+            // Zen's floating urlbar width: min(window width / 1.5, 750)
+            // (ZenUIManager.updateTabsToolbar's --zen-urlbar-width).
+            .containerRelativeFrame(.horizontal) { length, _ in
+                min(length / 1.5, 750)
+            }
             .background(PaletteBackground())
             .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
             .overlay {
@@ -98,7 +111,7 @@ struct CommandPaletteView: View {
         }
         .background(
             CommandPaletteKeyMonitor(
-                isProviderChipDeletable: selectedSearchProvider != nil && query.isEmpty,
+                isProviderChipDeletable: (selectedSearchProvider != nil || isActionsMode) && query.isEmpty,
                 onDeleteProviderChip: deleteSelectedSearchProvider,
                 onMoveSelection: moveSelection,
                 onCancel: { dismissPalette() }
@@ -107,6 +120,7 @@ struct CommandPaletteView: View {
         .onAppear {
             query = store.commandPaletteInitialText
             selectedSearchProvider = nil
+            isActionsMode = false
             selectedCommandIndex = 0
             fieldFocusRequestID = UUID()
             focusSearchField()
@@ -123,10 +137,68 @@ struct CommandPaletteView: View {
         .onChange(of: selectedSearchProvider) { _, _ in
             selectedCommandIndex = 0
         }
+        .onChange(of: isActionsMode) { _, _ in
+            selectedCommandIndex = 0
+        }
     }
 
     private var visibleCommands: [PaletteCommand] {
-        Array(filteredCommands.prefix(6))
+        Array(dedupedCommands(filteredCommands).prefix(6))
+    }
+
+    /// Exact height of the visible rows (46pt rows, 7pt spacing, 11pt
+    /// vertical padding), so the results area hugs its content.
+    private var resultsHeight: CGFloat {
+        let count = CGFloat(visibleCommands.count)
+        return count * 46 + max(0, count - 1) * 7 + 22
+    }
+
+    /// The same page can surface as several history visits plus an open tab;
+    /// Arc shows it once. Tab rows and navigations collapse on their target,
+    /// keeping the first (highest-ranked) occurrence.
+    private func dedupedCommands(_ commands: [PaletteCommand]) -> [PaletteCommand] {
+        var seenKeys = Set<String>()
+        return commands.filter { command in
+            switch command.action {
+            case .navigate(let input):
+                // Two keys: revisits of one page can differ by tracking
+                // params (same title+host, different URL), and the same URL
+                // can carry different titles across visits. Either repeating
+                // reads as a duplicate row.
+                let urlInserted = seenKeys
+                    .insert("navigate:\(normalizedURLKey(input))").inserted
+                let labelInserted = seenKeys
+                    .insert("navlabel:\(command.title.lowercased())|\(command.detail?.lowercased() ?? "")").inserted
+                return urlInserted && labelInserted
+            case .switchTab(let id):
+                // Tab rows claim their page's label too, so a history visit
+                // of the same page (under a cosmetically different URL)
+                // can't trail it as a second row.
+                let idInserted = seenKeys.insert("tab:\(id.uuidString)").inserted
+                seenKeys.insert("navlabel:\(command.title.lowercased())|\(command.detail?.lowercased() ?? "")")
+                return idInserted
+            default:
+                return true
+            }
+        }
+    }
+
+    /// Pages get revisited with cosmetic URL differences (trailing slash,
+    /// letter case); those must still count as the same target.
+    private func normalizedURLKey(_ text: String) -> String {
+        var key = text.lowercased()
+        if key.hasSuffix("/") {
+            key.removeLast()
+        }
+        return key
+    }
+
+    private func openTab(matching url: URL) -> BrowserTab? {
+        let key = normalizedURLKey(url.absoluteString)
+        return store.tabs.first {
+            guard let tabURL = $0.url else { return false }
+            return normalizedURLKey(tabURL.absoluteString) == key
+        }
     }
 
     /// Arc/Zen-style result navigation: Up/Down arrows and Control-P/N move
@@ -179,6 +251,14 @@ struct CommandPaletteView: View {
     }
 
     private var filteredCommands: [PaletteCommand] {
+        if isActionsMode {
+            let trimmedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmedQuery.isEmpty else { return actionCommands }
+            return actionCommands.filter {
+                $0.title.localizedCaseInsensitiveContains(trimmedQuery)
+            }
+        }
+
         let trimmedQuery = commandQueryText.trimmingCharacters(in: .whitespacesAndNewlines)
         let commands = commandCandidates(for: trimmedQuery, isResumingSearchURL: isResumingSearchURL)
         guard !trimmedQuery.isEmpty else { return commands }
@@ -189,6 +269,53 @@ struct CommandPaletteView: View {
         }
     }
 
+    /// Arc's Tab-key Actions mode: commands that act on the current tab,
+    /// with their shortcut badges, in Arc's order.
+    private var actionCommands: [PaletteCommand] {
+        [
+            PaletteCommand(
+                title: BrowserCommandTitles.copyURL,
+                symbolName: "doc.on.doc",
+                shortcutHint: "⇧⌘C",
+                action: .copyURL
+            ),
+            PaletteCommand(
+                title: BrowserCommandTitles.closeCurrentTab,
+                symbolName: "xmark",
+                shortcutHint: "⌘W",
+                action: .closeCurrentTab
+            ),
+            PaletteCommand(
+                title: BrowserCommandTitles.reloadTab,
+                symbolName: "arrow.clockwise",
+                shortcutHint: "⌘R",
+                action: .reloadTab
+            ),
+            PaletteCommand(
+                title: BrowserCommandTitles.copyURLAsMarkdown,
+                symbolName: "doc.on.doc",
+                shortcutHint: "⇧⌥⌘C",
+                action: .copyURLAsMarkdown
+            ),
+            PaletteCommand(
+                title: BrowserCommandTitles.pinOrUnpinTab,
+                symbolName: "pin",
+                shortcutHint: "⌘D",
+                action: .togglePinTab
+            ),
+            PaletteCommand(
+                title: BrowserCommandTitles.duplicateTab,
+                symbolName: "square.on.square",
+                action: .duplicateCurrentTab
+            ),
+            PaletteCommand(
+                title: BrowserCommandTitles.toggleSplitView,
+                symbolName: "rectangle.split.1x2",
+                action: .toggleSplitView
+            )
+        ]
+    }
+
     private var leadingSymbolName: String {
         isResumingSearchURL ? "globe" : "magnifyingglass"
     }
@@ -197,7 +324,7 @@ struct CommandPaletteView: View {
     /// `activateSearchProviderFromQuery` exactly so the "Search X — Tab" hint
     /// never appears when pressing Tab wouldn't start a site search.
     private var headerSearchProvider: SearchProvider? {
-        guard selectedSearchProvider == nil, !isResumingSearchURL else { return nil }
+        guard selectedSearchProvider == nil, !isActionsMode, !isResumingSearchURL else { return nil }
         if let autocompleteSuggestion {
             return autocompleteSuggestion.provider
         }
@@ -205,7 +332,7 @@ struct CommandPaletteView: View {
     }
 
     private var placeholderText: String {
-        selectedSearchProvider == nil ? "Search or Enter URL..." : "Search..."
+        selectedSearchProvider == nil && !isActionsMode ? "Search or Enter URL..." : "Search..."
     }
 
     private var isResumingSearchURL: Bool {
@@ -223,12 +350,16 @@ struct CommandPaletteView: View {
     }
 
     private var autocompleteSuggestion: PaletteAutocompleteSuggestion? {
-        autocompleteSuggestion(for: query, allowsProviderSuggestions: selectedSearchProvider == nil && !isResumingSearchURL)
+        autocompleteSuggestion(
+            for: query,
+            allowsProviderSuggestions: selectedSearchProvider == nil && !isActionsMode && !isResumingSearchURL
+        )
     }
 
     private func commandCandidates(for trimmedQuery: String, isResumingSearchURL: Bool = false) -> [PaletteCommand] {
-        let historyCommands = historyCommands(for: trimmedQuery)
-        let commands = historyCommands + tabCommands + spaceCommands + baseCommands
+        // Open tabs rank above history matches (Arc's ordering), which also
+        // lets the dedupe keep the tab row when a page exists as both.
+        let commands = tabCommands + historyCommands(for: trimmedQuery) + spaceCommands + baseCommands
 
         if let selectedSearchProvider {
             guard !trimmedQuery.isEmpty else { return commands }
@@ -275,23 +406,36 @@ struct CommandPaletteView: View {
     }
 
     private var defaultSuggestions: [PaletteCommand] {
-        let recentHistory = store.recentHistory(limit: 4).map(historyCommand)
-        let recentTabs = store.tabs
-            .filter { $0.spaceID == store.activeSpaceID && $0.url != nil }
-            .sorted { $0.lastAccessedAt > $1.lastAccessedAt }
-            .prefix(4)
+        // Resting state: the user's recent trail — open tabs and history
+        // interleaved by recency. Rows backed by an open tab carry Switch to
+        // Tab (historyCommand converts matches); the page the user is on
+        // never suggests itself; providers pad the tail so the palette
+        // always has substance.
+        let activeTabURLKey = store.activeTab?.url.map { normalizedURLKey($0.absoluteString) }
+        let historyEntries: [(visitedAt: Date, command: PaletteCommand)] = store.recentHistory(limit: 6)
+            .filter { normalizedURLKey($0.url.absoluteString) != activeTabURLKey }
+            .map { ($0.visitedAt, historyCommand(for: $0)) }
+        let tabEntries: [(visitedAt: Date, command: PaletteCommand)] = store.tabs
+            .filter { $0.spaceID == store.activeSpaceID && $0.url != nil && $0.id != store.activeTabID }
             .map { tab in
-                PaletteCommand(
-                    title: tab.title,
-                    detail: tab.url?.host(percentEncoded: false),
-                    symbolName: tab.faviconSymbol,
-                    searchText: "\(tab.title) \(tab.url?.absoluteString ?? "")",
-                    style: .tab,
-                    action: .switchTab(tab.id)
+                (
+                    tab.lastAccessedAt,
+                    PaletteCommand(
+                        title: tab.title,
+                        detail: tab.url?.host(percentEncoded: false),
+                        symbolName: tab.faviconSymbol,
+                        searchText: "\(tab.title) \(tab.url?.absoluteString ?? "")",
+                        style: .tab,
+                        action: .switchTab(tab.id)
+                    )
                 )
             }
 
-        return [defaultSearchCommand] + recentHistory + recentTabs + Array(searchProviderCommands.dropFirst().prefix(2))
+        let recentTrail = (historyEntries + tabEntries)
+            .sorted { $0.visitedAt > $1.visitedAt }
+            .map(\.command)
+
+        return [defaultSearchCommand] + recentTrail + Array(searchProviderCommands.dropFirst().prefix(2))
     }
 
     private var defaultSearchCommand: PaletteCommand {
@@ -336,7 +480,20 @@ struct CommandPaletteView: View {
     }
 
     private func historyCommand(for visit: HistoryVisit) -> PaletteCommand {
-        PaletteCommand(
+        // A history entry that's already open belongs to its tab — Arc shows
+        // "Switch to Tab" on those rows instead of opening a fresh visit.
+        if let openTab = openTab(matching: visit.url), openTab.id != store.activeTabID {
+            return PaletteCommand(
+                title: openTab.title.isEmpty ? visit.title : openTab.title,
+                detail: hostDisplayText(for: visit.url),
+                symbolName: openTab.faviconSymbol,
+                searchText: "\(visit.title) \(visit.url.absoluteString)",
+                style: .tab,
+                action: .switchTab(openTab.id)
+            )
+        }
+
+        return PaletteCommand(
             title: visit.title,
             detail: hostDisplayText(for: visit.url),
             symbolName: "clock.arrow.circlepath",
@@ -404,7 +561,7 @@ struct CommandPaletteView: View {
     }
 
     private func activateSearchProviderFromQuery() {
-        guard selectedSearchProvider == nil else {
+        guard selectedSearchProvider == nil, !isActionsMode else {
             fieldFocusRequestID = UUID()
             return
         }
@@ -420,18 +577,23 @@ struct CommandPaletteView: View {
             return
         }
 
-        guard let provider = store.navigationService.searchProvider(matching: commandQueryText) else {
+        if let provider = store.navigationService.searchProvider(matching: commandQueryText) {
+            selectedSearchProvider = provider
+            query = ""
             fieldFocusRequestID = UUID()
             return
         }
 
-        selectedSearchProvider = provider
+        // Arc's rule: anything without a provider chip to enter gets the
+        // Actions panel instead — Tab never lands on nothing.
+        isActionsMode = true
         query = ""
         fieldFocusRequestID = UUID()
     }
 
     private func deleteSelectedSearchProvider() {
         selectedSearchProvider = nil
+        isActionsMode = false
         fieldFocusRequestID = UUID()
     }
 
@@ -469,6 +631,12 @@ struct CommandPaletteView: View {
             store.beginSpaceCreation()
         case .focusAddressBar:
             store.focusAddressBar()
+        case .copyURL:
+            store.copyActiveTabURL()
+        case .copyURLAsMarkdown:
+            store.copyActiveTabURL(asMarkdown: true)
+        case .togglePinTab:
+            store.togglePinForActiveTab()
         case .navigate(let input):
             if opensNewTab {
                 store.navigateNewTab(to: input)
@@ -644,18 +812,13 @@ struct CommandPaletteView: View {
     }
 }
 
+// Arc's command bar is a consistent, near-solid surface — it never picks up
+// what's behind the window. The previous behind-window material sampled the
+// desktop wallpaper through Luma, washing the panel with whatever happened
+// to be back there (and kept a live blur compositing while open).
 private struct PaletteBackground: View {
-    @Environment(\.colorScheme) private var colorScheme
-
     var body: some View {
-        ZStack {
-            LumaChromeStyle.popoverBackground
-            VisualEffectView(
-                material: colorScheme == .dark ? .hudWindow : .popover,
-                blendingMode: .behindWindow
-            )
-            .opacity(colorScheme == .dark ? 0.64 : 0.88)
-        }
+        LumaChromeStyle.popoverBackground
     }
 }
 
@@ -786,12 +949,10 @@ private struct PaletteCommandRow: View {
     let isSelected: Bool
     let selectedTint: Color
 
+    // Arc keeps the selection highlight one constant accent everywhere;
+    // provider brand colors belong on the chip, never on the selected row.
     private var backgroundColor: Color {
-        if isSelected {
-            return command.selectedColor ?? selectedTint
-        }
-
-        return Color.clear
+        isSelected ? selectedTint : Color.clear
     }
 
     var body: some View {
@@ -829,6 +990,14 @@ private struct PaletteCommandRow: View {
                         .foregroundStyle(isSelected ? backgroundColor : Color.secondary)
                 }
                 .frame(width: 24, height: 24)
+            } else if let shortcutHint = command.shortcutHint {
+                Text(shortcutHint)
+                    .font(.system(size: 12.5, weight: .bold))
+                    .foregroundStyle(isSelected ? backgroundColor : Color.secondary)
+                    .padding(.horizontal, 8)
+                    .frame(height: 24)
+                    .background(isSelected ? Color.white.opacity(0.94) : Color.primary.opacity(0.08))
+                    .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
             }
         }
         .font(.system(size: 13.5, weight: .semibold))
@@ -1286,24 +1455,6 @@ private extension Character {
     }
 }
 
-private struct VisualEffectView: NSViewRepresentable {
-    let material: NSVisualEffectView.Material
-    let blendingMode: NSVisualEffectView.BlendingMode
-
-    func makeNSView(context: Context) -> NSVisualEffectView {
-        let view = NSVisualEffectView()
-        view.material = material
-        view.blendingMode = blendingMode
-        view.state = .active
-        return view
-    }
-
-    func updateNSView(_ view: NSVisualEffectView, context: Context) {
-        view.material = material
-        view.blendingMode = blendingMode
-    }
-}
-
 private struct PaletteCommand: Identifiable {
     let id = UUID()
     let title: String
@@ -1311,21 +1462,13 @@ private struct PaletteCommand: Identifiable {
     let symbolName: String
     var searchText = ""
     var style: PaletteCommandStyle = .generic
+    var shortcutHint: String?
     let action: PaletteAction
 
     var provider: SearchProvider? {
         switch style {
         case .provider(let provider), .providerSearch(let provider):
             return provider
-        case .generic, .tab, .history:
-            return nil
-        }
-    }
-
-    var selectedColor: Color? {
-        switch style {
-        case .provider(let provider), .providerSearch(let provider):
-            return provider.paletteColor
         case .generic, .tab, .history:
             return nil
         }
@@ -1362,25 +1505,29 @@ private enum PaletteAction {
     case toggleSplitView
     case createSpace
     case focusAddressBar
+    case copyURL
+    case copyURLAsMarkdown
+    case togglePinTab
     case navigate(String)
     case searchProvider(SearchProvider, String)
     case switchTab(UUID)
     case switchSpace(UUID)
 }
 
-private struct SearchProviderChip: View {
-    let provider: SearchProvider
+private struct PaletteChip: View {
+    let text: String
+    let color: Color
 
     var body: some View {
-        Text(provider.name)
+        Text(text)
             .font(.system(size: 14, weight: .bold))
             .foregroundStyle(.white)
             .lineLimit(1)
             .padding(.horizontal, 11)
             .padding(.vertical, 6)
-            .background(provider.paletteColor)
+            .background(color)
             .clipShape(Capsule())
-            .shadow(color: provider.paletteColor.opacity(0.42), radius: 14, y: 2)
+            .shadow(color: color.opacity(0.42), radius: 14, y: 2)
             .fixedSize(horizontal: true, vertical: false)
     }
 }

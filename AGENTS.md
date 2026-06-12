@@ -1,5 +1,34 @@
 # AGENTS.md
 
+## Hard Rules (Non-Negotiable — read before writing any code)
+
+These three rules override everything else in this file and any default instinct. A change that violates one is wrong even if it looks good, and must not ship.
+
+### 1. Native feel ≠ animation
+
+"Make it feel native/smooth" is never a request to add motion. Native feel comes from correct geometry, instant response, and quiet settles — not from animating things.
+
+- Default answer to "should this animate?" is **no**. Ship state changes as instant or near-instant first; add motion only when the *absence* of it reads as broken (e.g. a list snapping shut, an element teleporting between two real on-screen positions).
+- Reference points are Apple's own apps: Safari's sidebar (rows settle when a tab closes), Finder (selection moves instantly), macOS PiP (morphs anchored to real geometry). If Safari wouldn't animate it, Luma doesn't.
+- Allowed motion vocabulary: 0.10–0.20s easeOut for chrome state changes; springs only for spatial morphs between two real positions, damped enough to show no visible bounce. Context jumps (space switch, page swap) are instant cuts.
+- Never add scale pops, bounces, staggered reveals, attention-seeking transitions, or motion that exists to be noticed.
+
+### 2. Native SwiftUI/AppKit components first — no custom re-implementations
+
+Use the system control and style it; do not rebuild it.
+
+- Inputs, buttons, menus, pickers, toggles, scroll views, progress indicators, context menus, popovers, alerts, focus rings, text selection: use the SwiftUI/AppKit built-in (`TextField`, `Menu`, `.contextMenu`, `.popover`, `ScrollView`, `ProgressView`, …) with modifiers. SF Symbols for icons, system materials for surfaces, system cursors via `NSCursor`.
+- Before writing any custom control, the bar is: *the native one provably cannot be configured to match the required Arc/Zen design*. If that bar is met, compose the custom view **from** native primitives and keep native behavior intact (keyboard navigation, focus, accessibility, standard shortcuts, text editing gestures).
+- Hand-rolled text inputs, scrollbars, menu lookalikes, or re-implemented system behaviors are rejected by default.
+
+### 3. Never trade memory or energy for anything
+
+Battery/memory efficiency is the product's selling point (see "Battery Efficiency" below — those rules are part of this one). No visual or convenience win justifies a steady-state cost.
+
+- Nothing persistent may be added for a transient effect: no retained snapshots, caches, extra web views, hidden always-rendered layers, observers, or timers that outlive the moment that needs them. Transition artifacts (e.g. a freeze-frame image) must be released the moment the transition ends.
+- Animations run on the GPU compositor: transforms and opacity on chrome layers only. Never animate web content layout (a `WKWebView`'s frame/size), never force per-frame relayout, never animate continuously (no idle pulsing, shimmering, or breathing effects).
+- If a proposed change adds any steady-state memory, idle CPU, or cross-process traffic, the default is to not build it. Raising idle resource usage is a shipping blocker, verified per the Battery Efficiency section.
+
 ## Product Direction
 
 Luma is intended to be an Arc-style browser workspace clone for macOS, while still feeling native to macOS and original in its implementation details.

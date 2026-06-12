@@ -44,17 +44,27 @@ struct WebViewContainer: View {
                     .padding(surfacePadding)
                 } else {
                     browserSurface {
-                        ActiveWebViewHost(tab: tab, store: store)
-                            .background(LumaChromeStyle.surfaceFill.opacity(0.72))
-                            .overlay(alignment: .top) {
-                                PageLoadingPill(
-                                    isLoading: tab.isLoading,
-                                    tint: spaceTint,
-                                    themeIsDark: themeIsDarkChrome
+                        VStack(spacing: 0) {
+                            if let url = tab.url, url.isLocalDevelopment {
+                                DeveloperToolbar(
+                                    urlText: url.localDevelopmentDisplayText,
+                                    tintHex: store.activeThemeColorHexes.first,
+                                    onCopyURL: { store.copyActiveTabURL() }
                                 )
-                                .padding(.top, 2)
-                                .id(tab.id)
                             }
+
+                            ActiveWebViewHost(tab: tab, store: store)
+                                .background(LumaChromeStyle.surfaceFill.opacity(0.72))
+                                .overlay(alignment: .top) {
+                                    PageLoadingPill(
+                                        isLoading: tab.isLoading,
+                                        tint: spaceTint,
+                                        themeIsDark: themeIsDarkChrome
+                                    )
+                                    .padding(.top, 2)
+                                    .id(tab.id)
+                                }
+                        }
                     }
                     .padding(surfacePadding)
                 }
@@ -190,6 +200,59 @@ struct WebViewContainer: View {
                     .id(tab.id)
                 }
         }
+    }
+}
+
+/// Arc's developer toolbar: local dev servers get a tinted strip above the
+/// page showing the full URL. The tint is the space's theme color — Arc
+/// reuses the color you picked for the space, not a dedicated developer hue.
+private struct DeveloperToolbar: View {
+    let urlText: String
+    let tintHex: String?
+    let onCopyURL: () -> Void
+
+    @State private var isHoveringCopy = false
+
+    private var tint: Color {
+        Color(spaceHex: tintHex ?? "#8A8F98")
+    }
+
+    private var foreground: Color {
+        LumaChromeStyle.prefersDarkForeground(forSpaceHex: tintHex ?? "") ? .black : .white
+    }
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "info.circle")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(foreground.opacity(0.72))
+
+            Text(urlText)
+                .font(.system(size: 12, weight: .medium, design: .monospaced))
+                .foregroundStyle(foreground.opacity(0.92))
+                .lineLimit(1)
+                .truncationMode(.middle)
+
+            Spacer(minLength: 8)
+
+            Button(action: onCopyURL) {
+                Image(systemName: "link")
+                    .font(.system(size: 11.5, weight: .semibold))
+                    .foregroundStyle(foreground.opacity(isHoveringCopy ? 0.95 : 0.72))
+                    .frame(width: 22, height: 22)
+                    .background(foreground.opacity(isHoveringCopy ? 0.12 : 0))
+                    .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .onHover { isHoveringCopy = $0 }
+            .animation(.easeOut(duration: 0.10), value: isHoveringCopy)
+            .help(BrowserCommandTitles.copyURL)
+        }
+        .padding(.horizontal, 10)
+        .frame(height: 30)
+        .frame(maxWidth: .infinity)
+        .background(tint)
     }
 }
 

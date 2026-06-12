@@ -8,7 +8,6 @@ enum MiniPlayerLayout {
     static let resizeCornerLength: CGFloat = 18
     static let aspectRatio: CGFloat = 16.0 / 9.0
     static let defaultExpandedSize = CGSize(width: 430, height: 242)
-    static let minimizedSize = CGSize(width: 250, height: 88)
     static let minimumExpandedWidth: CGFloat = 360
     static let maximumExpandedWidth: CGFloat = 760
 
@@ -52,11 +51,38 @@ struct FloatingMiniPlayerContainer: View {
     @State private var resizeStartOrigin: CGPoint?
     @State private var resizeStartSize: CGSize?
     @State private var isProgressScrubbing = false
+    // Captured into @State at mount: the store consumes the pending summon
+    // right away, and the container is re-inited every second by playback
+    // progress updates — reading the (now nil) prop mid-morph would yank the
+    // in-flight animation to the fallback frame.
+    @State private var summon: MiniPlayerSummonContext?
+    @State private var isSummoning: Bool
+    @State private var isReturning = false
+
+    init(
+        store: BrowserStore,
+        tab: BrowserTab,
+        state: TabMediaState,
+        availableSize: CGSize,
+        summon: MiniPlayerSummonContext?,
+        origin: Binding<CGPoint?>,
+        expandedSize: Binding<CGSize>
+    ) {
+        self.store = store
+        self.tab = tab
+        self.state = state
+        self.availableSize = availableSize
+        self._origin = origin
+        self._expandedSize = expandedSize
+        // The summon morph must render its first frame at the on-page video
+        // rect, so the flag has to be true before the initial body pass —
+        // starting it from onAppear would commit the corner frame first.
+        self._summon = State(initialValue: summon)
+        self._isSummoning = State(initialValue: summon != nil)
+    }
 
     private var currentSize: CGSize {
-        store.isMiniPlayerMinimized
-            ? MiniPlayerLayout.minimizedSize
-            : MiniPlayerLayout.clampedExpandedSize(expandedSize, in: availableSize)
+        MiniPlayerLayout.clampedExpandedSize(expandedSize, in: availableSize)
     }
 
     private var currentOrigin: CGPoint {
@@ -66,8 +92,14 @@ struct FloatingMiniPlayerContainer: View {
     }
 
     var body: some View {
-        let size = currentSize
-        let resolvedOrigin = currentOrigin
+        let restingFrame = CGRect(origin: currentOrigin, size: currentSize)
+        let isMorphing = isSummoning || isReturning
+        let morph: MorphTarget? = {
+            if isReturning { return returnTarget(restingFrame: restingFrame) }
+            if isSummoning { return summonStart(restingFrame: restingFrame) }
+            return nil
+        }()
+        let size = restingFrame.size
 
         ZStack {
             FloatingMiniPlayerView(
@@ -75,10 +107,11 @@ struct FloatingMiniPlayerContainer: View {
                 tab: tab,
                 state: state,
                 size: size,
+                hidesChrome: isMorphing,
                 isProgressScrubbing: $isProgressScrubbing
             )
 
-            if !store.isMiniPlayerMinimized {
+            if !isMorphing {
                 ForEach(MiniPlayerResizeEdge.allCases) { edge in
                     MiniPlayerResizeHandle(edge: edge)
                         .frame(width: edge.width(in: size), height: edge.height(in: size))
@@ -94,18 +127,38 @@ struct FloatingMiniPlayerContainer: View {
         // after it would swallow scroll and click events over the page.
         .contentShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
         .gesture(dragGesture(in: availableSize))
+        // Both morphs are layer transforms over the resting layout, not
+        // animated frames: live-resizing the hosted web view every tick
+        // (while the strip-down script is restyling the page) drops frames
+        // and the player visibly teleports instead of gliding.
+        .scaleEffect(
+            x: (morph?.frame.width ?? size.width) / max(size.width, 1),
+            y: (morph?.frame.height ?? size.height) / max(size.height, 1)
+        )
+        .opacity(morph?.fades == true ? 0 : 1)
         .position(
-            x: resolvedOrigin.x + size.width / 2,
-            y: resolvedOrigin.y + size.height / 2
+            x: morph?.frame.midX ?? restingFrame.midX,
+            y: morph?.frame.midY ?? restingFrame.midY
         )
         .onAppear {
             clampLayout()
+            settleSummonIfNeeded()
         }
         .onChange(of: availableSize) { _, _ in
             clampLayout()
         }
-        .onChange(of: store.isMiniPlayerMinimized) { _, _ in
-            clampLayout()
+        .onChange(of: store.miniPlayerReturn != nil) { _, hasReturn in
+            if hasReturn {
+                startReturn()
+            } else if isReturning {
+                // Interrupted by another switch: the player floats on, so it
+                // snaps back to its corner without replaying any animation.
+                var transaction = Transaction()
+                transaction.disablesAnimations = true
+                withTransaction(transaction) {
+                    isReturning = false
+                }
+            }
         }
     }
 
@@ -180,6 +233,68 @@ struct FloatingMiniPlayerContainer: View {
         expandedSize = MiniPlayerLayout.clampedExpandedSize(expandedSize, in: availableSize)
         origin = MiniPlayerLayout.clampedOrigin(currentOrigin, size: size, in: availableSize)
     }
+
+    private struct MorphTarget {
+        var frame: CGRect
+        var fades: Bool
+    }
+
+    /// The player hosts the same video the page was showing, so anchoring a
+    /// morph at the video's on-page rect makes the handoff read as one
+    /// object gliding between page and corner. That only works when most of
+    /// the rect is actually on screen — from a scrolled-away rect the player
+    /// would streak offscreen, so fall back to a scale-fade at the corner.
+    private func morphTarget(pageFrame: CGRect?, restingFrame: CGRect) -> MorphTarget {
+        if let pageFrame {
+            let bounds = CGRect(origin: .zero, size: availableSize)
+            let visible = pageFrame.intersection(bounds)
+            let pageArea = pageFrame.width * pageFrame.height
+            if pageArea > 0, visible.width * visible.height >= pageArea * 0.5 {
+                return MorphTarget(frame: pageFrame, fades: false)
+            }
+        }
+
+        return MorphTarget(
+            frame: restingFrame.insetBy(
+                dx: restingFrame.width * 0.08,
+                dy: restingFrame.height * 0.08
+            ),
+            fades: true
+        )
+    }
+
+    private func summonStart(restingFrame: CGRect) -> MorphTarget {
+        morphTarget(pageFrame: summon?.pageVideoFrame, restingFrame: restingFrame)
+    }
+
+    private func returnTarget(restingFrame: CGRect) -> MorphTarget {
+        morphTarget(pageFrame: store.miniPlayerReturn?.targetFrame, restingFrame: restingFrame)
+    }
+
+    private func settleSummonIfNeeded() {
+        guard isSummoning else { return }
+        store.consumeMiniPlayerSummon()
+        // One runloop hop so the start frame commits before the morph;
+        // flipping the flag in the same transaction collapses both frames
+        // into a single keyframe and nothing animates.
+        DispatchQueue.main.async {
+            withAnimation(.spring(response: 0.42, dampingFraction: 0.85)) {
+                isSummoning = false
+            }
+        }
+    }
+
+    private func startReturn() {
+        guard !isReturning else { return }
+        // A return can land while the summon morph is still in flight; the
+        // return owns the transform from here on.
+        isSummoning = false
+        withAnimation(.spring(response: 0.40, dampingFraction: 0.86)) {
+            isReturning = true
+        } completion: {
+            store.finishMiniPlayerReturn()
+        }
+    }
 }
 
 private struct FloatingMiniPlayerView: View {
@@ -187,6 +302,7 @@ private struct FloatingMiniPlayerView: View {
     let tab: BrowserTab
     let state: TabMediaState
     let size: CGSize
+    let hidesChrome: Bool
     @Binding var isProgressScrubbing: Bool
 
     @State private var isHovering = false
@@ -196,39 +312,50 @@ private struct FloatingMiniPlayerView: View {
             MiniPlayerWebViewHost(tabID: tab.id, store: store)
                 .allowsHitTesting(false)
 
+            // During the return morph the live web view has been handed back
+            // to the page (relayouting hidden underneath), so the player
+            // shows the freeze frame captured at hand-back instead.
+            if let freezeFrame = store.miniPlayerReturn?.snapshot {
+                Image(nsImage: freezeFrame)
+                    .resizable()
+                    .scaledToFill()
+            }
+
+            // Chrome stays invisible while morphing so the page-anchored
+            // frame reads as the page's own video, not a floating panel.
             LinearGradient(
                 colors: [
-                    Color.black.opacity(isHovering ? 0.34 : 0.04),
-                    Color.black.opacity(isHovering ? 0.10 : 0.02),
-                    Color.black.opacity(isHovering ? 0.30 : 0.06)
+                    Color.black.opacity(isHovering ? 0.20 : 0.04),
+                    Color.black.opacity(isHovering ? 0.05 : 0.02),
+                    Color.black.opacity(isHovering ? 0.18 : 0.06)
                 ],
                 startPoint: .top,
                 endPoint: .bottom
             )
+            .opacity(hidesChrome ? 0 : 1)
 
-            if store.isMiniPlayerMinimized {
-                minimizedControls
-            } else {
-                expandedControls
-                    .opacity(isHovering ? 1 : 0)
-            }
+            expandedControls
+                .opacity(isHovering && !hidesChrome ? 1 : 0)
         }
         .frame(width: size.width, height: size.height)
         .background(Color.black)
         .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 9, style: .continuous)
-                .stroke(Color.white.opacity(isHovering ? 0.18 : 0.12), lineWidth: 1)
+                .stroke(
+                    Color.white.opacity(hidesChrome ? 0 : (isHovering ? 0.18 : 0.12)),
+                    lineWidth: 1
+                )
         }
-        .shadow(color: .black.opacity(0.26), radius: 18, y: 8)
+        .shadow(color: .black.opacity(hidesChrome ? 0 : 0.26), radius: 18, y: 8)
         .onHover { isHovering = $0 }
-        .animation(.easeOut(duration: 0.12), value: isHovering)
+        .animation(.easeOut(duration: 0.20), value: isHovering)
     }
 
     private var expandedControls: some View {
         VStack(spacing: 0) {
-            HStack(spacing: 8) {
-                MiniPlayerChromeIconButton(systemImage: "arrow.up.left", help: "Back to Tab") {
+            HStack(spacing: 10) {
+                MiniPlayerChromeButton(title: "Back to Tab", systemImage: "arrow.up.left") {
                     store.focusMediaTab()
                 }
 
@@ -242,20 +369,21 @@ private struct FloatingMiniPlayerView: View {
                     store.dismissMiniPlayer()
                 }
             }
-            .padding(14)
+            .padding(.horizontal, 16)
+            .padding(.top, 12)
 
             Spacer()
 
-            HStack(spacing: 34) {
-                MiniPlayerLargeButton(systemImage: "gobackward.15") {
+            HStack(spacing: 18) {
+                MiniPlayerSeekButton(systemImage: "gobackward.15", help: "Back 15 Seconds") {
                     store.seekMedia(by: -15)
                 }
 
-                MiniPlayerLargeButton(systemImage: state.isPlaying ? "pause.fill" : "play.fill", scale: 1.24) {
+                MiniPlayerPlayPauseButton(isPlaying: state.isPlaying) {
                     store.toggleMiniPlayerPlayback()
                 }
 
-                MiniPlayerLargeButton(systemImage: "goforward.15") {
+                MiniPlayerSeekButton(systemImage: "goforward.15", help: "Forward 15 Seconds") {
                     store.seekMedia(by: 15)
                 }
             }
@@ -268,84 +396,11 @@ private struct FloatingMiniPlayerView: View {
                 onSeek: store.seekMedia(to:),
                 onScrubbingChanged: { isProgressScrubbing = $0 }
             )
-                .padding(.horizontal, 12)
-                .padding(.bottom, 12)
+                .padding(.horizontal, 14)
+                .padding(.bottom, 10)
         }
     }
 
-    private var minimizedControls: some View {
-        HStack(spacing: 8) {
-            favicon
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(tab.title)
-                    .font(.system(size: 11.5, weight: .medium))
-                    .foregroundStyle(Color.white.opacity(isHovering ? 0.88 : 0.74))
-                    .lineLimit(1)
-
-                Text(sourceText)
-                    .font(.system(size: 10, weight: .medium))
-                    .foregroundStyle(Color.white.opacity(isHovering ? 0.58 : 0.44))
-                    .lineLimit(1)
-            }
-
-            Spacer(minLength: 0)
-
-            MiniPlayerIconButton(systemImage: state.isPlaying ? "pause.fill" : "play.fill") {
-                store.toggleMiniPlayerPlayback()
-            }
-
-            MiniPlayerIconButton(systemImage: "arrow.up.left.and.arrow.down.right") {
-                store.expandMiniPlayer()
-            }
-
-            MiniPlayerIconButton(systemImage: "xmark") {
-                store.dismissMiniPlayer()
-            }
-        }
-        .padding(10)
-        .background(Color.black.opacity(isHovering ? 0.22 : 0.12))
-    }
-
-    private var sourceText: String {
-        tab.url?.host(percentEncoded: false)?.replacingOccurrences(of: "www.", with: "")
-            ?? BrowserCommandTitles.newTab
-    }
-
-    @ViewBuilder
-    private var favicon: some View {
-        if let data = tab.faviconData, let image = NSImage(data: data) {
-            Image(nsImage: image)
-                .resizable()
-                .scaledToFit()
-                .frame(width: 18, height: 18)
-                .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
-        } else {
-            Image(systemName: tab.faviconSymbol)
-                .font(.system(size: 14, weight: .regular))
-                .foregroundStyle(Color.white.opacity(isHovering ? 0.78 : 0.58))
-                .frame(width: 18, height: 18)
-        }
-    }
-}
-
-private struct MiniPlayerChromeIconButton: View {
-    let systemImage: String
-    let help: String
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            Image(systemName: systemImage)
-                .font(.system(size: 16, weight: .semibold))
-                .foregroundStyle(Color.white.opacity(0.84))
-                .frame(width: 34, height: 34)
-                .background(Color.white.opacity(0.10))
-                .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
-        }
-        .buttonStyle(.plain)
-        .help(help)
-    }
 }
 
 private struct MiniPlayerChromeButton: View {
@@ -353,54 +408,86 @@ private struct MiniPlayerChromeButton: View {
     let systemImage: String
     let action: () -> Void
 
+    @State private var isHovering = false
+
     var body: some View {
         Button(action: action) {
-            Label(title, systemImage: systemImage)
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(Color.white.opacity(0.84))
-                .lineLimit(1)
-                .padding(.horizontal, 11)
-                .frame(height: 34)
-                .background(Color.white.opacity(0.10))
-                .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+            HStack(spacing: 6) {
+                Image(systemName: systemImage)
+                    .font(.system(size: 10.5, weight: .bold))
+
+                Text(title)
+                    .font(.system(size: 12, weight: .semibold))
+                    .lineLimit(1)
+            }
+            .foregroundStyle(Color.white.opacity(isHovering ? 1 : 0.92))
+            .shadow(color: .black.opacity(0.5), radius: 3, y: 1)
+            .padding(.horizontal, 10)
+            .frame(height: 28)
+            .background(Color.white.opacity(isHovering ? 0.06 : 0.025))
+            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .onHover { isHovering = $0 }
         .help(title)
     }
 }
 
-private struct MiniPlayerLargeButton: View {
+private struct MiniPlayerSeekButton: View {
     let systemImage: String
-    var scale: CGFloat = 1
+    let help: String
     let action: () -> Void
+
+    @State private var isHovering = false
 
     var body: some View {
         Button(action: action) {
             Image(systemName: systemImage)
-                .font(.system(size: 38 * scale, weight: .semibold))
-                .foregroundStyle(Color.white.opacity(0.78))
-                .frame(width: 58, height: 58)
+                .font(.system(size: 32, weight: .regular))
+                .foregroundStyle(Color.white.opacity(isHovering ? 1 : 0.92))
+                .shadow(color: .black.opacity(0.4), radius: 4, y: 1)
+                .frame(width: 52, height: 64)
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .help(systemImage)
+        .onHover { isHovering = $0 }
+        .help(help)
     }
 }
 
-private struct MiniPlayerIconButton: View {
-    let systemImage: String
+private struct MiniPlayerPlayPauseButton: View {
+    let isPlaying: Bool
     let action: () -> Void
+
+    @State private var isHovering = false
 
     var body: some View {
         Button(action: action) {
-            Image(systemName: systemImage)
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(Color.white.opacity(0.74))
-                .frame(width: 24, height: 24)
-                .background(Color.white.opacity(0.09))
-                .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+            ZStack {
+                HStack(spacing: 13) {
+                    Capsule(style: .continuous)
+                        .frame(width: 10, height: 58)
+                    Capsule(style: .continuous)
+                        .frame(width: 10, height: 58)
+                }
+                .opacity(isPlaying ? 1 : 0)
+                .scaleEffect(isPlaying ? 1 : 0.72)
+
+                Image(systemName: "play.fill")
+                    .font(.system(size: 48, weight: .regular))
+                    .opacity(isPlaying ? 0 : 1)
+                    .scaleEffect(isPlaying ? 0.72 : 1)
+            }
+            .foregroundStyle(Color.white.opacity(isHovering ? 1 : 0.94))
+            .shadow(color: .black.opacity(0.4), radius: 5, y: 1)
+            .frame(width: 64, height: 64)
+            .contentShape(Rectangle())
+            .animation(.spring(response: 0.30, dampingFraction: 0.78), value: isPlaying)
         }
         .buttonStyle(.plain)
+        .onHover { isHovering = $0 }
+        .help(isPlaying ? "Pause" : "Play")
     }
 }
 
@@ -730,13 +817,13 @@ private struct MiniPlayerProgressBar: View {
         GeometryReader { proxy in
             ZStack(alignment: .leading) {
                 Capsule()
-                    .fill(Color.white.opacity(0.16))
+                    .fill(Color.white.opacity(0.22))
 
                 Capsule()
-                    .fill(Color.white.opacity(0.72))
-                    .frame(width: max(4, proxy.size.width * progress))
+                    .fill(Color.white.opacity(0.95))
+                    .frame(width: max(5, proxy.size.width * progress))
             }
-            .frame(height: isHovering ? 6 : 4)
+            .frame(height: isHovering ? 7 : 5)
             .frame(maxHeight: .infinity)
             .contentShape(Rectangle())
             .gesture(seekGesture(width: proxy.size.width))

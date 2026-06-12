@@ -153,15 +153,6 @@ struct SpaceSwitcherView: View {
             }
             .disabled(store.spaces.last?.id == space.id)
 
-            Button("Unload Space") {
-                store.unloadSpace(space.id)
-            }
-
-            Button("Unload All Other Spaces") {
-                store.unloadAllOtherSpaces(except: space.id)
-            }
-            .disabled(store.spaces.count <= 1)
-
             Divider()
 
             Button("New Space") {

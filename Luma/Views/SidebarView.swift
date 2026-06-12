@@ -153,14 +153,19 @@ struct SidebarView: View {
             store.focusAddressBar()
         } label: {
             HStack(spacing: 10) {
-                Image(systemName: "magnifyingglass")
+                Image(systemName: isLocalDevelopmentURL ? "info.circle" : "magnifyingglass")
                     .font(.system(size: 15, weight: .medium))
                     .frame(width: 18)
                     .foregroundStyle(LumaChromeStyle.sidebarIcon)
 
                 Text(sidebarAddressText)
                     .lineLimit(1)
-                    .font(.system(size: 14, weight: .semibold))
+                    .truncationMode(.tail)
+                    .font(
+                        isLocalDevelopmentURL
+                            ? .system(size: 13, weight: .medium, design: .monospaced)
+                            : .system(size: 14, weight: .semibold)
+                    )
                     .foregroundStyle(LumaChromeStyle.sidebarTextSecondary)
 
                 Spacer(minLength: 0)
@@ -171,12 +176,22 @@ struct SidebarView: View {
             .clipShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
         }
         .buttonStyle(.plain)
-        .help(BrowserDefaults.addressPlaceholder)
+        .help(isLocalDevelopmentURL ? "Local development server" : BrowserDefaults.addressPlaceholder)
+    }
+
+    // Arc's local-dev treatment: localhost pages get an info icon and the
+    // full URL — scheme, port, and path — instead of the trimmed hostname.
+    private var isLocalDevelopmentURL: Bool {
+        store.activeTab?.url?.isLocalDevelopment == true
     }
 
     private var sidebarAddressText: String {
         guard let url = store.activeTab?.url else {
             return "Search..."
+        }
+
+        if isLocalDevelopmentURL {
+            return url.localDevelopmentDisplayText
         }
 
         if let host = url.host(percentEncoded: false) {
@@ -196,33 +211,41 @@ struct SidebarView: View {
             VStack(alignment: .leading, spacing: 6) {
                 LazyVGrid(columns: essentialsColumns, spacing: 6) {
                     ForEach(pinned) { tab in
-                        EssentialTileView(
-                            tab: tab,
-                            isActive: tab.id == store.activeTabID && !store.isNewTabPaletteActive,
-                            accentColor: activeSpaceTint,
-                            onSelect: { store.switchTab(to: tab.id) },
-                            onClose: { store.closeTab(tab.id) },
-                            onDuplicate: { store.duplicateTab(tab.id) },
-                            onOpenInSplit: { store.openSplitView(with: tab.id) },
-                            onTogglePin: { store.togglePin(tab.id) }
-                        )
-                        .onDrag {
-                            store.draggedTabID = tab.id
-                            return NSItemProvider(object: tab.id.uuidString as NSString)
-                        }
-                        .onDrop(
-                            of: [UTType.text],
-                            delegate: TabReorderDropDelegate(
-                                targetTab: tab,
-                                tabs: pinned,
-                                pinned: true,
-                                store: store
-                            )
-                        )
+                        essentialTile(for: tab, pinned: pinned)
                     }
                 }
             }
+            // Pin, unpin, and close settle the grid instead of popping; the
+            // per-space identity keeps space switches an instant context cut.
+            .animation(.easeOut(duration: 0.18), value: pinned.map(\.id))
+            .id(store.activeSpaceID)
         }
+    }
+
+    private func essentialTile(for tab: BrowserTab, pinned: [BrowserTab]) -> some View {
+        EssentialTileView(
+            tab: tab,
+            isActive: tab.id == store.activeTabID && !store.isNewTabPaletteActive,
+            accentColor: activeSpaceTint,
+            onSelect: { store.switchTab(to: tab.id) },
+            onClose: { store.closeTab(tab.id) },
+            onDuplicate: { store.duplicateTab(tab.id) },
+            onOpenInSplit: { store.openSplitView(with: tab.id) },
+            onTogglePin: { store.togglePin(tab.id) }
+        )
+        .onDrag {
+            store.draggedTabID = tab.id
+            return NSItemProvider(object: tab.id.uuidString as NSString)
+        }
+        .onDrop(
+            of: [UTType.text],
+            delegate: TabReorderDropDelegate(
+                targetTab: tab,
+                tabs: pinned,
+                pinned: true,
+                store: store
+            )
+        )
     }
 
     // MARK: - Tabs
@@ -258,11 +281,13 @@ struct SidebarView: View {
                             isActive: tab.id == store.activeTabID && !store.isNewTabPaletteActive,
                             isSplit: tab.id == store.splitTabID,
                             accentColor: activeSpaceTint,
+                            mediaState: store.mediaStates[tab.id],
                             onSelect: { store.switchTab(to: tab.id) },
                             onClose: { store.closeTab(tab.id) },
                             onDuplicate: { store.duplicateTab(tab.id) },
                             onOpenInSplit: { store.openSplitView(with: tab.id) },
-                            onTogglePin: { store.togglePin(tab.id) }
+                            onTogglePin: { store.togglePin(tab.id) },
+                            onToggleMute: { store.toggleMediaMute(tabID: tab.id) }
                         )
                         .onDrag {
                             store.draggedTabID = tab.id
@@ -279,6 +304,11 @@ struct SidebarView: View {
                         )
                     }
                 }
+                // Closing, opening, and reordering settle the list the way
+                // Safari's sidebar does instead of rows popping in place; the
+                // per-space identity keeps space switches an instant cut.
+                .animation(.easeOut(duration: 0.18), value: tabs.map(\.id))
+                .id(store.activeSpaceID)
             }
         }
     }
@@ -529,8 +559,9 @@ private struct UpsertSpaceSidebarComposer: View {
                 themeAppearance = space.themeAppearance
                 themeOpacity = space.themeOpacity
                 themeTexture = space.themeTexture
+            } else {
+                isNameFocused = true
             }
-            isNameFocused = true
             publishCurrentThemePreview()
         }
         .onDisappear {
@@ -2289,6 +2320,7 @@ private struct EssentialTileView: View {
         }
         .buttonStyle(.plain)
         .onHover { isHovering = $0 }
+        .animation(.easeOut(duration: 0.12), value: isActive)
         .help(tab.title)
         .contextMenu {
             Button("Unpin Tab", action: onTogglePin)

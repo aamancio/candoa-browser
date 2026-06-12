@@ -312,6 +312,9 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
             guard
                 let self,
                 self.hostedActiveTabID != previousActiveTabID,
+                // The mini player may have adopted this web view in the
+                // meantime; hiding it would blank the floating player.
+                self.miniPlayerHostedTabID != previousActiveTabID,
                 let webView = self.webViews[previousActiveTabID],
                 webView.superview != nil
             else {
@@ -323,11 +326,20 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
 
     func hostMiniPlayerWebView(for tabID: UUID, in container: NSView) {
         guard let webView = webViews[tabID] else { return }
+        // Adopting a different tab must first restore the previously hosted
+        // tab's page; otherwise that page is left stripped down to its video
+        // element and shows a black shell when reopened from the sidebar.
+        if let previousID = miniPlayerHostedTabID, previousID != tabID {
+            detachMiniPlayerWebView(for: previousID)
+        }
         miniPlayerHostedTabID = tabID
+        // Activate before shrinking the web view: media selection scores
+        // element rects, and at mini player size no video can meet the
+        // area thresholds — the page would keep its full layout (the X bug).
+        activateMiniPlayerPresentation(tabID: tabID)
         webView.frame = container.bounds
         webView.autoresizingMask = [.width, .height]
         webView.isHidden = false
-        activateMiniPlayerPresentation(tabID: tabID)
 
         guard webView.superview !== container else { return }
         webView.removeFromSuperview()
@@ -339,6 +351,41 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         restoreMiniPlayerPresentation(tabID: tabID)
         miniPlayerHostedTabID = nil
         webViews[tabID]?.isHidden = true
+    }
+
+    /// Starts the return-to-tab handoff: captures a freeze frame of the
+    /// hosted web view for the floating player to morph with, then hands the
+    /// page back and lays it out at the active container's full size while
+    /// hidden — so the final swap reveals an already-settled page instead of
+    /// the mini-sized layout flashing in the top-left corner.
+    func prepareMiniPlayerReturn(for tabID: UUID, completion: @escaping (NSImage?) -> Void) {
+        guard miniPlayerHostedTabID == tabID, let webView = webViews[tabID] else {
+            completion(nil)
+            return
+        }
+
+        let configuration = WKSnapshotConfiguration()
+        configuration.afterScreenUpdates = false
+        webView.takeSnapshot(with: configuration) { [weak self] image, _ in
+            guard let self, self.miniPlayerHostedTabID == tabID else {
+                completion(image)
+                return
+            }
+
+            self.miniPlayerHostedTabID = nil
+            webView.isHidden = true
+            // Adopt the destination size before restoring so the page
+            // relayouts (and restores its scroll position) at full layout.
+            if
+                let activeID = self.hostedActiveTabID,
+                let activeFrame = self.webViews[activeID]?.frame,
+                activeFrame.size != .zero
+            {
+                webView.frame = activeFrame
+            }
+            self.restoreMiniPlayerPresentation(tabID: tabID)
+            completion(image)
+        }
     }
 
     /// Unparenting tears down media presentation, so tabs with media stay
@@ -355,19 +402,6 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
 
         for tab in store.tabs where webViews[tab.id] != nil && isHibernatable(tab, idleBefore: cutoff) {
             hibernateIfNoUnsavedInput(tab.id)
-        }
-    }
-
-    /// Manual "Unload Space": hibernates every eligible tab in the given
-    /// spaces immediately, waiving only the idle-time requirement. The
-    /// hibernation exemptions (active tab, split tab, pinned tabs, media,
-    /// popups awaiting first load, unsaved input) still apply.
-    func unloadTabs(inSpaces spaceIDs: Set<UUID>) {
-        guard let store else { return }
-
-        for tab in store.tabs
-        where spaceIDs.contains(tab.spaceID) && webViews[tab.id] != nil && isHibernatable(tab, idleBefore: .distantFuture) {
-            hibernateIfNoUnsavedInput(tab.id, idleBefore: .distantFuture)
         }
     }
 
@@ -559,7 +593,11 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
             context.duration = 0.18
             overlay.animator().alphaValue = 0
         }, completionHandler: {
-            overlay.removeFromSuperview()
+            // The completion handler is nonisolated in the SDK signature but
+            // always runs on the main thread.
+            MainActor.assumeIsolated {
+                overlay.removeFromSuperview()
+            }
         })
     }
 
@@ -763,6 +801,12 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         }
 
         delete window.__lumaMiniPlayerState;
+
+        // Collapsing the page to the video zeroed the scroll position; put
+        // it back so the page returns exactly where the user left it.
+        if (Number.isFinite(state.scrollX) && Number.isFinite(state.scrollY)) {
+          window.scrollTo(state.scrollX, state.scrollY);
+        }
       };
 
       const installMiniPlayerStyle = () => {
@@ -779,6 +823,11 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         document.documentElement.appendChild(style);
       };
 
+      // Last media that passed full-layout selection. Activation may run
+      // after the web view has shrunk to mini player size, where nothing
+      // can satisfy the area thresholds — this remembers the right element.
+      let lastEligibleMedia = null;
+
       window.__lumaSelectMedia = selectMedia;
       window.__lumaActivateMiniPlayerPresentation = () => {
         const existingState = window.__lumaMiniPlayerState;
@@ -791,7 +840,10 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
           return true;
         }
 
-        const media = selectMedia();
+        const fallback = lastEligibleMedia?.isConnected && !lastEligibleMedia.ended
+          ? lastEligibleMedia
+          : null;
+        const media = selectMedia() || fallback;
         if (!media) { return false; }
 
         installMiniPlayerStyle();
@@ -809,7 +861,9 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
           media,
           parent,
           nextSibling,
-          placeholder
+          placeholder,
+          scrollX: window.scrollX,
+          scrollY: window.scrollY
         };
 
         document.documentElement.classList.add(miniPlayerClass);
@@ -839,18 +893,27 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
 
       const report = () => {
         const current = selectMedia();
+        if (current) { lastEligibleMedia = current; }
         const playing = current && !current.paused && !current.ended && current.readyState >= 2;
         syncPlaybackTicker(Boolean(playing));
 
         const handler = window.webkit?.messageHandlers?.\(mediaStateMessageName);
         if (!handler) { return; }
+        // The on-page rect only means anything while the page has its real
+        // layout; once the mini player presentation strips the page, the
+        // video fills the (tiny) viewport and the rect would be garbage.
+        const presentationActive = document.documentElement.classList.contains(miniPlayerClass);
+        const pageRect = current && !presentationActive ? current.getBoundingClientRect() : null;
         handler.postMessage({
           hasMedia: Boolean(current),
           isPlaying: Boolean(playing),
           isMuted: current ? (current.muted || current.volume === 0) : false,
           isMiniPlayerEligible: Boolean(current),
           currentTime: current ? current.currentTime : 0,
-          duration: current ? finiteDuration(current) : 0
+          duration: current ? finiteDuration(current) : 0,
+          videoRect: pageRect
+            ? { x: pageRect.x, y: pageRect.y, width: pageRect.width, height: pageRect.height }
+            : null
         });
       };
       window.__lumaReportMediaState = report;
@@ -895,9 +958,26 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
             isMuted: body["isMuted"] as? Bool ?? false,
             isMiniPlayerEligible: body["isMiniPlayerEligible"] as? Bool ?? false,
             currentTime: body["currentTime"] as? Double ?? 0,
-            duration: body["duration"] as? Double ?? 0
+            duration: body["duration"] as? Double ?? 0,
+            pageVideoFrame: Self.videoFrame(from: body["videoRect"])
         )
         store?.updateMediaState(tabID: tabID, state: state)
+    }
+
+    private static func videoFrame(from value: Any?) -> CGRect? {
+        guard
+            let rect = value as? [String: Any],
+            let x = rect["x"] as? Double,
+            let y = rect["y"] as? Double,
+            let width = rect["width"] as? Double,
+            let height = rect["height"] as? Double,
+            width > 0, height > 0,
+            [x, y, width, height].allSatisfy(\.isFinite)
+        else {
+            return nil
+        }
+
+        return CGRect(x: x, y: y, width: width, height: height)
     }
 
     private func activateMiniPlayerPresentation(tabID: UUID) {

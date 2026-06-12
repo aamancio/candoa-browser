@@ -96,6 +96,7 @@ struct ContentView: View {
                             tab: mediaTab,
                             state: mediaState,
                             availableSize: availableSize,
+                            summon: store.pendingMiniPlayerSummon,
                             origin: $miniPlayerOrigin,
                             expandedSize: $miniPlayerExpandedSize
                         )
@@ -182,7 +183,6 @@ struct ContentView: View {
         // (see BrowserStore.presentCommandPalette).
         .animation(.easeOut(duration: 0.14), value: store.isTabSwitcherPresented)
         .animation(.easeOut(duration: 0.16), value: store.mediaControllerTabID)
-        .animation(.easeOut(duration: 0.16), value: store.isMiniPlayerMinimized)
         .animation(.easeOut(duration: 0.18), value: isSidebarPresented)
         .animation(.easeOut(duration: 0.18), value: isSidebarVisible)
         .focusedSceneValue(\.browserCommandActions, browserCommandActions)

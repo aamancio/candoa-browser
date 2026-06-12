@@ -47,6 +47,10 @@ struct MiniPlayerWebViewHost: NSViewRepresentable {
     }
 
     func updateNSView(_ container: NSView, context: Context) {
+        // During the return-to-tab morph the page has been handed back and
+        // is relayouting hidden; re-hosting would strip it down again
+        // mid-flight. (The player shows the freeze frame instead.)
+        guard store.miniPlayerReturn == nil else { return }
         store.webCoordinator.hostMiniPlayerWebView(for: tabID, in: container)
     }
 

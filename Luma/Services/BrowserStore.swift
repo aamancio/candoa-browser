@@ -10,6 +10,27 @@ struct TabMediaState: Equatable {
     var isMiniPlayerEligible = false
     var currentTime: Double = 0
     var duration: Double = 0
+    /// Where the video sits in the page's viewport (web view coordinates),
+    /// captured while the page still has its real layout. Lets the floating
+    /// mini player morph out from the video's actual on-page position.
+    var pageVideoFrame: CGRect?
+}
+
+/// Snapshot taken at the moment the user switches away from the playing tab,
+/// so the summoned mini player can animate from where the video was.
+struct MiniPlayerSummonContext {
+    var pageVideoFrame: CGRect?
+}
+
+/// Drives the return-to-tab morph: the floating player swaps to a freeze
+/// frame of its video, glides back over the video's on-page rect while the
+/// restored page lays itself out hidden underneath, and the actual tab
+/// switch lands on an already-settled page (no top-left relayout flash).
+struct MiniPlayerReturnContext {
+    let tabID: UUID
+    let updatesAccessTime: Bool
+    let snapshot: NSImage?
+    let targetFrame: CGRect?
 }
 
 @MainActor
@@ -58,7 +79,6 @@ final class BrowserStore: ObservableObject {
     @Published var findQuery = ""
     @Published private(set) var mediaStates: [UUID: TabMediaState] = [:]
     @Published private(set) var mediaControllerTabID: UUID?
-    @Published var isMiniPlayerMinimized = false
     @Published private(set) var dismissedMiniPlayerTabID: UUID?
     @Published private(set) var retainedPausedMiniPlayerTabID: UUID?
     @Published private(set) var iCloudWorkspaceSyncEnabled =
@@ -67,6 +87,13 @@ final class BrowserStore: ObservableObject {
         LumaCloudKitEntitlements.hasConfiguredContainer && LumaSyncPreferences.syncsHistoryWithICloud
     @Published var syncRestartMessage: String?
     @Published private(set) var copiedURLToast: CopiedURLToast?
+
+    /// Deliberately not @Published: it's consumed by the mini player's mount
+    /// (which the activeTabID change already triggers), and publishing it
+    /// would cause a redundant view update per tab switch.
+    private(set) var pendingMiniPlayerSummon: MiniPlayerSummonContext?
+
+    @Published private(set) var miniPlayerReturn: MiniPlayerReturnContext?
 
     private var recentlyClosedTabs: [ClosedTabSnapshot] = []
     private static let recentlyClosedTabLimit = 50
@@ -558,14 +585,6 @@ final class BrowserStore: ObservableObject {
         flushSession()
     }
 
-    func unloadSpace(_ id: UUID) {
-        webCoordinator.unloadTabs(inSpaces: [id])
-    }
-
-    func unloadAllOtherSpaces(except id: UUID) {
-        webCoordinator.unloadTabs(inSpaces: Set(spaces.map(\.id)).subtracting([id]))
-    }
-
     func moveTab(_ tabID: UUID, toSpace targetSpaceID: UUID) {
         guard
             spaces.contains(where: { $0.id == targetSpaceID }),
@@ -828,6 +847,29 @@ final class BrowserStore: ObservableObject {
     }
 
     private func switchTab(to id: UUID, updatesAccessTime: Bool) {
+        guard tabs.contains(where: { $0.id == id }) else { return }
+
+        // Switching to the floating player's own tab morphs the player back
+        // into the page instead of swapping abruptly; the real switch lands
+        // in finishMiniPlayerReturn once the morph completes. Ctrl-Tab
+        // preview cycling keeps the instant swap — a morph per cycle step
+        // would fight the switcher.
+        if miniPlayerReturn == nil, floatingMiniPlayerTab?.id == id, !isTabSwitcherPresented {
+            beginMiniPlayerReturn(tabID: id, updatesAccessTime: updatesAccessTime)
+            return
+        }
+
+        if let returning = miniPlayerReturn {
+            guard returning.tabID != id else { return }
+            // A different switch interrupts the in-flight return; clearing
+            // the context lets the player re-adopt its web view and float on.
+            miniPlayerReturn = nil
+        }
+
+        performSwitchTab(to: id, updatesAccessTime: updatesAccessTime)
+    }
+
+    private func performSwitchTab(to id: UUID, updatesAccessTime: Bool) {
         guard let index = tabs.firstIndex(where: { $0.id == id }) else { return }
         if updatesAccessTime {
             tabs[index].lastAccessedAt = Date()
@@ -881,14 +923,28 @@ final class BrowserStore: ObservableObject {
 
     func updateMediaState(tabID: UUID, state: TabMediaState) {
         guard tabs.contains(where: { $0.id == tabID }) else { return }
+        var state = state
+        // Reports sent while the page is stripped down (hosted by the
+        // floating player) carry no on-page rect; keep the last full-layout
+        // one so the summon and return morphs always have a target.
+        if state.hasMedia, state.pageVideoFrame == nil {
+            state.pageVideoFrame = mediaStates[tabID]?.pageVideoFrame
+        }
         mediaStates[tabID] = state.hasMedia ? state : nil
 
         if state.isPlaying, state.isMiniPlayerEligible {
             // The most recently playing tab owns the floating mini player; it
             // keeps it while paused so playback can be resumed from the card.
             if mediaControllerTabID != tabID {
+                // Hand the previous owner its page back before transferring
+                // ownership: detaching restores the mini player presentation
+                // (the page strips itself down to just the video while
+                // hosted), so reopening that tab from the sidebar shows the
+                // actual page instead of a blacked-out video shell.
+                if let previousOwnerID = mediaControllerTabID {
+                    webCoordinator.detachMiniPlayerWebView(for: previousOwnerID)
+                }
                 dismissedMiniPlayerTabID = nil
-                isMiniPlayerMinimized = false
             }
             retainedPausedMiniPlayerTabID = nil
             mediaControllerTabID = tabID
@@ -899,7 +955,6 @@ final class BrowserStore: ObservableObject {
 
             mediaControllerTabID = nil
             dismissedMiniPlayerTabID = nil
-            isMiniPlayerMinimized = false
             retainedPausedMiniPlayerTabID = nil
             webCoordinator.detachMiniPlayerWebView(for: tabID)
         }
@@ -912,17 +967,21 @@ final class BrowserStore: ObservableObject {
 
     func toggleMiniPlayerPlayback() {
         guard let mediaControllerTabID else { return }
-        if mediaStates[mediaControllerTabID]?.isPlaying == true {
-            retainedPausedMiniPlayerTabID = mediaControllerTabID
-        } else {
-            retainedPausedMiniPlayerTabID = nil
-        }
+        // Keep the retained marker through the resume round-trip: isPlaying
+        // only flips once the page reports back, and clearing the marker
+        // before then unmounts the player for a frame (visible flash).
+        // updateMediaState clears it when playback actually starts.
+        retainedPausedMiniPlayerTabID = mediaControllerTabID
         webCoordinator.toggleMediaPlayback(tabID: mediaControllerTabID)
     }
 
     func toggleMediaMute() {
         guard let mediaControllerTabID else { return }
-        webCoordinator.toggleMediaMute(tabID: mediaControllerTabID)
+        toggleMediaMute(tabID: mediaControllerTabID)
+    }
+
+    func toggleMediaMute(tabID: UUID) {
+        webCoordinator.toggleMediaMute(tabID: tabID)
     }
 
     func skipMediaTrack(forward: Bool) {
@@ -943,21 +1002,62 @@ final class BrowserStore: ObservableObject {
     func focusMediaTab() {
         guard let mediaControllerTabID else { return }
         dismissedMiniPlayerTabID = nil
-        isMiniPlayerMinimized = false
         retainedPausedMiniPlayerTabID = nil
         switchTab(to: mediaControllerTabID)
     }
 
+    /// Dismisses the floating player but leaves the page playing in the
+    /// background; Close (dismissMiniPlayer) pauses playback as well.
     func minimizeMiniPlayer() {
         hideMiniPlayer(pausesPlayback: false)
     }
 
-    func expandMiniPlayer() {
-        isMiniPlayerMinimized = false
-    }
-
     func dismissMiniPlayer() {
         hideMiniPlayer(pausesPlayback: true)
+    }
+
+    func consumeMiniPlayerSummon() {
+        pendingMiniPlayerSummon = nil
+    }
+
+    private func beginMiniPlayerReturn(tabID: UUID, updatesAccessTime: Bool) {
+        // Keep the player mounted through the restore round-trip: the page
+        // can transiently report not-playing while it relayouts.
+        retainedPausedMiniPlayerTabID = tabID
+        // Capture the rect before the page is handed back — the restore
+        // itself triggers a report whose mid-relayout rect is unusable.
+        let targetFrame = mediaStates[tabID]?.pageVideoFrame
+        let activeTabIDAtBegin = activeTabID
+
+        webCoordinator.prepareMiniPlayerReturn(for: tabID) { [weak self] snapshot in
+            guard let self else { return }
+            // The user switched somewhere else while the freeze frame was
+            // captured — their newer intent wins.
+            guard self.activeTabID == activeTabIDAtBegin else { return }
+            guard self.floatingMiniPlayerTab?.id == tabID, self.miniPlayerReturn == nil else {
+                // The player went away mid-capture (dismissed, playback
+                // ended); the tab switch is still what was asked for.
+                self.performSwitchTab(to: tabID, updatesAccessTime: updatesAccessTime)
+                return
+            }
+
+            self.miniPlayerReturn = MiniPlayerReturnContext(
+                tabID: tabID,
+                updatesAccessTime: updatesAccessTime,
+                snapshot: snapshot,
+                targetFrame: targetFrame
+            )
+        }
+    }
+
+    /// Called by the floating player once the return morph lands; performs
+    /// the actual tab switch onto the already-settled page.
+    func finishMiniPlayerReturn() {
+        guard let returning = miniPlayerReturn else { return }
+        dismissedMiniPlayerTabID = nil
+        retainedPausedMiniPlayerTabID = nil
+        performSwitchTab(to: returning.tabID, updatesAccessTime: returning.updatesAccessTime)
+        miniPlayerReturn = nil
     }
 
     private func hideMiniPlayer(pausesPlayback: Bool) {
@@ -967,7 +1067,6 @@ final class BrowserStore: ObservableObject {
         }
 
         dismissedMiniPlayerTabID = mediaControllerTabID
-        isMiniPlayerMinimized = false
         retainedPausedMiniPlayerTabID = nil
         webCoordinator.detachMiniPlayerWebView(for: mediaControllerTabID)
     }
@@ -979,6 +1078,17 @@ final class BrowserStore: ObservableObject {
         // next switch away can summon it again.
         if activeTabID == dismissedMiniPlayerTabID {
             dismissedMiniPlayerTabID = nil
+        }
+
+        // Leaving the playing tab is the moment the floating player mounts;
+        // remember where the video sat on the page so the player can morph
+        // out of it instead of popping in at the corner.
+        if let previousID, floatingMiniPlayerTab?.id == previousID {
+            pendingMiniPlayerSummon = MiniPlayerSummonContext(
+                pageVideoFrame: mediaStates[previousID]?.pageVideoFrame
+            )
+        } else {
+            pendingMiniPlayerSummon = nil
         }
 
         if
