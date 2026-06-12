@@ -31,6 +31,7 @@
 		010000000000000000000122 /* SidebarRevealMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000032 /* SidebarRevealMonitor.swift */; };
 		010000000000000000000123 /* WindowInteractionConfigurator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000033 /* WindowInteractionConfigurator.swift */; };
 		010000000000000000000124 /* FloatingMiniPlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000034 /* FloatingMiniPlayer.swift */; };
+		010000000000000000000140 /* ContentBlockerService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000040 /* ContentBlockerService.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -61,6 +62,7 @@
 		010000000000000000000032 /* SidebarRevealMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarRevealMonitor.swift; sourceTree = "<group>"; };
 		010000000000000000000033 /* WindowInteractionConfigurator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowInteractionConfigurator.swift; sourceTree = "<group>"; };
 		010000000000000000000034 /* FloatingMiniPlayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FloatingMiniPlayer.swift; sourceTree = "<group>"; };
+		010000000000000000000040 /* ContentBlockerService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentBlockerService.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -140,6 +142,7 @@
 				010000000000000000000006 /* NavigationService.swift */,
 				010000000000000000000007 /* PersistenceService.swift */,
 				010000000000000000000008 /* FaviconService.swift */,
+				010000000000000000000040 /* ContentBlockerService.swift */,
 				01000000000000000000001D /* AppUpdateService.swift */,
 			);
 			path = Services;
@@ -263,6 +266,7 @@
 				010000000000000000000122 /* SidebarRevealMonitor.swift in Sources */,
 				010000000000000000000123 /* WindowInteractionConfigurator.swift in Sources */,
 				010000000000000000000124 /* FloatingMiniPlayer.swift in Sources */,
+				010000000000000000000140 /* ContentBlockerService.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

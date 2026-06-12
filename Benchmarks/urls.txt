@@ -1,0 +1,14 @@
+# Fixed tab set for the battery benchmark. Open the SAME list in every
+# browser. Mix of ad-heavy news, dynamic web apps, docs, and one video.
+https://www.theverge.com
+https://www.nytimes.com
+https://www.espn.com
+https://weather.com
+https://www.reddit.com/r/programming/
+https://news.ycombinator.com
+https://github.com/trending
+https://stackoverflow.com/questions
+https://en.wikipedia.org/wiki/Energy_efficiency
+https://developer.apple.com/documentation/webkit
+https://www.amazon.com
+https://www.youtube.com/watch?v=jNQXAC9IVRw

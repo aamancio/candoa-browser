@@ -62,6 +62,18 @@ Use Zen Browser as an additional open-source product and implementation referenc
 - Do not copy Zen code, branding, icons, assets, exact visual identity, Firefox-specific architecture, XUL/CSS implementation details, or browser engine assumptions.
 - Zen is a reference for behavior and structure, not a dependency or source to paste from.
 
+## Battery Efficiency (Core Feature — Always Follow)
+
+Battery efficiency is Luma's flagship differentiator against Arc, Brave, and Zen, and the reason Luma uses system WebKit instead of Chromium. Every feature and change must preserve it. These rules are not optional:
+
+- **No steady-state work on idle pages.** Never add an unconditional `setInterval`, polling timer, or recurring task to injected JavaScript or app code. Timers must be event-driven, exist only while the condition they serve is active (e.g. the media progress ticker runs only during playback), and be torn down the moment it ends.
+- **Background web views stay out of the view hierarchy.** Only tabs with media stay parented (hidden) so playback survives tab switches. Everything else must be unparented so WebKit can throttle it. Do not "fix" a bug by re-parenting all background web views.
+- **Tab hibernation must keep working.** Background tabs idle past `TabHibernationConfiguration.idleInterval` give up their web view and WebContent process; state is restored via `interactionState` behind a wake snapshot. New features must not silently defeat it (e.g. by touching `lastAccessedAt`, holding web view references, or adding media state to tabs without media).
+- **Hibernation exemptions are a UX contract — keep the list intact:** active tab, split tab, pinned tabs, tabs with media, popups awaiting first load, and pages with unsaved form/editor input are never hibernated. Battery gains must never cost user data or break media playback.
+- **Content blocking stays in the network process.** Tracker/ad blocking uses a compiled `WKContentRuleList` (`ContentBlockerService`). Do not replace it with JavaScript-based blocking. When changing the domain list, bump the rule-list identifier version so the compiled cache invalidates. Never block login-critical hosts.
+- **Cross-process chatter is a battery cost.** Minimize `postMessage`/`evaluateJavaScript` traffic between the app and WebContent processes; coalesce and throttle reports rather than streaming them.
+- **Prove regressions haven't happened.** For changes touching web view lifecycle, injected scripts, or timers, sanity-check with Activity Monitor's Energy Impact or the `Benchmarks/` powermetrics kit. A feature that visibly raises idle CPU does not ship.
+
 ## Technical Guardrails
 
 - Keep Luma native to macOS.

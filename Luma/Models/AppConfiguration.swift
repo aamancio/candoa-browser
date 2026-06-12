@@ -57,6 +57,23 @@ enum SidebarRevealConfiguration {
     static let pollingInterval: TimeInterval = 0.12
 }
 
+enum TabHibernationConfiguration {
+    /// Background tabs untouched for this long are hibernated: their
+    /// interaction state is captured and the WKWebView (and its WebContent
+    /// process) is torn down until the tab is activated again.
+    static let idleInterval: TimeInterval = 15 * 60
+
+    /// How often the coordinator scans for hibernation candidates.
+    static let scanInterval: TimeInterval = 60
+
+    /// Wake-up snapshots are captured at most this wide (points); they only
+    /// bridge the moment between activating a hibernated tab and first paint.
+    static let snapshotMaxWidth: CGFloat = 1024
+
+    /// Upper bound on retained wake-up snapshots, preferring hibernated tabs.
+    static let snapshotCacheLimit = 16
+}
+
 enum TabSwitcherConfiguration {
     static let previewLimit = 5
 

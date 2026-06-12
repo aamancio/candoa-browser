@@ -24,9 +24,29 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
     private var downloadDestinations: [WKDownload: URL] = [:]
     private var hostedActiveTabID: UUID?
     private var miniPlayerHostedTabID: UUID?
+    private var contentRuleList: WKContentRuleList?
+    private var hibernatedInteractionStates: [UUID: Data] = [:]
+    private var wakeSnapshots: [UUID: NSImage] = [:]
+    private var restoringTabIDs = Set<UUID>()
+    private var restoreOverlays: [UUID: NSImageView] = [:]
+    private var hibernationScanTask: Task<Void, Never>?
 
     func attach(store: BrowserStore) {
         self.store = store
+
+        Task { [weak self] in
+            await self?.applyContentRuleList()
+        }
+
+        hibernationScanTask?.cancel()
+        hibernationScanTask = Task { @MainActor [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(
+                    nanoseconds: UInt64(TabHibernationConfiguration.scanInterval * 1_000_000_000)
+                )
+                self?.hibernateIdleWebViews()
+            }
+        }
     }
 
     func webView(for tab: BrowserTab) -> WKWebView {
@@ -36,7 +56,12 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
 
         let webView = makeWebView(for: tab)
 
-        if let url = tab.url {
+        if let interactionState = hibernatedInteractionStates.removeValue(forKey: tab.id) {
+            // Waking a hibernated tab: restores the back/forward list, scroll
+            // position, and current page without a cold load.
+            restoringTabIDs.insert(tab.id)
+            webView.interactionState = interactionState
+        } else if let url = tab.url {
             load(url, in: tab.id)
         } else {
             webView.loadHTMLString(newTabHTML, baseURL: nil)
@@ -69,6 +94,9 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         webView.setValue(false, forKey: "drawsBackground")
 
         let contentController = webView.configuration.userContentController
+        if let contentRuleList {
+            contentController.add(contentRuleList)
+        }
         contentController.add(self, name: Self.mediaStateMessageName)
         contentController.addUserScript(
             WKUserScript(
@@ -88,6 +116,10 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         guard !popupTabIDsAwaitingFirstLoad.contains(tab.id) else { return }
 
         let webView = webView(for: tab)
+
+        // A hibernation wake-up owns this web view's navigation until commit;
+        // the URL mismatch below is expected while the restore is in flight.
+        guard !restoringTabIDs.contains(tab.id) else { return }
 
         guard let expectedURL = tab.url else {
             if webView.url == nil {
@@ -115,7 +147,11 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         if let webView {
             targetWebView = webView
         } else if let tab = store?.tabs.first(where: { $0.id == tabID }) {
-            targetWebView = makeWebView(for: tab)
+            // Waking via webView(for:) first keeps the hibernated tab's
+            // back/forward history underneath the new navigation.
+            targetWebView = hibernatedInteractionStates[tab.id] != nil
+                ? self.webView(for: tab)
+                : makeWebView(for: tab)
         } else {
             let fallbackSpaceID = store?.activeSpaceID ?? UUID()
             targetWebView = makeWebView(
@@ -132,6 +168,17 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
     }
 
     func removeWebView(for tabID: UUID) {
+        removeWebView(for: tabID, keepingHibernationData: false)
+    }
+
+    private func removeWebView(for tabID: UUID, keepingHibernationData: Bool) {
+        if !keepingHibernationData {
+            hibernatedInteractionStates[tabID] = nil
+            wakeSnapshots[tabID] = nil
+        }
+        restoringTabIDs.remove(tabID)
+        removeRestoreOverlay(for: tabID)
+
         guard let webView = webViews.removeValue(forKey: tabID) else { return }
         pendingWebAppPrompts[tabID] = nil
         observations[tabID] = nil
@@ -223,11 +270,17 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         }
 
         for (id, webView) in webViews where id != tabID && id != excludingTabID && id != miniPlayerHostedTabID {
-            guard webView.superview !== container else { continue }
-            webView.frame = container.bounds
-            webView.autoresizingMask = [.width, .height]
-            webView.isHidden = true
-            container.addSubview(webView, positioned: .below, relativeTo: nil)
+            if keepsBackgroundWebViewParented(id) {
+                guard webView.superview !== container else { continue }
+                webView.frame = container.bounds
+                webView.autoresizingMask = [.width, .height]
+                webView.isHidden = true
+                container.addSubview(webView, positioned: .below, relativeTo: nil)
+            } else if webView.superview === container, webView.isHidden {
+                // Idle background pages leave the hierarchy entirely so WebKit
+                // can throttle their timers and rendering toward zero.
+                webView.removeFromSuperview()
+            }
         }
 
         guard hostedActiveTabID != tabID || activeWebView.superview !== container else { return }
@@ -240,9 +293,14 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         activeWebView.removeFromSuperview()
         container.addSubview(activeWebView)
 
+        if restoringTabIDs.contains(tabID), let snapshot = wakeSnapshots[tabID] {
+            presentRestoreOverlay(snapshot, for: tabID, in: container)
+        }
+
         // The outgoing web view stays visible (covered by the new active one)
         // for a beat so media keeps rendering while the mini player attaches.
         guard let previousActiveTabID, previousActiveTabID != tabID else { return }
+        captureWakeSnapshot(for: previousActiveTabID)
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
             guard
                 let self,
@@ -274,6 +332,184 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         restoreMiniPlayerPresentation(tabID: tabID)
         miniPlayerHostedTabID = nil
         webViews[tabID]?.isHidden = true
+    }
+
+    /// Unparenting tears down media presentation, so tabs with media stay
+    /// parented (hidden); everything else is throttled by WebKit once removed.
+    private func keepsBackgroundWebViewParented(_ tabID: UUID) -> Bool {
+        store?.mediaStates[tabID] != nil
+    }
+
+    // MARK: - Tab Hibernation
+
+    private func hibernateIdleWebViews() {
+        guard let store else { return }
+        let cutoff = Date().addingTimeInterval(-TabHibernationConfiguration.idleInterval)
+
+        for tab in store.tabs where webViews[tab.id] != nil && isHibernatable(tab, idleBefore: cutoff) {
+            hibernateIfNoUnsavedInput(tab.id)
+        }
+    }
+
+    private func isHibernatable(_ tab: BrowserTab, idleBefore cutoff: Date) -> Bool {
+        guard let store else { return false }
+        return tab.id != store.activeTabID
+            && tab.id != store.splitTabID
+            && tab.id != miniPlayerHostedTabID
+            && tab.id != store.mediaControllerTabID
+            && !tab.isPinned
+            && !tab.isLoading
+            && tab.url != nil
+            && tab.lastAccessedAt < cutoff
+            && store.mediaStates[tab.id] == nil
+            && !popupTabIDsAwaitingFirstLoad.contains(tab.id)
+            && !restoringTabIDs.contains(tab.id)
+    }
+
+    private func hibernateIfNoUnsavedInput(_ tabID: UUID) {
+        guard let webView = webViews[tabID] else { return }
+
+        webView.evaluateJavaScript(Self.unsavedInputCheckScript) { [weak self] value, error in
+            Task { @MainActor in
+                guard error == nil, (value as? Bool) == false else { return }
+                self?.hibernate(tabID)
+            }
+        }
+    }
+
+    private func hibernate(_ tabID: UUID) {
+        guard
+            let store,
+            let webView = webViews[tabID],
+            let tab = store.tabs.first(where: { $0.id == tabID }),
+            // State may have changed while the unsaved-input check ran.
+            isHibernatable(tab, idleBefore: Date())
+        else { return }
+
+        if let interactionState = webView.interactionState as? Data {
+            hibernatedInteractionStates[tabID] = interactionState
+        }
+        removeWebView(for: tabID, keepingHibernationData: true)
+    }
+
+    /// Hibernation guard: anything the user may have typed keeps the page
+    /// alive, because tearing down the web view would lose that input.
+    private static let unsavedInputCheckScript = """
+    (() => {
+      const hasDirtyField = Array.from(document.querySelectorAll("input, textarea")).some((field) => {
+        if (field.type === "checkbox" || field.type === "radio") {
+          return field.checked !== field.defaultChecked;
+        }
+        if (["hidden", "submit", "button", "image", "reset"].includes(field.type)) {
+          return false;
+        }
+        return field.value !== field.defaultValue;
+      });
+      if (hasDirtyField) { return true; }
+
+      return Array.from(document.querySelectorAll("[contenteditable='true']"))
+        .some((editor) => editor.textContent.trim().length > 0);
+    })();
+    """
+
+    // MARK: - Wake Snapshots & Restore Overlay
+
+    private func captureWakeSnapshot(for tabID: UUID) {
+        guard
+            let webView = webViews[tabID],
+            !webView.bounds.isEmpty,
+            !webView.isHidden,
+            webView.window != nil
+        else { return }
+
+        let configuration = WKSnapshotConfiguration()
+        configuration.rect = CGRect(origin: .zero, size: webView.bounds.size)
+        configuration.snapshotWidth = NSNumber(
+            value: Double(min(webView.bounds.width, TabHibernationConfiguration.snapshotMaxWidth))
+        )
+
+        webView.takeSnapshot(with: configuration) { [weak self] image, _ in
+            DispatchQueue.main.async {
+                guard let self, let image else { return }
+                self.storeWakeSnapshot(image, for: tabID)
+            }
+        }
+    }
+
+    private func storeWakeSnapshot(_ image: NSImage, for tabID: UUID) {
+        wakeSnapshots[tabID] = image
+        guard wakeSnapshots.count > TabHibernationConfiguration.snapshotCacheLimit else { return }
+
+        // Evict live tabs' snapshots first; hibernated tabs need theirs to
+        // cover the wake-up reload.
+        let evictableID = wakeSnapshots.keys.first { hibernatedInteractionStates[$0] == nil && $0 != tabID }
+            ?? wakeSnapshots.keys.first { $0 != tabID }
+        if let evictableID {
+            wakeSnapshots[evictableID] = nil
+        }
+    }
+
+    private func presentRestoreOverlay(_ snapshot: NSImage, for tabID: UUID, in container: NSView) {
+        removeRestoreOverlay(for: tabID)
+
+        let overlay = NSImageView(frame: container.bounds)
+        overlay.autoresizingMask = [.width, .height]
+        overlay.imageScaling = .scaleProportionallyUpOrDown
+        overlay.image = snapshot
+        overlay.wantsLayer = true
+        overlay.layer?.backgroundColor = NSColor.textBackgroundColor.cgColor
+        container.addSubview(overlay)
+        restoreOverlays[tabID] = overlay
+
+        // Failsafe: never leave a stale snapshot covering a live page.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 4.0) { [weak self] in
+            self?.removeRestoreOverlay(for: tabID, animated: true)
+        }
+    }
+
+    private func scheduleRestoreOverlayRemoval(for tabID: UUID) {
+        // Commit precedes first paint; hold the snapshot a beat longer so the
+        // swap lands on rendered content instead of a flash.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { [weak self] in
+            self?.removeRestoreOverlay(for: tabID, animated: true)
+        }
+    }
+
+    private func removeRestoreOverlay(for tabID: UUID, animated: Bool = false) {
+        guard let overlay = restoreOverlays.removeValue(forKey: tabID) else { return }
+        guard animated else {
+            overlay.removeFromSuperview()
+            return
+        }
+
+        NSAnimationContext.runAnimationGroup({ context in
+            context.duration = 0.18
+            overlay.animator().alphaValue = 0
+        }, completionHandler: {
+            overlay.removeFromSuperview()
+        })
+    }
+
+    private func finishRestoreIfNeeded(for webView: WKWebView, failed: Bool = false) {
+        guard let tabID = tabID(for: webView), restoringTabIDs.remove(tabID) != nil else { return }
+        if failed {
+            removeRestoreOverlay(for: tabID, animated: true)
+        } else {
+            scheduleRestoreOverlayRemoval(for: tabID)
+        }
+    }
+
+    // MARK: - Content Blocking
+
+    private func applyContentRuleList() async {
+        guard contentRuleList == nil, let ruleList = await ContentBlockerService.shared.ruleList() else { return }
+        contentRuleList = ruleList
+
+        // Web views created before compilation finished pick the rules up
+        // for their subsequent loads.
+        for webView in webViews.values {
+            webView.configuration.userContentController.add(ruleList)
+        }
     }
 
     // MARK: - Media Playback State & Controls
@@ -518,12 +754,23 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         window.__lumaReportMediaState?.();
       };
 
-      const report = () => {
-        const handler = window.webkit?.messageHandlers?.\(mediaStateMessageName);
-        if (!handler) { return; }
+      let playbackTicker = null;
+      const syncPlaybackTicker = (isPlaying) => {
+        if (isPlaying && playbackTicker === null) {
+          playbackTicker = window.setInterval(() => report(), 1000);
+        } else if (!isPlaying && playbackTicker !== null) {
+          window.clearInterval(playbackTicker);
+          playbackTicker = null;
+        }
+      };
 
+      const report = () => {
         const current = selectMedia();
         const playing = current && !current.paused && !current.ended && current.readyState >= 2;
+        syncPlaybackTicker(Boolean(playing));
+
+        const handler = window.webkit?.messageHandlers?.\(mediaStateMessageName);
+        if (!handler) { return; }
         handler.postMessage({
           hasMedia: Boolean(current),
           isPlaying: Boolean(playing),
@@ -535,12 +782,24 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
       };
       window.__lumaReportMediaState = report;
 
-      ["play", "playing", "pause", "ended", "emptied", "volumechange", "loadedmetadata", "loadeddata", "timeupdate"].forEach((eventName) => {
-        document.addEventListener(eventName, report, true);
+      let reportQueued = false;
+      const queueReport = () => {
+        if (reportQueued) { return; }
+        reportQueued = true;
+        window.setTimeout(() => {
+          reportQueued = false;
+          report();
+        }, 250);
+      };
+
+      // Event-driven with a coalescing timeout. The only steady timer is the
+      // 1 Hz progress ticker, and it exists solely while media is playing —
+      // an idle page costs nothing.
+      ["play", "playing", "pause", "ended", "emptied", "seeked", "volumechange", "loadedmetadata", "loadeddata"].forEach((eventName) => {
+        document.addEventListener(eventName, queueReport, true);
       });
-      document.addEventListener("visibilitychange", report);
+      document.addEventListener("visibilitychange", queueReport);
       window.setTimeout(report, 0);
-      window.setInterval(report, 2500);
     })();
     """
 
@@ -719,6 +978,7 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
     }
 
     func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
+        finishRestoreIfNeeded(for: webView)
         updateStore(from: webView, isLoading: webView.isLoading)
     }
 
@@ -730,10 +990,12 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
     }
 
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+        finishRestoreIfNeeded(for: webView, failed: true)
         updateStore(from: webView, isLoading: false)
     }
 
     func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+        finishRestoreIfNeeded(for: webView, failed: true)
         updateStore(from: webView, isLoading: false)
     }
 
