@@ -4,6 +4,7 @@ import SwiftUI
 struct ContentView: View {
     @StateObject private var store = BrowserStore()
     @StateObject private var updateService = AppUpdateService()
+    @StateObject private var systemAppearance = SystemAppearanceObserver()
     @Environment(\.scenePhase) private var scenePhase
     @SceneStorage("luma.windowAutosaveID") private var windowAutosaveID = UUID().uuidString
     @State private var isSidebarVisible = true
@@ -18,12 +19,11 @@ struct ContentView: View {
         store.spaceThemeAppearancePreview ?? store.activeSpace?.themeAppearance ?? .automatic
     }
 
-    private var preferredColorScheme: ColorScheme? {
-        activeThemeAppearance.colorScheme
-    }
-
-    private var preferredNSAppearanceName: NSAppearance.Name? {
-        activeThemeAppearance.nsAppearanceName
+    // SwiftUI latches the last explicit color scheme on its window; passing
+    // nil ("no preference") never releases it. So "automatic" is resolved to
+    // the live system appearance instead of nil — see SystemAppearanceObserver.
+    private var resolvedColorScheme: ColorScheme {
+        activeThemeAppearance.colorScheme ?? systemAppearance.colorScheme
     }
 
     private var activeThemeHexes: [String] {
@@ -104,11 +104,10 @@ struct ContentView: View {
             LumaWindowBackdrop(store: store)
                 .ignoresSafeArea()
         }
-        .preferredColorScheme(preferredColorScheme)
+        .preferredColorScheme(resolvedColorScheme)
         .background(
             WindowInteractionConfigurator(
-                autosaveName: "\(AppConfiguration.windowAutosaveNamePrefix).\(windowAutosaveID)",
-                appearanceName: preferredNSAppearanceName
+                autosaveName: "\(AppConfiguration.windowAutosaveNamePrefix).\(windowAutosaveID)"
             )
         )
         .background(
@@ -235,6 +234,7 @@ struct ContentView: View {
             // window-wide backdrop reads as one continuous surface.
             if isSidebarOverlaying {
                 LumaWindowBackdrop(store: store)
+                    .ignoresSafeArea(.container, edges: .top)
             }
         }
         .shadow(

@@ -69,8 +69,8 @@ struct WebViewContainer: View {
                     .fill(LumaChromeStyle.surfaceFill.opacity(0.74))
             )
             .compositingGroup()
-            .shadow(color: Color.black.opacity(0.18), radius: 14, x: -3, y: 1)
-            .shadow(color: Color.black.opacity(0.12), radius: 10, x: 0, y: 4)
+            .shadow(color: Color.black.opacity(0.10), radius: 16, x: -2, y: 2)
+            .shadow(color: Color.black.opacity(0.06), radius: 8, x: 0, y: 3)
     }
 
     private struct FindBarView: View {
@@ -176,15 +176,12 @@ private struct SpaceSetupCanvas: View {
             RoundedRectangle(cornerRadius: 12, style: .continuous)
                 .fill(canvasFill)
 
-            if !hexes.isEmpty {
-                SpaceThemeBackdrop(hexes: hexes, intensity: 0.18 * intensity, texture: texture)
-                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-            }
-
+            // Whisper-level sheen when themed: anything stronger visibly
+            // darkens the card against the identically-tinted chrome.
             LinearGradient(
                 colors: [
-                    Color.white.opacity(0.10),
-                    Color.black.opacity(0.035)
+                    Color.white.opacity(hexes.isEmpty ? 0.10 : 0.03),
+                    Color.black.opacity(hexes.isEmpty ? 0.035 : 0.012)
                 ],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
@@ -193,9 +190,9 @@ private struct SpaceSetupCanvas: View {
 
             LinearGradient(
                 colors: [
-                    Color.white.opacity(hexes.isEmpty ? 0.10 : 0.16),
+                    Color.white.opacity(hexes.isEmpty ? 0.10 : 0.04),
                     Color.clear,
-                    Color.black.opacity(hexes.isEmpty ? 0.08 : 0.14)
+                    Color.black.opacity(hexes.isEmpty ? 0.08 : 0.03)
                 ],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
@@ -214,24 +211,24 @@ private struct SpaceSetupCanvas: View {
         .overlay {
             ZStack {
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .stroke(Color.black.opacity(hexes.isEmpty ? 0.20 : 0.24), lineWidth: 1)
+                    .stroke(Color.black.opacity(hexes.isEmpty ? 0.08 : 0.12), lineWidth: 1)
 
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .stroke(Color.white.opacity(hexes.isEmpty ? 0.18 : 0.20), lineWidth: 1)
+                    .stroke(Color.white.opacity(hexes.isEmpty ? 0.08 : 0.10), lineWidth: 1)
                     .blendMode(.overlay)
             }
         }
         .compositingGroup()
         .shadow(
-            color: Color.black.opacity(hexes.isEmpty ? 0.22 : 0.38),
-            radius: hexes.isEmpty ? 18 : 32,
+            color: Color.black.opacity(hexes.isEmpty ? 0.10 : 0.18),
+            radius: hexes.isEmpty ? 22 : 30,
             x: 0,
-            y: hexes.isEmpty ? 6 : 10
+            y: hexes.isEmpty ? 8 : 10
         )
         .shadow(
-            color: Color.black.opacity(hexes.isEmpty ? 0.14 : 0.28),
-            radius: hexes.isEmpty ? 9 : 16,
-            x: -5,
+            color: Color.black.opacity(hexes.isEmpty ? 0.05 : 0.10),
+            radius: hexes.isEmpty ? 10 : 14,
+            x: -4,
             y: 1
         )
     }
@@ -241,6 +238,9 @@ private struct SpaceSetupCanvas: View {
             return LumaChromeStyle.surfaceFill.opacity(0.88)
         }
 
-        return Color(spaceHex: firstHex).opacity(0.74)
+        // The window backdrop already carries the theme color at full
+        // strength; keep the card nearly transparent so chrome and canvas
+        // read as one continuous surface (Zen-style).
+        return Color(spaceHex: firstHex).opacity(0.08)
     }
 }

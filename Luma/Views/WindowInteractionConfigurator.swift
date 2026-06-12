@@ -3,7 +3,6 @@ import SwiftUI
 
 struct WindowInteractionConfigurator: NSViewRepresentable {
     let autosaveName: String
-    let appearanceName: NSAppearance.Name?
 
     func makeCoordinator() -> Coordinator {
         Coordinator()
@@ -14,8 +13,7 @@ struct WindowInteractionConfigurator: NSViewRepresentable {
         DispatchQueue.main.async {
             context.coordinator.configure(
                 window: view.window,
-                autosaveName: autosaveName,
-                appearanceName: appearanceName
+                autosaveName: autosaveName
             )
         }
         return view
@@ -25,8 +23,7 @@ struct WindowInteractionConfigurator: NSViewRepresentable {
         DispatchQueue.main.async {
             context.coordinator.configure(
                 window: nsView.window,
-                autosaveName: autosaveName,
-                appearanceName: appearanceName
+                autosaveName: autosaveName
             )
         }
     }
@@ -40,12 +37,10 @@ struct WindowInteractionConfigurator: NSViewRepresentable {
 
         private weak var configuredWindow: NSWindow?
         private var configuredAutosaveName: String?
-        private var configuredAppearanceName: NSAppearance.Name?
 
-        func configure(window: NSWindow?, autosaveName: String, appearanceName: NSAppearance.Name?) {
+        func configure(window: NSWindow?, autosaveName: String) {
             guard let window else { return }
             configureChrome(for: window)
-            configureAppearance(for: window, appearanceName: appearanceName)
 
             guard configuredWindow !== window || configuredAutosaveName != autosaveName else {
                 return
@@ -55,12 +50,6 @@ struct WindowInteractionConfigurator: NSViewRepresentable {
             configuredAutosaveName = autosaveName
             _ = window.setFrameUsingName(autosaveName)
             _ = window.setFrameAutosaveName(autosaveName)
-        }
-
-        private func configureAppearance(for window: NSWindow, appearanceName: NSAppearance.Name?) {
-            guard configuredWindow !== window || configuredAppearanceName != appearanceName else { return }
-            configuredAppearanceName = appearanceName
-            window.appearance = appearanceName.flatMap(NSAppearance.init(named:))
         }
 
         private func configureChrome(for window: NSWindow) {
@@ -88,15 +77,34 @@ extension SpaceThemeAppearance {
             return .dark
         }
     }
+}
 
-    var nsAppearanceName: NSAppearance.Name? {
-        switch self {
-        case .automatic:
-            return nil
-        case .light:
-            return .aqua
-        case .dark:
-            return .darkAqua
+/// Tracks the macOS system appearance so "automatic" can resolve to an
+/// explicit color scheme. SwiftUI latches the last non-nil
+/// `preferredColorScheme` on its window, so we can never pass nil to mean
+/// "follow the system" — we follow it ourselves instead.
+@MainActor
+final class SystemAppearanceObserver: ObservableObject {
+    @Published var colorScheme: ColorScheme
+
+    private var observer: NSObjectProtocol?
+
+    init() {
+        colorScheme = Self.currentSystemColorScheme()
+        observer = DistributedNotificationCenter.default().addObserver(
+            forName: Notification.Name("AppleInterfaceThemeChangedNotification"),
+            object: nil,
+            queue: .main
+        ) { _ in
+            Task { @MainActor [weak self] in
+                self?.colorScheme = Self.currentSystemColorScheme()
+            }
         }
+    }
+
+
+    private static func currentSystemColorScheme() -> ColorScheme {
+        let isDark = UserDefaults.standard.string(forKey: "AppleInterfaceStyle") == "Dark"
+        return isDark ? .dark : .light
     }
 }

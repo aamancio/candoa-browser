@@ -35,7 +35,12 @@ struct SidebarView: View {
     }
 
     private var sidebarIconColor: Color {
-        isSetupThemePreviewActive ? Color.white.opacity(0.42) : LumaChromeStyle.sidebarIcon
+        guard isSetupThemePreviewActive else { return LumaChromeStyle.sidebarIcon }
+
+        let usesDarkForeground = LumaChromeStyle.prefersDarkForeground(
+            forSpaceHex: store.activeThemeColorHexes.first ?? ""
+        )
+        return (usesDarkForeground ? Color.black : Color.white).opacity(0.42)
     }
 
     var body: some View {
@@ -373,36 +378,45 @@ private struct CreateSpaceSidebarComposer: View {
         themeColorHex != nil
     }
 
+    private var usesDarkForeground: Bool {
+        guard let themeColorHex else { return false }
+        return LumaChromeStyle.prefersDarkForeground(forSpaceHex: themeColorHex)
+    }
+
+    private var foregroundBase: Color {
+        usesDarkForeground ? Color.black : Color.white
+    }
+
     private var textColor: Color {
-        isThemePreviewActive ? Color.white.opacity(0.88) : LumaChromeStyle.sidebarText
+        isThemePreviewActive ? foregroundBase.opacity(usesDarkForeground ? 0.82 : 0.88) : LumaChromeStyle.sidebarText
     }
 
     private var secondaryTextColor: Color {
-        isThemePreviewActive ? Color.white.opacity(0.58) : LumaChromeStyle.sidebarTextSecondary
+        isThemePreviewActive ? foregroundBase.opacity(usesDarkForeground ? 0.55 : 0.58) : LumaChromeStyle.sidebarTextSecondary
     }
 
     private var iconColor: Color {
-        isThemePreviewActive ? Color.white.opacity(0.42) : LumaChromeStyle.sidebarIcon
+        isThemePreviewActive ? foregroundBase.opacity(0.42) : LumaChromeStyle.sidebarIcon
     }
 
     private var controlFill: Color {
-        isThemePreviewActive ? Color.white.opacity(0.075) : LumaChromeStyle.spaceSetupControlFill
+        isThemePreviewActive ? foregroundBase.opacity(usesDarkForeground ? 0.06 : 0.075) : LumaChromeStyle.spaceSetupControlFill
     }
 
     private var controlStroke: Color {
-        isThemePreviewActive ? Color.white.opacity(0.08) : LumaChromeStyle.spaceSetupControlStroke
+        isThemePreviewActive ? foregroundBase.opacity(0.08) : LumaChromeStyle.spaceSetupControlStroke
     }
 
     private var pillFill: Color {
-        isThemePreviewActive ? Color.white.opacity(0.10) : LumaChromeStyle.spaceSetupPillFill
+        isThemePreviewActive ? foregroundBase.opacity(usesDarkForeground ? 0.08 : 0.10) : LumaChromeStyle.spaceSetupPillFill
     }
 
     private var createButtonTextColor: Color {
         if trimmedName.isEmpty {
-            return isThemePreviewActive ? Color.white.opacity(0.34) : LumaChromeStyle.sidebarTextSecondary
+            return isThemePreviewActive ? foregroundBase.opacity(0.34) : LumaChromeStyle.sidebarTextSecondary
         }
 
-        return isThemePreviewActive ? Color.white.opacity(0.92) : LumaChromeStyle.sidebarText
+        return isThemePreviewActive ? foregroundBase.opacity(usesDarkForeground ? 0.85 : 0.92) : LumaChromeStyle.sidebarText
     }
 
     private var themeAppearanceSelection: Binding<SpaceThemeAppearance> {
@@ -417,6 +431,10 @@ private struct CreateSpaceSidebarComposer: View {
     private var createButtonBackground: Color {
         guard themeColorHex != nil else {
             return Color.primary.opacity(trimmedName.isEmpty ? 0.055 : 0.13)
+        }
+
+        if usesDarkForeground {
+            return trimmedName.isEmpty ? Color.black.opacity(0.05) : Color.black.opacity(0.14)
         }
 
         return trimmedName.isEmpty ? Color.white.opacity(0.065) : Color.white.opacity(0.18)
@@ -461,7 +479,7 @@ private struct CreateSpaceSidebarComposer: View {
                 }
                 .buttonStyle(.plain)
                 .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(isThemePreviewActive ? Color.white.opacity(0.82) : Color.primary.opacity(0.86))
+                .foregroundStyle(isThemePreviewActive ? foregroundBase.opacity(usesDarkForeground ? 0.78 : 0.82) : Color.primary.opacity(0.86))
                 .frame(maxWidth: .infinity)
                 .padding(.top, 8)
                 .padding(.bottom, 6)
@@ -498,7 +516,13 @@ private struct CreateSpaceSidebarComposer: View {
             Button {
                 isIconPickerPresented.toggle()
             } label: {
-                SpaceIconPreview(symbolName: symbolName, themeColorHex: themeColorHex)
+                SpaceIconPreview(
+                    symbolName: symbolName,
+                    themeColorHex: themeColorHex,
+                    strokeColor: isThemePreviewActive
+                        ? foregroundBase.opacity(0.46)
+                        : LumaChromeStyle.sidebarIcon.opacity(0.78)
+                )
             }
             .buttonStyle(.plain)
             .help("Change Icon")
@@ -509,12 +533,24 @@ private struct CreateSpaceSidebarComposer: View {
                 )
             }
 
-            TextField("Space Name", text: $name)
+            TextField("", text: $name, prompt: Text(verbatim: ""))
                 .textFieldStyle(.plain)
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(textColor)
                 .lineLimit(1)
                 .focused($isNameFocused)
+                .accessibilityLabel("Space Name")
+                .overlay(alignment: .leading) {
+                    if name.isEmpty {
+                        // Manual placeholder: the system prompt ignores custom
+                        // colors on macOS and stays scheme-colored, which reads
+                        // white on light theme surfaces.
+                        Text("Space Name")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(secondaryTextColor)
+                            .allowsHitTesting(false)
+                    }
+                }
                 .onChange(of: name) { _, newValue in
                     let limitedName = BrowserStore.limitedSpaceNameInput(newValue)
                     if limitedName != newValue {
@@ -657,12 +693,13 @@ private struct CreateSpaceSidebarComposer: View {
 private struct SpaceIconPreview: View {
     let symbolName: String
     let themeColorHex: String?
+    var strokeColor: Color = LumaChromeStyle.sidebarIcon.opacity(0.78)
 
     var body: some View {
         ZStack {
             RoundedRectangle(cornerRadius: 8, style: .continuous)
                 .stroke(
-                    LumaChromeStyle.sidebarIcon.opacity(0.78),
+                    strokeColor,
                     style: StrokeStyle(lineWidth: 1.6, dash: [5, 4])
                 )
 
@@ -1160,6 +1197,15 @@ private struct SpaceThemePanel: View {
 
             ThemeHarmonyButton(isActive: usesHarmony, isEnabled: activeHexes.count > 1) {
                 usesHarmony.toggle()
+
+                // Snap immediately so the toggle gives visible feedback
+                // instead of only applying on the next dot drag.
+                if usesHarmony, let primary = dotPositions.first, !auxiliaryHexes.isEmpty {
+                    withAnimation(.easeOut(duration: 0.22)) {
+                        harmonizeAuxiliaryDots(around: primary)
+                    }
+                    publishThemePreview()
+                }
             }
         }
     }
@@ -2354,6 +2400,22 @@ enum LumaChromeStyle {
     static let surfaceBorder = Color.primary.opacity(0.12)
     static let popoverBackground = Color(nsColor: .windowBackgroundColor)
     static let popoverBorder = Color(nsColor: .separatorColor).opacity(0.85)
+
+    /// Whether chrome text needs to be dark to stay legible on the themed
+    /// surface. At preview strength the theme color dominates the chrome
+    /// (0.74 tint), so the color's own perceived luminance decides: light
+    /// colors (mint, gold, pink…) wash out white text.
+    static func prefersDarkForeground(forSpaceHex hex: String) -> Bool {
+        let cleaned = hex.trimmingCharacters(in: CharacterSet(charactersIn: "#"))
+        guard cleaned.count == 6, let value = Int(cleaned, radix: 16) else { return false }
+
+        let red = Double((value >> 16) & 0xFF) / 255.0
+        let green = Double((value >> 8) & 0xFF) / 255.0
+        let blue = Double(value & 0xFF) / 255.0
+
+        let luminance = 0.299 * red + 0.587 * green + 0.114 * blue
+        return luminance > 0.60
+    }
 }
 
 /// The single chrome surface painted across the entire window (Zen-style):
@@ -2372,30 +2434,33 @@ struct LumaWindowBackdrop: View {
 
     private var backdropIntensity: Double {
         if store.isSpaceSetupPresented {
-            return isSetupThemePreviewActive ? 0.16 : 0.08
+            // Near-flat during preview: the gradient's brightened leading
+            // blob sits under the sidebar and visibly whitens it otherwise.
+            return isSetupThemePreviewActive ? 0.04 : 0.08
         }
 
         return 0.16
     }
 
     // During setup theme preview the chrome mirrors SpaceSetupCanvas's fill
-    // (hex at 0.74) so sidebar, title bar, and canvas read as one color.
+    // (hex at 0.74 + backdrop at 0.18) so sidebar, title bar, and canvas
+    // read as one continuous color.
     private var spaceTintOpacity: Double {
         guard hasThemeTint else { return 0 }
-        return store.isSpaceSetupPresented ? 0.62 : 0.050
+        return store.isSpaceSetupPresented ? 0.74 : 0.050
     }
 
     var body: some View {
         ZStack {
             LumaChromeStyle.windowBackground
+            Color(spaceHex: store.activeThemeColorHexes.first ?? "#8A8F98")
+                .opacity(spaceTintOpacity)
             SpaceThemeBackdrop(
                 hexes: store.activeThemeColorHexes,
                 intensity: backdropIntensity * store.activeThemeIntensityMultiplier,
                 texture: store.activeThemeTexture
             )
             LumaChromeStyle.setupNeutralTint.opacity(store.isSpaceSetupPresented && !isSetupThemePreviewActive ? 0.18 : 0)
-            Color(spaceHex: store.activeThemeColorHexes.first ?? "#8A8F98")
-                .opacity(spaceTintOpacity)
         }
     }
 }
