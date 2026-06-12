@@ -10,6 +10,14 @@ struct WebViewContainer: View {
         Color(spaceHex: store.activeThemeColorHexes.first ?? "#8A8F98")
     }
 
+    /// Zen resolves the loading pill's light-dark() from the chrome theme,
+    /// not the system: a dark space theme means dark chrome. Nil when the
+    /// space is unthemed, falling back to the system appearance.
+    private var themeIsDarkChrome: Bool? {
+        guard let hex = store.activeThemeColorHexes.first else { return nil }
+        return !LumaChromeStyle.prefersDarkForeground(forSpaceHex: hex)
+    }
+
     var body: some View {
         ZStack {
             if store.isSpaceSetupPresented {
@@ -39,9 +47,13 @@ struct WebViewContainer: View {
                         ActiveWebViewHost(tab: tab, store: store)
                             .background(LumaChromeStyle.surfaceFill.opacity(0.72))
                             .overlay(alignment: .top) {
-                                PageLoadingPill(isLoading: tab.isLoading, tint: spaceTint)
-                                    .padding(.top, 2)
-                                    .id(tab.id)
+                                PageLoadingPill(
+                                    isLoading: tab.isLoading,
+                                    tint: spaceTint,
+                                    themeIsDark: themeIsDarkChrome
+                                )
+                                .padding(.top, 2)
+                                .id(tab.id)
                             }
                     }
                     .padding(surfacePadding)
@@ -169,9 +181,13 @@ struct WebViewContainer: View {
                 .id(tab.id)
                 .background(LumaChromeStyle.surfaceFill.opacity(0.72))
                 .overlay(alignment: .top) {
-                    PageLoadingPill(isLoading: tab.isLoading, tint: spaceTint)
-                        .padding(.top, 2)
-                        .id(tab.id)
+                    PageLoadingPill(
+                        isLoading: tab.isLoading,
+                        tint: spaceTint,
+                        themeIsDark: themeIsDarkChrome
+                    )
+                    .padding(.top, 2)
+                    .id(tab.id)
                 }
         }
     }
@@ -184,11 +200,12 @@ struct WebViewContainer: View {
 private struct PageLoadingPill: View {
     let isLoading: Bool
     let tint: Color
+    let themeIsDark: Bool?
 
     var body: some View {
         ZStack {
             if isLoading {
-                LoadingPillCore(tint: tint)
+                LoadingPillCore(tint: tint, themeIsDark: themeIsDark)
                     .transition(
                         .asymmetric(
                             insertion: .opacity,
@@ -204,8 +221,13 @@ private struct PageLoadingPill: View {
 
 private struct LoadingPillCore: View {
     let tint: Color
+    let themeIsDark: Bool?
 
     @Environment(\.colorScheme) private var colorScheme
+
+    private var isDarkScheme: Bool {
+        themeIsDark ?? (colorScheme == .dark)
+    }
 
     @State private var isPulsedUp = false
     @State private var isLongLoad = false
@@ -264,13 +286,13 @@ private struct LoadingPillCore: View {
     /// color-mix premultiplies alpha, so the 50%-alpha blend at 70% weight
     /// resolves to ~54% of the blend color at 0.65 total alpha.
     private var pillColor: Color {
-        let blend: NSColor = colorScheme == .dark ? .white : .black
+        let blend: NSColor = isDarkScheme ? .white : .black
         let mixed = NSColor(tint).usingColorSpace(.sRGB)?.blended(withFraction: 0.35 / 0.65, of: blend) ?? blend
         return Color(nsColor: mixed).opacity(0.65)
     }
 
     private var trackColor: Color {
-        (colorScheme == .dark ? Color.white : Color.black).opacity(0.1)
+        (isDarkScheme ? Color.white : Color.black).opacity(0.1)
     }
 }
 

@@ -64,7 +64,6 @@ struct TabRowView: View {
         .onTapGesture {
             onSelect()
         }
-        .onHover { isHovering = $0 }
         .contextMenu {
             Button(tab.isPinned ? "Unpin Tab" : "Pin Tab", action: onTogglePin)
             Button(BrowserCommandTitles.duplicateTab, action: onDuplicate)
@@ -131,9 +130,12 @@ private struct TabHoverTracker: NSViewRepresentable {
                 removeTrackingArea(trackingArea)
             }
 
+            // .mouseMoved matters: a row inserted under a stationary cursor
+            // never gets a mouseEntered crossing, so moves inside the row are
+            // the only signal that the cursor is here.
             let trackingArea = NSTrackingArea(
                 rect: bounds,
-                options: [.mouseEnteredAndExited, .activeInKeyWindow, .inVisibleRect],
+                options: [.mouseEnteredAndExited, .mouseMoved, .activeInKeyWindow, .inVisibleRect],
                 owner: self
             )
             addTrackingArea(trackingArea)
@@ -150,7 +152,19 @@ private struct TabHoverTracker: NSViewRepresentable {
             }
         }
 
+        // The first syncHoverState can run before SwiftUI has sized this
+        // view (bounds still .zero), reporting "outside" for a cursor that
+        // is actually over the row. Re-sync once real geometry arrives.
+        override func layout() {
+            super.layout()
+            syncHoverState()
+        }
+
         override func mouseEntered(with event: NSEvent) {
+            onHoverChange?(true)
+        }
+
+        override func mouseMoved(with event: NSEvent) {
             onHoverChange?(true)
         }
 

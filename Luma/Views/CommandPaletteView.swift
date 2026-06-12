@@ -20,7 +20,7 @@ struct CommandPaletteView: View {
                 .opacity(colorScheme == .dark ? 0.12 : 0.06)
                 .ignoresSafeArea()
                 .onTapGesture {
-                    store.dismissCommandPalette()
+                    dismissPalette()
                 }
 
             VStack(spacing: 0) {
@@ -101,7 +101,7 @@ struct CommandPaletteView: View {
                 isProviderChipDeletable: selectedSearchProvider != nil && query.isEmpty,
                 onDeleteProviderChip: deleteSelectedSearchProvider,
                 onMoveSelection: moveSelection,
-                onCancel: { store.dismissCommandPalette() }
+                onCancel: { dismissPalette() }
             )
         )
         .onAppear {
@@ -112,7 +112,7 @@ struct CommandPaletteView: View {
             focusSearchField()
         }
         .onExitCommand {
-            store.dismissCommandPalette()
+            dismissPalette()
         }
         .onChange(of: fieldFocusRequestID) { _, _ in
             focusSearchField()
@@ -435,10 +435,25 @@ struct CommandPaletteView: View {
         fieldFocusRequestID = UUID()
     }
 
+    private func dismissPalette() {
+        isSearchFocused = false
+        store.dismissCommandPalette()
+    }
+
     private func run(_ command: PaletteCommand) {
         let opensNewTab = store.consumeCommandPaletteNewTabIntent()
-        store.dismissCommandPalette()
+        dismissPalette()
 
+        // Deferred one tick: executing the command (tab creation, web view
+        // swap) in the same transaction as the dismissal interrupts the
+        // palette's removal transition, stranding an invisible palette over
+        // the window that swallows every mouse click.
+        DispatchQueue.main.async {
+            perform(command, opensNewTab: opensNewTab)
+        }
+    }
+
+    private func perform(_ command: PaletteCommand, opensNewTab: Bool) {
         switch command.action {
         case .newTab:
             store.openNewTabCommandPalette()

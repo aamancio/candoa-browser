@@ -1,6 +1,7 @@
 import AppKit
 import Combine
 import Foundation
+import SwiftUI
 
 struct TabMediaState: Equatable {
     var hasMedia = false
@@ -236,7 +237,7 @@ final class BrowserStore: ObservableObject {
         commandPaletteResumeQuery = activeURL.flatMap(navigationService.searchQuery(from:)) ?? ""
         commandPaletteSessionID = UUID()
         commandPaletteOpensNewTab = false
-        isCommandPalettePresented = true
+        presentCommandPalette()
         addressFocusRequestID = UUID()
     }
 
@@ -247,7 +248,7 @@ final class BrowserStore: ObservableObject {
         commandPaletteResumeQuery = ""
         commandPaletteSessionID = UUID()
         commandPaletteOpensNewTab = false
-        isCommandPalettePresented = true
+        presentCommandPalette()
     }
 
     func openNewTabCommandPalette() {
@@ -257,12 +258,31 @@ final class BrowserStore: ObservableObject {
         commandPaletteResumeQuery = ""
         commandPaletteSessionID = UUID()
         commandPaletteOpensNewTab = true
-        isCommandPalettePresented = true
+        presentCommandPalette()
+    }
+
+    /// Presentation animates; dismissal deliberately does not. An animated
+    /// removal keeps the palette in the hierarchy for the transition's
+    /// duration, and a committed command's web view swap landing in that
+    /// window interrupts the transition — stranding an invisible palette
+    /// that swallows every mouse click until ⌘T is pressed again.
+    private func presentCommandPalette() {
+        withAnimation(.easeOut(duration: 0.14)) {
+            isCommandPalettePresented = true
+        }
     }
 
     func dismissCommandPalette() {
         isCommandPalettePresented = false
         commandPaletteOpensNewTab = false
+
+        // The palette's TextField unmounts while the window's field editor is
+        // still bound to it. Without an explicit hand-back the orphaned field
+        // editor stays first responder and the window drops mouse events.
+        if let window = NSApp.keyWindow {
+            window.endEditing(for: nil)
+            window.makeFirstResponder(nil)
+        }
     }
 
     /// Arc-style ⌘T: no tab exists yet — the sidebar's New Tab button takes
@@ -280,16 +300,14 @@ final class BrowserStore: ObservableObject {
 
     func beginSpaceCreation() {
         guard !isInitialSpaceSetupPresented else { return }
-        isCommandPalettePresented = false
-        commandPaletteOpensNewTab = false
+        dismissCommandPalette()
         editingSpaceID = nil
         isCreateSpacePresented = true
     }
 
     func beginSpaceEditing(_ id: UUID) {
         guard !isInitialSpaceSetupPresented, spaces.contains(where: { $0.id == id }) else { return }
-        isCommandPalettePresented = false
-        commandPaletteOpensNewTab = false
+        dismissCommandPalette()
         isCreateSpacePresented = false
         switchSpace(to: id)
         editingSpaceID = id

@@ -59,7 +59,14 @@ struct ContentView: View {
             if store.isCommandPalettePresented {
                 CommandPaletteView(store: store)
                     .id(store.commandPaletteSessionID)
-                    .transition(.scale(scale: 0.98).combined(with: .opacity))
+                    // Removal must be instant: an animated removal overlaps
+                    // the committed command's web view swap, which interrupts
+                    // the transition and strands an invisible palette that
+                    // swallows every click in the window.
+                    .transition(.asymmetric(
+                        insertion: .scale(scale: 0.98).combined(with: .opacity),
+                        removal: .identity
+                    ))
                     .zIndex(10)
             }
 
@@ -169,7 +176,10 @@ struct ContentView: View {
                 store.closeSplitView()
             }
         )
-        .animation(.easeOut(duration: 0.14), value: store.isCommandPalettePresented)
+        // isCommandPalettePresented deliberately has no .animation(value:)
+        // here — the palette animates in via withAnimation at the present
+        // call sites only, so its dismissal is never an animated removal
+        // (see BrowserStore.presentCommandPalette).
         .animation(.easeOut(duration: 0.14), value: store.isTabSwitcherPresented)
         .animation(.easeOut(duration: 0.16), value: store.mediaControllerTabID)
         .animation(.easeOut(duration: 0.16), value: store.isMiniPlayerMinimized)
