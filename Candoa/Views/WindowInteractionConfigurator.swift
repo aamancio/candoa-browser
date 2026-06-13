@@ -48,7 +48,10 @@ struct WindowInteractionConfigurator: NSViewRepresentable {
 
             configuredWindow = window
             configuredAutosaveName = autosaveName
-            _ = window.setFrameUsingName(autosaveName)
+            let restoredSavedFrame = window.setFrameUsingName(autosaveName)
+            if !restoredSavedFrame {
+                window.setFrame(Self.initialWindowFrame(for: window), display: true, animate: false)
+            }
             _ = window.setFrameAutosaveName(autosaveName)
         }
 
@@ -59,6 +62,16 @@ struct WindowInteractionConfigurator: NSViewRepresentable {
             window.styleMask.insert(.fullSizeContentView)
             window.collectionBehavior.insert(.fullScreenPrimary)
             window.isMovableByWindowBackground = false
+        }
+
+        private static func initialWindowFrame(for window: NSWindow) -> NSRect {
+            let screen = window.screen ?? NSScreen.main
+            return screen?.visibleFrame ?? NSRect(
+                x: 0,
+                y: 0,
+                width: AppConfiguration.minimumWindowWidth,
+                height: AppConfiguration.minimumWindowHeight
+            )
         }
     }
 }

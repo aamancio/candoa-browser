@@ -14,6 +14,13 @@ SOURCE_DIR="$PROJECT_DIR/Candoa"
 DERIVED_DATA="$PROJECT_DIR/build/DerivedData"
 APP_PATH="$DERIVED_DATA/Build/Products/Debug/Candoa.app"
 RELAUNCH=false
+FSWATCH_BIN="$(command -v fswatch 2>/dev/null || true)"
+
+if [[ -z "$FSWATCH_BIN" && -x /opt/homebrew/bin/fswatch ]]; then
+    FSWATCH_BIN=/opt/homebrew/bin/fswatch
+elif [[ -z "$FSWATCH_BIN" && -x /usr/local/bin/fswatch ]]; then
+    FSWATCH_BIN=/usr/local/bin/fswatch
+fi
 
 if [[ "${1:-}" == "--run" ]]; then
     RELAUNCH=true
@@ -45,9 +52,9 @@ build() {
 echo "Watching $SOURCE_DIR (Ctrl-C to stop)"
 build
 
-if command -v fswatch >/dev/null 2>&1; then
+if [[ -n "$FSWATCH_BIN" ]]; then
     # Coalesce bursts of writes (Xcode/editors save several files at once).
-    fswatch --one-per-batch --latency 0.5 \
+    "$FSWATCH_BIN" --one-per-batch --latency 0.5 \
         --include '\.swift$' --exclude '.*' "$SOURCE_DIR" |
     while read -r _; do
         build

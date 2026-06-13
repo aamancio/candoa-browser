@@ -516,6 +516,7 @@ private struct UpsertSpaceSidebarComposer: View {
     init(store: BrowserStore, mode: SpaceComposerMode = .create) {
         self.store = store
         self.mode = mode
+        _name = State(initialValue: mode.defaultName)
     }
 
     var body: some View {
@@ -2157,6 +2158,15 @@ private enum SpaceComposerMode {
     case create
     case initial
     case edit
+
+    var defaultName: String {
+        switch self {
+        case .initial:
+            return "Personal"
+        case .create, .edit:
+            return ""
+        }
+    }
 
     var title: String {
         switch self {
