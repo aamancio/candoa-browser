@@ -196,13 +196,21 @@ struct SpaceSwitcherView: View {
 private struct DownloadsPopoverView: View {
     let onShowAllDownloads: () -> Void
 
+    @State private var downloads: [DownloadListItem] = []
+
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text("No downloads for this session.")
-                .font(.system(size: 13))
-                .foregroundStyle(.secondary)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 7)
+            if downloads.isEmpty {
+                Text("No downloads found.")
+                    .font(.system(size: 13))
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 7)
+            } else {
+                ForEach(downloads) { item in
+                    DownloadItemRow(item: item)
+                }
+            }
 
             Divider()
                 .padding(.vertical, 5)
@@ -210,7 +218,131 @@ private struct DownloadsPopoverView: View {
             DownloadsPopoverRow(title: "Show all downloads", action: onShowAllDownloads)
         }
         .padding(10)
-        .frame(width: 240)
+        .frame(width: 300)
+        .onAppear {
+            downloads = DownloadListItem.recentDownloads()
+        }
+    }
+}
+
+private struct DownloadListItem: Identifiable, Equatable {
+    let url: URL
+    let name: String
+    let date: Date
+    let isDirectory: Bool
+
+    var id: URL { url }
+
+    static func recentDownloads(limit: Int = 6) -> [DownloadListItem] {
+        guard let downloadsDirectory = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first else {
+            return []
+        }
+
+        let resourceKeys: Set<URLResourceKey> = [
+            .contentModificationDateKey,
+            .creationDateKey,
+            .isDirectoryKey
+        ]
+
+        guard let urls = try? FileManager.default.contentsOfDirectory(
+            at: downloadsDirectory,
+            includingPropertiesForKeys: Array(resourceKeys),
+            options: [.skipsHiddenFiles]
+        ) else {
+            return []
+        }
+
+        return urls.compactMap { url in
+            guard let values = try? url.resourceValues(forKeys: resourceKeys) else {
+                return nil
+            }
+
+            return DownloadListItem(
+                url: url,
+                name: FileManager.default.displayName(atPath: url.path),
+                date: values.contentModificationDate ?? values.creationDate ?? .distantPast,
+                isDirectory: values.isDirectory == true
+            )
+        }
+        .sorted { lhs, rhs in
+            if lhs.date == rhs.date {
+                return lhs.name.localizedStandardCompare(rhs.name) == .orderedAscending
+            }
+
+            return lhs.date > rhs.date
+        }
+        .prefix(limit)
+        .map { $0 }
+    }
+}
+
+private struct DownloadItemRow: View {
+    let item: DownloadListItem
+
+    @State private var isHovering = false
+
+    private static let relativeDateFormatter: RelativeDateTimeFormatter = {
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .full
+        return formatter
+    }()
+
+    var body: some View {
+        Button {
+            NSWorkspace.shared.open(item.url)
+        } label: {
+            HStack(spacing: 10) {
+                DownloadItemIcon(item: item)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(item.name)
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(CandoaChromeStyle.sidebarText)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+
+                    Text(Self.relativeDateFormatter.localizedString(for: item.date, relativeTo: Date()))
+                        .font(.system(size: 12.5, weight: .semibold))
+                        .foregroundStyle(CandoaChromeStyle.sidebarTextSecondary)
+                        .lineLimit(1)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 6)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .background(isHovering ? Color.primary.opacity(0.05) : Color.clear)
+        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .onHover { isHovering = $0 }
+        .contextMenu {
+            Button("Open") {
+                NSWorkspace.shared.open(item.url)
+            }
+
+            Button("Show in Finder") {
+                NSWorkspace.shared.activateFileViewerSelecting([item.url])
+            }
+        }
+    }
+}
+
+private struct DownloadItemIcon: View {
+    let item: DownloadListItem
+
+    var body: some View {
+        Image(nsImage: icon)
+            .resizable()
+            .aspectRatio(contentMode: .fit)
+            .frame(width: 42, height: 42)
+            .clipShape(RoundedRectangle(cornerRadius: item.isDirectory ? 0 : 7, style: .continuous))
+    }
+
+    private var icon: NSImage {
+        let image = NSWorkspace.shared.icon(forFile: item.url.path)
+        image.size = NSSize(width: 42, height: 42)
+        return image
     }
 }
 

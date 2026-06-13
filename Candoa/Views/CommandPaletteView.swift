@@ -306,7 +306,7 @@ struct CommandPaletteView: View {
     private var askConversationView: some View {
         ScrollViewReader { proxy in
             ScrollView {
-                LazyVStack(spacing: 10) {
+                LazyVStack(spacing: Self.commandRowSpacing) {
                     if askMessages.isEmpty {
                         ForEach(Array(askSuggestions.enumerated()), id: \.element.title) { index, suggestion in
                             Button {
@@ -344,10 +344,12 @@ struct CommandPaletteView: View {
 
     private var askSuggestions: [PaletteAskSuggestion] {
         [
-            PaletteAskSuggestion(title: "Summarize this page", prompt: "Summarize this page"),
-            PaletteAskSuggestion(title: "Compare the top options", prompt: "Compare the top options on this page"),
-            PaletteAskSuggestion(title: "What should I know before buying?", prompt: "What should I know before buying from this page?"),
-            PaletteAskSuggestion(title: "Explain this simply", prompt: "Explain this page simply")
+            PaletteAskSuggestion(title: "What is this page about?", prompt: "What is this page about?", symbolName: "doc.text.magnifyingglass"),
+            PaletteAskSuggestion(title: "Summarize this page", prompt: "Summarize this page", symbolName: "doc.text"),
+            PaletteAskSuggestion(title: "Find key details", prompt: "Find the key details on this page", symbolName: "list.bullet"),
+            PaletteAskSuggestion(title: "Explain this simply", prompt: "Explain this page simply", symbolName: "text.bubble"),
+            PaletteAskSuggestion(title: "Compare options here", prompt: "Compare the options on this page", symbolName: "arrow.left.arrow.right"),
+            PaletteAskSuggestion(title: "Suggest useful questions", prompt: "Suggest useful questions I can ask about this page", symbolName: "questionmark.bubble")
         ]
     }
 
@@ -480,6 +482,9 @@ struct CommandPaletteView: View {
         if let autocompleteSuggestion {
             return autocompleteSuggestion.provider
         }
+        if let provider = selectedCommandSearchProvider {
+            return provider
+        }
         return store.navigationService.searchProvider(matching: commandQueryText)
     }
 
@@ -510,6 +515,72 @@ struct CommandPaletteView: View {
             for: query,
             allowsProviderSuggestions: selectedSearchProvider == nil && !isActionsMode && !isAskMode && !isResumingSearchURL
         )
+    }
+
+    private var selectedCommandSearchProvider: SearchProvider? {
+        guard visibleCommands.indices.contains(selectedCommandIndex) else { return nil }
+        return searchProvider(for: visibleCommands[selectedCommandIndex])
+    }
+
+    private func searchProvider(for command: PaletteCommand) -> SearchProvider? {
+        if let provider = command.provider {
+            return provider
+        }
+
+        if let provider = store.navigationService.searchProvider(matching: command.title) {
+            return provider
+        }
+
+        if let detail = command.detail,
+           let provider = provider(matchingHostText: detail) {
+            return provider
+        }
+
+        switch command.action {
+        case .navigate(let input):
+            return provider(forURLText: input)
+        case .switchTab(let id):
+            return provider(for: store.tabs.first { $0.id == id }?.url)
+        case .searchProvider(let provider, _):
+            return provider
+        default:
+            return nil
+        }
+    }
+
+    private func provider(forURLText text: String) -> SearchProvider? {
+        if let url = URL(string: text), url.host(percentEncoded: false) != nil {
+            return provider(for: url)
+        }
+
+        if let url = URL(string: "https://\(text)"), url.host(percentEncoded: false) != nil {
+            return provider(for: url)
+        }
+
+        return nil
+    }
+
+    private func provider(for url: URL?) -> SearchProvider? {
+        guard let hostText = url?.host(percentEncoded: false) else { return nil }
+        return provider(matchingHostText: hostText)
+    }
+
+    private func provider(matchingHostText hostText: String) -> SearchProvider? {
+        guard let host = normalizedHostDisplayText(for: hostText) else { return nil }
+
+        return NavigationService.searchProviders.first { provider in
+            providerHostTexts(for: provider)
+                .compactMap { normalizedHostDisplayText(for: $0) }
+                .contains(host)
+        }
+    }
+
+    private func providerHostTexts(for provider: SearchProvider) -> [String] {
+        [
+            provider.homeURL.host(percentEncoded: false),
+            provider.baseURL.host(percentEncoded: false)
+        ]
+        .compactMap { $0 } + provider.aliases.filter { $0.contains(".") }
     }
 
     private func commandCandidates(for trimmedQuery: String, isResumingSearchURL: Bool = false) -> [PaletteCommand] {
@@ -838,6 +909,13 @@ struct CommandPaletteView: View {
             return
         }
 
+        if let provider = selectedCommandSearchProvider {
+            selectedSearchProvider = provider
+            query = ""
+            fieldFocusRequestID = UUID()
+            return
+        }
+
         // Arc's rule: anything without a provider chip to enter gets the
         // Actions panel instead — Tab never lands on nothing.
         isActionsMode = true
@@ -1107,8 +1185,16 @@ struct CommandPaletteView: View {
         let pageTitle = context.title?.trimmingCharacters(in: .whitespacesAndNewlines)
         let pageText = pageTitle?.isEmpty == false ? pageTitle! : "this page"
 
+        if normalizedPrompt.contains("what is this page about") {
+            return summaryDraft(from: context.text) ?? "I could not read enough page text to describe \(pageText)."
+        }
+
         if normalizedPrompt.contains("summarize") {
             return summaryDraft(from: context.text) ?? "I could not read enough page text to summarize \(pageText)."
+        }
+
+        if normalizedPrompt.contains("key details") || normalizedPrompt.contains("key facts") {
+            return summaryDraft(from: context.text) ?? "I could not read enough page text to find key details on \(pageText)."
         }
 
         if normalizedPrompt.contains("compare") {
@@ -1121,6 +1207,15 @@ struct CommandPaletteView: View {
 
         if normalizedPrompt.contains("explain") {
             return summaryDraft(from: context.text) ?? "I could not read enough page text to explain \(pageText)."
+        }
+
+        if normalizedPrompt.contains("suggest useful questions") {
+            return """
+            You could ask:
+            • What matters most on this page?
+            • What should I do next?
+            • What is missing or unclear?
+            """
         }
 
         return "I can't answer that yet."
@@ -1681,6 +1776,7 @@ private struct PaletteAskMessageRow: View {
 private struct PaletteAskSuggestionRow: View {
     let suggestion: PaletteAskSuggestion
     let isSelected: Bool
+    private static let rowHeight: CGFloat = 46
 
     private var backgroundColor: Color {
         isSelected ? CommandPaletteView.askTint.opacity(0.36) : Color.clear
@@ -1688,7 +1784,7 @@ private struct PaletteAskSuggestionRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            Image(systemName: "sparkles")
+            Image(systemName: suggestion.symbolName)
                 .font(.system(size: 15, weight: .semibold))
                 .foregroundStyle(isSelected ? Color.white.opacity(0.92) : Color.secondary)
                 .frame(width: 24, height: 24)
@@ -1701,7 +1797,7 @@ private struct PaletteAskSuggestionRow: View {
             Spacer(minLength: 12)
         }
         .padding(.horizontal, 14)
-        .frame(height: 42)
+        .frame(height: Self.rowHeight)
         .contentShape(Rectangle())
         .background(backgroundColor)
         .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
@@ -2198,6 +2294,7 @@ private struct PaletteAskMessage: Identifiable, Equatable {
 private struct PaletteAskSuggestion {
     let title: String
     let prompt: String
+    let symbolName: String
 }
 
 private enum PaletteArithmeticToken {
@@ -2227,12 +2324,35 @@ enum PaletteAskPromptPolicy {
 
     private static let pageContextPhrases = [
         "before buying",
+        "about this page",
+        "check this page",
+        "check trust",
+        "choices",
+        "compare choices",
+        "compare options",
         "compare the top options",
         "compare these options",
+        "explain the important parts",
         "explain this",
         "explain this page",
+        "find key details",
+        "find the key points",
+        "find any next steps",
+        "find next steps",
         "from this page",
+        "important parts",
+        "key details",
+        "key points",
+        "list pros and cons",
+        "missing context",
+        "next steps",
+        "options on this page",
         "on this page",
+        "pros and cons",
+        "pull out key facts",
+        "red flags",
+        "source quality",
+        "suggest useful questions",
         "summarize this",
         "summarize this page",
         "summary of this",
