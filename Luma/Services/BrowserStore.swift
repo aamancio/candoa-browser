@@ -242,7 +242,14 @@ final class BrowserStore: ObservableObject {
                 : nil
             isSplitViewEnabled = restoredState.isSplitViewEnabled && splitTabID != nil && splitTabID != activeTabID
         } else {
-            let defaultSpace = BrowserSpace(name: "", symbolName: "circle.grid.2x2")
+            // Neutral by default: no theme color, chrome follows the system.
+            // The window reads as plain native gray (light or dark per the
+            // system); a space color is something the user opts into.
+            let defaultSpace = BrowserSpace(
+                name: "",
+                symbolName: "circle.grid.2x2",
+                themeAppearance: BrowserSpace.defaultThemeAppearance
+            )
             spaces = [defaultSpace]
             tabs = []
             activeSpaceID = defaultSpace.id
@@ -254,6 +261,8 @@ final class BrowserStore: ObservableObject {
 
         self.webCoordinator.attach(store: self)
         clearLegacyDefaultSpaceName()
+        normalizeSeededAppearanceIfNeeded()
+        revertSeededColorIfNeeded()
         repairSessionState()
         shouldPresentInitialSpaceSetup = shouldPresentInitialSpaceSetup || needsInitialSpaceSetup()
         isInitialSpaceSetupPresented = shouldPresentInitialSpaceSetup
@@ -1843,6 +1852,43 @@ final class BrowserStore: ObservableObject {
               spaces[0].themeColorHex == nil
         else { return }
         spaces[0].name = ""
+    }
+
+    private static let didRevertSeededColorKey = "luma.didRevertSeededColor"
+
+    private func revertSeededColorIfNeeded() {
+        // An earlier build seeded a stock blue onto the default space to avoid
+        // a plain gray window. Neutral is now the intended default (chrome
+        // follows the system, web content is pinned light), so revert that
+        // injected color once — scoped to the single still-untouched
+        // auto-seeded space so a deliberate color choice is left alone.
+        let defaults = UserDefaults.standard
+        guard !defaults.bool(forKey: Self.didRevertSeededColorKey) else { return }
+        defaults.set(true, forKey: Self.didRevertSeededColorKey)
+
+        guard spaces.count == 1,
+              spaces[0].themeColorHex == BrowserSpace.defaultThemeColorHex
+        else { return }
+        spaces[0].themeColorHex = nil
+    }
+
+    private static let didNormalizeSeededAppearanceKey = "luma.didNormalizeSeededAppearance"
+
+    private func normalizeSeededAppearanceIfNeeded() {
+        // The first theme seed forced .light chrome to keep pages light. That
+        // job now belongs to the pinned web view appearance, so chrome reverts
+        // to following the system. One-time correction of that earlier seed,
+        // scoped to the still-untouched auto-seeded space so a deliberate
+        // light choice is left alone.
+        let defaults = UserDefaults.standard
+        guard !defaults.bool(forKey: Self.didNormalizeSeededAppearanceKey) else { return }
+        defaults.set(true, forKey: Self.didNormalizeSeededAppearanceKey)
+
+        guard spaces.count == 1,
+              spaces[0].themeColorHex == BrowserSpace.defaultThemeColorHex,
+              spaces[0].themeAppearance == .light
+        else { return }
+        spaces[0].themeAppearance = .automatic
     }
 
     private func needsInitialSpaceSetup() -> Bool {

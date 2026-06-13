@@ -35,6 +35,18 @@ struct BrowserSpace: Identifiable, Codable, Hashable {
     /// persisted field a single string alongside SF Symbol names.
     static let emojiSymbolPrefix = "emoji:"
 
+    /// The stock indigo an earlier build seeded onto new spaces. Spaces now
+    /// start neutral (no color), so this is retained only as the detection
+    /// value for BrowserStore.revertSeededColorIfNeeded — the migration that
+    /// undoes that seed.
+    static let defaultThemeColorHex = "#5661DD"
+
+    /// Chrome follows the macOS system appearance by default — the native
+    /// behavior (Safari/Finder track system light/dark). This only themes the
+    /// chrome; web content is pinned light independently in WebViewCoordinator,
+    /// so a dark system never darkens pages.
+    static let defaultThemeAppearance = SpaceThemeAppearance.automatic
+
     var id: UUID
     var name: String
     var symbolName: String

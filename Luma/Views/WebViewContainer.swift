@@ -20,7 +20,7 @@ struct WebViewContainer: View {
 
     var body: some View {
         ZStack {
-            if store.isSpaceSetupPresented {
+            if store.isInitialSpaceSetupPresented || store.isCreateSpacePresented {
                 SpaceSetupCanvas(
                     hexes: store.activeThemeColorHexes,
                     intensity: store.activeThemeIntensityMultiplier,
@@ -49,7 +49,8 @@ struct WebViewContainer: View {
                                 DeveloperToolbar(
                                     urlText: url.localDevelopmentDisplayText,
                                     tintHex: store.activeThemeColorHexes.first,
-                                    onCopyURL: { store.copyActiveTabURL() }
+                                    onCopyURL: { store.copyActiveTabURL() },
+                                    onSubmitURL: { store.navigateActiveTab(to: $0) }
                                 )
                             }
 
@@ -210,8 +211,11 @@ private struct DeveloperToolbar: View {
     let urlText: String
     let tintHex: String?
     let onCopyURL: () -> Void
+    let onSubmitURL: (String) -> Void
 
+    @State private var draftURL = ""
     @State private var isHoveringCopy = false
+    @FocusState private var isURLFieldFocused: Bool
 
     private var tint: Color {
         Color(spaceHex: tintHex ?? "#8A8F98")
@@ -223,15 +227,34 @@ private struct DeveloperToolbar: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            Image(systemName: "info.circle")
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(foreground.opacity(0.72))
-
-            Text(urlText)
+            TextField("", text: $draftURL)
+                .textFieldStyle(.plain)
                 .font(.system(size: 12, weight: .medium, design: .monospaced))
                 .foregroundStyle(foreground.opacity(0.92))
                 .lineLimit(1)
-                .truncationMode(.middle)
+                .focused($isURLFieldFocused)
+                .onSubmit {
+                    isURLFieldFocused = false
+                    onSubmitURL(draftURL)
+                }
+                .onExitCommand {
+                    draftURL = urlText
+                    isURLFieldFocused = false
+                }
+                .onAppear { draftURL = urlText }
+                .onChange(of: urlText) { _, newValue in
+                    // Navigation landed: refresh the field, but never clobber
+                    // an edit in progress.
+                    if !isURLFieldFocused {
+                        draftURL = newValue
+                    }
+                }
+                .onChange(of: isURLFieldFocused) { _, isFocused in
+                    // Abandoned edits (click away) revert to the live URL.
+                    if !isFocused {
+                        draftURL = urlText
+                    }
+                }
 
             Spacer(minLength: 8)
 
@@ -252,7 +275,45 @@ private struct DeveloperToolbar: View {
         .padding(.horizontal, 10)
         .frame(height: 30)
         .frame(maxWidth: .infinity)
-        .background(tint)
+        .background {
+            ZStack {
+                // Arc's strip carries a faint left→right deepening of the
+                // tint, so the stripes never sit on a flat fill.
+                LinearGradient(
+                    colors: [tint, tint.opacity(0.0)],
+                    startPoint: .leading,
+                    endPoint: .trailing
+                )
+                .background(tint.opacity(0.92))
+
+                DiagonalStripes()
+                    .fill(foreground.opacity(0.04))
+            }
+        }
+    }
+}
+
+/// Arc's developer strip isn't a flat fill: faint 45° stripes run across
+/// the tint, marking the page as a dev server at a glance. Measured from
+/// Arc: lit band and gap are equal width (~1:1) at a ~20pt period, kept low
+/// contrast so the texture stays a whisper. Static geometry only — drawn
+/// with the chrome, never animated.
+private struct DiagonalStripes: Shape {
+    var period: CGFloat = 25
+
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        let band = period / 2
+        var x = rect.minX - rect.height
+        while x < rect.maxX {
+            path.move(to: CGPoint(x: x, y: rect.maxY))
+            path.addLine(to: CGPoint(x: x + band, y: rect.maxY))
+            path.addLine(to: CGPoint(x: x + band + rect.height, y: rect.minY))
+            path.addLine(to: CGPoint(x: x + rect.height, y: rect.minY))
+            path.closeSubpath()
+            x += period
+        }
+        return path
     }
 }
 

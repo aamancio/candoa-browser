@@ -31,7 +31,7 @@ struct SidebarView: View {
     }
 
     private var isSetupThemePreviewActive: Bool {
-        store.isSpaceSetupPresented && hasActiveThemeTint
+        store.isSpaceSetupPresented && store.editingSpaceID == nil && hasActiveThemeTint
     }
 
     private var sidebarIconColor: Color {
@@ -413,7 +413,7 @@ private struct UpsertSpaceSidebarComposer: View {
     @State private var name = ""
     @State private var symbolName = "square.dashed"
     @State private var themeColorHex: String?
-    @State private var themeAppearance = SpaceThemeAppearance.automatic
+    @State private var themeAppearance = BrowserSpace.defaultThemeAppearance
     @State private var themeOpacity = 0.5
     @State private var themeTexture = 0.0
     @State private var dataMode = SpaceDataMode.isolated
@@ -423,7 +423,7 @@ private struct UpsertSpaceSidebarComposer: View {
     @FocusState private var isNameFocused: Bool
 
     private let themeOptions: [(name: String, hex: String)] = [
-        ("Blue", "#6E8BFF"),
+        ("Neutral", "#F0EAE1"),
         ("Green", "#74E0AA"),
         ("Gold", "#E0A84F"),
         ("Red", "#DA6A72"),
@@ -438,7 +438,7 @@ private struct UpsertSpaceSidebarComposer: View {
     }
 
     private var isThemePreviewActive: Bool {
-        themeColorHex != nil
+        mode != .edit && themeColorHex != nil
     }
 
     private var usesDarkForeground: Bool {
@@ -448,6 +448,18 @@ private struct UpsertSpaceSidebarComposer: View {
 
     private var foregroundBase: Color {
         usesDarkForeground ? Color.black : Color.white
+    }
+
+    private var primaryButtonTintHex: String {
+        themeColorHex ?? BrowserSpace.defaultThemeColorHex
+    }
+
+    private var primaryButtonUsesDarkForeground: Bool {
+        LumaChromeStyle.prefersDarkForeground(forSpaceHex: primaryButtonTintHex)
+    }
+
+    private var primaryButtonForegroundBase: Color {
+        primaryButtonUsesDarkForeground ? Color.black : Color.white
     }
 
     private var textColor: Color {
@@ -476,10 +488,10 @@ private struct UpsertSpaceSidebarComposer: View {
 
     private var createButtonTextColor: Color {
         if trimmedName.isEmpty {
-            return isThemePreviewActive ? foregroundBase.opacity(0.34) : LumaChromeStyle.sidebarTextSecondary
+            return primaryButtonForegroundBase.opacity(primaryButtonUsesDarkForeground ? 0.38 : 0.42)
         }
 
-        return isThemePreviewActive ? foregroundBase.opacity(usesDarkForeground ? 0.85 : 0.92) : LumaChromeStyle.sidebarText
+        return primaryButtonForegroundBase.opacity(primaryButtonUsesDarkForeground ? 0.82 : 0.92)
     }
 
     private var themeAppearanceSelection: Binding<SpaceThemeAppearance> {
@@ -492,15 +504,8 @@ private struct UpsertSpaceSidebarComposer: View {
     }
 
     private var createButtonBackground: Color {
-        guard themeColorHex != nil else {
-            return Color.primary.opacity(trimmedName.isEmpty ? 0.055 : 0.13)
-        }
-
-        if usesDarkForeground {
-            return trimmedName.isEmpty ? Color.black.opacity(0.05) : Color.black.opacity(0.14)
-        }
-
-        return trimmedName.isEmpty ? Color.white.opacity(0.065) : Color.white.opacity(0.18)
+        Color(spaceHex: primaryButtonTintHex)
+            .opacity(trimmedName.isEmpty ? 0.52 : 0.86)
     }
 
     init(store: BrowserStore, mode: SpaceComposerMode = .create) {
@@ -1157,7 +1162,7 @@ private struct SpaceThemePanel: View {
     private var visiblePaletteOptions: [(name: String, hex: String)] {
         let pageSize = 8
         let currentPage = min(max(0, palettePage), pageCount - 1)
-        let start = min(currentPage * pageSize, max(0, paletteOptions.count - 1))
+        let start = min(currentPage * pageSize, max(0, paletteOptions.count - pageSize))
         let end = min(start + pageSize, paletteOptions.count)
         return Array(paletteOptions[start..<end])
     }
@@ -2517,11 +2522,15 @@ struct LumaWindowBackdrop: View {
     }
 
     private var isSetupThemePreviewActive: Bool {
-        store.isSpaceSetupPresented && hasThemeTint
+        store.isSpaceSetupPresented && store.editingSpaceID == nil && hasThemeTint
+    }
+
+    private var usesSetupChrome: Bool {
+        store.isSpaceSetupPresented && store.editingSpaceID == nil
     }
 
     private var backdropIntensity: Double {
-        if store.isSpaceSetupPresented {
+        if usesSetupChrome {
             // Near-flat during preview: the gradient's brightened leading
             // blob sits under the sidebar and visibly whitens it otherwise.
             return isSetupThemePreviewActive ? 0.04 : 0.08
@@ -2530,12 +2539,13 @@ struct LumaWindowBackdrop: View {
         return 0.16
     }
 
-    // During setup theme preview the chrome mirrors SpaceSetupCanvas's fill
-    // (hex at 0.74 + backdrop at 0.18) so sidebar, title bar, and canvas
-    // read as one continuous color.
+    // During create/initial setup theme preview the chrome mirrors
+    // SpaceSetupCanvas's fill so sidebar, title bar, and canvas read as one
+    // continuous color. Editing keeps normal browsing chrome so preview and
+    // saved state match.
     private var spaceTintOpacity: Double {
         guard hasThemeTint else { return 0 }
-        return store.isSpaceSetupPresented ? 0.74 : 0.050
+        return usesSetupChrome ? 0.74 : 0.050
     }
 
     var body: some View {
@@ -2548,7 +2558,7 @@ struct LumaWindowBackdrop: View {
                 intensity: backdropIntensity * store.activeThemeIntensityMultiplier,
                 texture: store.activeThemeTexture
             )
-            LumaChromeStyle.setupNeutralTint.opacity(store.isSpaceSetupPresented && !isSetupThemePreviewActive ? 0.18 : 0)
+            LumaChromeStyle.setupNeutralTint.opacity(usesSetupChrome && !isSetupThemePreviewActive ? 0.18 : 0)
         }
     }
 }
