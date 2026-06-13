@@ -253,6 +253,21 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         webViews[tabID]?.evaluateJavaScript("window.getSelection().removeAllRanges()")
     }
 
+    func readablePageText(for tabID: UUID) async -> String? {
+        guard let webView = webViews[tabID] else { return nil }
+
+        return await withCheckedContinuation { continuation in
+            webView.evaluateJavaScript(Self.readablePageTextScript) { value, error in
+                guard error == nil else {
+                    continuation.resume(returning: nil)
+                    return
+                }
+
+                continuation.resume(returning: value as? String)
+            }
+        }
+    }
+
     func captureVisiblePage(for tabID: UUID, completion: @escaping (NSImage?) -> Void) {
         guard let webView = webViews[tabID], !webView.bounds.isEmpty else {
             completion(nil)
@@ -567,6 +582,46 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
 
       return Array.from(document.querySelectorAll("[contenteditable='true']"))
         .some((editor) => editor.textContent.trim().length > 0);
+    })();
+    """
+
+    private static let readablePageTextScript = """
+    (() => {
+      const limit = 12000;
+      const root = document.querySelector("main, article, [role='main']") || document.body;
+      if (!root) { return ""; }
+
+      const clone = root.cloneNode(true);
+      clone.querySelectorAll([
+        "script",
+        "style",
+        "noscript",
+        "svg",
+        "canvas",
+        "iframe",
+        "nav",
+        "footer",
+        "header",
+        "form",
+        "button",
+        "input",
+        "textarea",
+        "select",
+        "[aria-hidden='true']"
+      ].join(",")).forEach((node) => node.remove());
+
+      const description = document.querySelector("meta[name='description']")?.content || "";
+      const text = [
+        document.title || "",
+        description,
+        clone.innerText || clone.textContent || ""
+      ]
+        .join("\\n\\n")
+        .replace(/[ \\t\\f\\v]+/g, " ")
+        .replace(/\\n{3,}/g, "\\n\\n")
+        .trim();
+
+      return text.slice(0, limit);
     })();
     """
 

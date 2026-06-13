@@ -193,6 +193,23 @@ final class BrowserStore: ObservableObject {
         return tabs.first { $0.id == activeTabID }
     }
 
+    func activeAIPageContext() async -> CandoaAIPageContext {
+        let tab = activeTab
+        let pageText: String?
+        if let tabID = tab?.id {
+            pageText = await webCoordinator.readablePageText(for: tabID)?
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+        } else {
+            pageText = nil
+        }
+
+        return CandoaAIPageContext(
+            title: tab?.title.trimmingCharacters(in: .whitespacesAndNewlines),
+            url: tab?.url?.absoluteString,
+            text: pageText?.isEmpty == false ? pageText : nil
+        )
+    }
+
     var activeSplitTab: BrowserTab? {
         guard isSplitViewEnabled, let splitTabID else { return nil }
         return tabs.first { $0.id == splitTabID && $0.spaceID == activeSpaceID }
@@ -278,6 +295,11 @@ final class BrowserStore: ObservableObject {
     func focusAddressBar() {
         guard !isInitialSpaceSetupPresented else { return }
 
+        if isCommandPalettePresented {
+            dismissCommandPalette()
+            return
+        }
+
         let activeURL = activeTab?.url
         commandPaletteInitialText = activeURL?.absoluteString ?? ""
         commandPaletteResumeQuery = activeURL.flatMap(navigationService.searchQuery(from:)) ?? ""
@@ -316,6 +338,8 @@ final class BrowserStore: ObservableObject {
     /// window interrupts the transition — stranding an invisible palette
     /// that swallows every mouse click until ⌘T is pressed again.
     private func presentCommandPalette() {
+        guard !isCommandPalettePresented else { return }
+
         withAnimation(.easeOut(duration: 0.14)) {
             isCommandPalettePresented = true
         }
