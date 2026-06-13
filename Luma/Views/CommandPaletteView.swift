@@ -173,10 +173,13 @@ struct CommandPaletteView: View {
             case .switchTab(let id):
                 // Tab rows claim their page's label too, so a history visit
                 // of the same page (under a cosmetically different URL)
-                // can't trail it as a second row.
+                // can't trail it as a second row. The label must also be
+                // unclaimed: two tabs on the same page read as one entry,
+                // so only the first (highest-ranked) shows.
                 let idInserted = seenKeys.insert("tab:\(id.uuidString)").inserted
-                seenKeys.insert("navlabel:\(command.title.lowercased())|\(command.detail?.lowercased() ?? "")")
-                return idInserted
+                let labelInserted = seenKeys
+                    .insert("navlabel:\(command.title.lowercased())|\(command.detail?.lowercased() ?? "")").inserted
+                return idInserted && labelInserted
             default:
                 return true
             }
@@ -198,6 +201,46 @@ struct CommandPaletteView: View {
         return store.tabs.first {
             guard let tabURL = $0.url else { return false }
             return normalizedURLKey(tabURL.absoluteString) == key
+        }
+    }
+
+    /// The open tab on a provider's site, if any — provider rows offer
+    /// "Switch to Tab" instead of opening the site again in a fresh tab.
+    /// The most recently used tab wins; the active tab is excluded so the
+    /// row keeps its open-site action when the user is already there.
+    private func openTab(onSiteOf provider: SearchProvider) -> BrowserTab? {
+        guard let providerHost = normalizedHost(provider.homeURL) else { return nil }
+        return store.tabs
+            .filter { $0.id != store.activeTabID && normalizedHost($0.url) == providerHost }
+            .max { $0.lastAccessedAt < $1.lastAccessedAt }
+    }
+
+    private func normalizedHost(_ url: URL?) -> String? {
+        guard var host = url?.host(percentEncoded: false)?.lowercased() else { return nil }
+        if host.hasPrefix("www.") {
+            host.removeFirst(4)
+        }
+        return host
+    }
+
+    /// The open tab showing this visit's page, if any. Exact URL match
+    /// first; SPA sites mutate the query string after the visit is
+    /// recorded (YouTube adds playback params), so a same-host tab whose
+    /// title still matches the visit counts as the same page.
+    private func openTab(for visit: HistoryVisit) -> BrowserTab? {
+        if let tab = openTab(matching: visit.url) {
+            return tab
+        }
+
+        let title = visit.title.lowercased()
+        guard !title.isEmpty, let host = visit.url.host(percentEncoded: false)?.lowercased() else {
+            return nil
+        }
+
+        return store.tabs.first { tab in
+            guard let tabURL = tab.url else { return false }
+            return tab.title.lowercased() == title
+                && tabURL.host(percentEncoded: false)?.lowercased() == host
         }
     }
 
@@ -413,7 +456,10 @@ struct CommandPaletteView: View {
         // always has substance.
         let activeTabURLKey = store.activeTab?.url.map { normalizedURLKey($0.absoluteString) }
         let historyEntries: [(visitedAt: Date, command: PaletteCommand)] = store.recentHistory(limit: 6)
-            .filter { normalizedURLKey($0.url.absoluteString) != activeTabURLKey }
+            .filter {
+                normalizedURLKey($0.url.absoluteString) != activeTabURLKey
+                    && openTab(for: $0)?.id != store.activeTabID
+            }
             .map { ($0.visitedAt, historyCommand(for: $0)) }
         let tabEntries: [(visitedAt: Date, command: PaletteCommand)] = store.tabs
             .filter { $0.spaceID == store.activeSpaceID && $0.url != nil && $0.id != store.activeTabID }
@@ -439,25 +485,28 @@ struct CommandPaletteView: View {
     }
 
     private var defaultSearchCommand: PaletteCommand {
-        PaletteCommand(
+        let provider = NavigationService.searchProviders[0]
+        let openTab = openTab(onSiteOf: provider)
+        return PaletteCommand(
             title: "Google",
             detail: nil,
             symbolName: "google",
             searchText: "google search",
-            style: .provider(NavigationService.searchProviders[0]),
-            action: .navigate(NavigationService.searchProviders[0].homeURL.absoluteString)
+            style: .provider(provider),
+            action: openTab.map { .switchTab($0.id) } ?? .navigate(provider.homeURL.absoluteString)
         )
     }
 
     private var searchProviderCommands: [PaletteCommand] {
         NavigationService.searchProviders.map { provider in
-            PaletteCommand(
+            let openTab = openTab(onSiteOf: provider)
+            return PaletteCommand(
                 title: provider.name,
-                detail: "Open Site",
+                detail: openTab == nil ? "Open Site" : nil,
                 symbolName: provider.id == "google" ? "google" : provider.symbolName,
                 searchText: ([provider.name] + provider.aliases).joined(separator: " "),
                 style: .provider(provider),
-                action: .navigate(provider.homeURL.absoluteString)
+                action: openTab.map { .switchTab($0.id) } ?? .navigate(provider.homeURL.absoluteString)
             )
         }
     }
@@ -482,7 +531,7 @@ struct CommandPaletteView: View {
     private func historyCommand(for visit: HistoryVisit) -> PaletteCommand {
         // A history entry that's already open belongs to its tab — Arc shows
         // "Switch to Tab" on those rows instead of opening a fresh visit.
-        if let openTab = openTab(matching: visit.url), openTab.id != store.activeTabID {
+        if let openTab = openTab(for: visit), openTab.id != store.activeTabID {
             return PaletteCommand(
                 title: openTab.title.isEmpty ? visit.title : openTab.title,
                 detail: hostDisplayText(for: visit.url),
@@ -980,16 +1029,6 @@ private struct PaletteCommandRow: View {
                 Text("Switch to Tab")
                     .foregroundStyle(isSelected ? Color.white.opacity(0.92) : Color.secondary)
                     .lineLimit(1)
-
-                ZStack {
-                    RoundedRectangle(cornerRadius: 4, style: .continuous)
-                        .fill(isSelected ? Color.white.opacity(0.94) : Color.primary.opacity(0.08))
-
-                    Image(systemName: "arrow.right")
-                        .font(.system(size: 13, weight: .bold))
-                        .foregroundStyle(isSelected ? backgroundColor : Color.secondary)
-                }
-                .frame(width: 24, height: 24)
             } else if let shortcutHint = command.shortcutHint {
                 Text(shortcutHint)
                     .font(.system(size: 12.5, weight: .bold))
@@ -1475,7 +1514,7 @@ private struct PaletteCommand: Identifiable {
     }
 
     var showsSwitchToTab: Bool {
-        if case .tab = style {
+        if case .switchTab = action {
             return true
         }
 

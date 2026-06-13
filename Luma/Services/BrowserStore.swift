@@ -75,6 +75,7 @@ final class BrowserStore: ObservableObject {
     @Published private(set) var canGoBack = false
     @Published private(set) var canGoForward = false
     @Published var draggedTabID: UUID?
+    private var tabDragSessionWatcher: Timer?
     @Published var isFindBarPresented = false
     @Published var findQuery = ""
     @Published private(set) var mediaStates: [UUID: TabMediaState] = [:]
@@ -110,6 +111,14 @@ final class BrowserStore: ObservableObject {
     private var copiedURLToastHideWorkItem: DispatchWorkItem?
     private var isCopiedURLToastSharing = false
     private var tabSwitcherCandidates: [BrowserTab] = []
+    /// True from the first Control-Tab press until the interaction commits
+    /// (Control release or auto-hide). The overlay can outlive the
+    /// interaction by its fade-out; this is the state that must not.
+    private var isTabSwitcherCycling = false
+    /// The mini player's return morph defers the actual switch; until it
+    /// lands, recency cycling must treat the destination as current or a
+    /// rapid Ctrl-Tab walks past it into the wrong tab.
+    private var pendingMiniPlayerReturnTabID: UUID?
     private var isApplyingRemoteState = false
     private let spaceSymbols = [
         "circle.grid.2x2",
@@ -871,6 +880,9 @@ final class BrowserStore: ObservableObject {
 
     private func performSwitchTab(to id: UUID, updatesAccessTime: Bool) {
         guard let index = tabs.firstIndex(where: { $0.id == id }) else { return }
+        // Any landed switch resolves the return morph's pending destination —
+        // either the morph just finished or another switch interrupted it.
+        pendingMiniPlayerReturnTabID = nil
         if updatesAccessTime {
             tabs[index].lastAccessedAt = Date()
         }
@@ -1021,6 +1033,7 @@ final class BrowserStore: ObservableObject {
     }
 
     private func beginMiniPlayerReturn(tabID: UUID, updatesAccessTime: Bool) {
+        pendingMiniPlayerReturnTabID = tabID
         // Keep the player mounted through the restore round-trip: the page
         // can transiently report not-playing while it relayouts.
         retainedPausedMiniPlayerTabID = tabID
@@ -1031,9 +1044,13 @@ final class BrowserStore: ObservableObject {
 
         webCoordinator.prepareMiniPlayerReturn(for: tabID) { [weak self] snapshot in
             guard let self else { return }
-            // The user switched somewhere else while the freeze frame was
-            // captured — their newer intent wins.
-            guard self.activeTabID == activeTabIDAtBegin else { return }
+            // The user switched somewhere else — or re-chose the current
+            // tab — while the freeze frame was captured; their newer intent
+            // wins. (The player re-adopts its web view and floats on.)
+            guard
+                self.activeTabID == activeTabIDAtBegin,
+                self.pendingMiniPlayerReturnTabID == tabID
+            else { return }
             guard self.floatingMiniPlayerTab?.id == tabID, self.miniPlayerReturn == nil else {
                 // The player went away mid-capture (dismissed, playback
                 // ended); the tab switch is still what was asked for.
@@ -1142,6 +1159,29 @@ final class BrowserStore: ObservableObject {
     }
 
     func finishTabSwitcherInteraction() {
+        // Releasing Control commits whatever the cycling selected. Until now
+        // only the preview selection moved, so a held interaction never
+        // switched tabs behind the overlay.
+        let landedTabID = tabSwitcherSelectedTabID ?? activeTabID
+        if let selectedTabID = tabSwitcherSelectedTabID, selectedTabID != activeTabID {
+            switchTab(to: selectedTabID, updatesAccessTime: false)
+        } else if pendingMiniPlayerReturnTabID != nil, pendingMiniPlayerReturnTabID != landedTabID {
+            // Re-selecting the current tab while a return morph is still in
+            // flight cancels that pending switch — the newest intent wins.
+            pendingMiniPlayerReturnTabID = nil
+        }
+
+        // The interaction ends when Control lifts, not when the overlay's
+        // fade does: stamp the landed tab as most recent now (the switch
+        // itself may still be deferred behind the mini player's return
+        // morph) and stop treating the frozen candidate list as live, so a
+        // press during the fade starts a fresh toggle from the landed tab
+        // instead of cycling deeper into the old list.
+        isTabSwitcherCycling = false
+        if let landedTabID, let index = tabs.firstIndex(where: { $0.id == landedTabID }) {
+            tabs[index].lastAccessedAt = Date()
+        }
+
         // Quick tap: Control was released before the preview appeared, so the
         // switch stays silent — just commit the interaction.
         if tabSwitcherShowWorkItem != nil {
@@ -1206,6 +1246,42 @@ final class BrowserStore: ObservableObject {
             tabs[index].isPinned = pinned
             tabs[index].sortOrder = Double(offset)
         }
+    }
+
+    func beginTabDrag(_ tabID: UUID) -> NSItemProvider {
+        draggedTabID = tabID
+        startTabDragSessionWatcher(for: tabID)
+        return NSItemProvider(object: tabID.uuidString as NSString)
+    }
+
+    // SwiftUI's onDrag exposes no end-of-session signal, and a drag released
+    // over the web view or outside the window never reaches a drop delegate —
+    // draggedTabID would stay stale, keeping the source row hidden and letting
+    // unrelated text drags trigger ghost reorders. The mouse button is the
+    // only reliable signal, so watch it while — and only while — a tab drag
+    // is in flight; the watcher tears itself down on release.
+    private func startTabDragSessionWatcher(for tabID: UUID) {
+        tabDragSessionWatcher?.invalidate()
+        let watcher = Timer(timeInterval: 0.1, repeats: true) { [weak self] timer in
+            guard let self, self.draggedTabID == tabID else {
+                timer.invalidate()
+                return
+            }
+            guard NSEvent.pressedMouseButtons & 0x1 == 0 else { return }
+            timer.invalidate()
+            self.tabDragSessionWatcher = nil
+            // The button is up. A drop on a real target delivers performDrop
+            // in this same runloop turn; wait a beat so that path consumes
+            // the ID first, then clear it if no drop target did.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { [weak self] in
+                guard let self, self.draggedTabID == tabID else { return }
+                self.draggedTabID = nil
+            }
+        }
+        tabDragSessionWatcher = watcher
+        // .common keeps the watcher firing inside the drag's event-tracking
+        // runloop mode, where default-mode timers stall.
+        RunLoop.main.add(watcher, forMode: .common)
     }
 
     func navigateActiveTab(to rawInput: String) {
@@ -1523,11 +1599,14 @@ final class BrowserStore: ObservableObject {
 
     private func switchTabInRecentOrder(offset: Int, keepsPreviewOpen: Bool) {
         // Control-Tab starts from most-recent order, so a quick press toggles
-        // between the current tab and the previous tab. The list is frozen for
-        // the whole interaction so hold-to-cycle doesn't shift underneath the
-        // selection. (Candidates are cleared when the interaction ends,
-        // including before the preview ever appears.)
-        if tabSwitcherCandidates.isEmpty {
+        // between the current tab and the previous tab. The list is frozen
+        // while Control stays held so hold-to-cycle doesn't shift underneath
+        // the selection; releasing Control ends the interaction even if the
+        // overlay is still fading, so the next press re-freezes from the
+        // just-committed recency order.
+        let isFreshInteraction = !isTabSwitcherCycling || tabSwitcherCandidates.isEmpty
+        if isFreshInteraction {
+            isTabSwitcherCycling = true
             tabSwitcherCandidates = recentTabsForActiveSpace()
         }
 
@@ -1542,7 +1621,11 @@ final class BrowserStore: ObservableObject {
             return
         }
 
-        let currentSelectionID = tabSwitcherSelectedTabID ?? activeTabID
+        // A fresh press while the return morph is still landing must cycle
+        // from the morph's destination, not the not-yet-switched active tab.
+        let currentSelectionID = (isFreshInteraction ? nil : tabSwitcherSelectedTabID)
+            ?? pendingMiniPlayerReturnTabID
+            ?? activeTabID
         let nextIndex: Int
         if let currentIndex = recentTabs.firstIndex(where: { $0.id == currentSelectionID }) {
             nextIndex = (currentIndex + offset + recentTabs.count) % recentTabs.count
@@ -1552,7 +1635,13 @@ final class BrowserStore: ObservableObject {
             nextIndex = offset > 0 ? 0 : recentTabs.count - 1
         }
         let selectedTabID = recentTabs[nextIndex].id
-        switchTab(to: selectedTabID, updatesAccessTime: false)
+        // While Control is held only the selection moves; the real switch
+        // commits on release (finishTabSwitcherInteraction), so holding to
+        // look at the preview never flips the page underneath. Callers
+        // without a release event still switch immediately.
+        if !keepsPreviewOpen {
+            switchTab(to: selectedTabID, updatesAccessTime: false)
+        }
         presentTabSwitcher(
             candidates: recentTabs,
             selectedTabID: selectedTabID,
@@ -1620,11 +1709,15 @@ final class BrowserStore: ObservableObject {
         tabSwitcherCandidates = []
         tabSwitcherSelectedTabID = nil
 
-        // Commit the access time the cycling deferred, so the landed-on tab
-        // becomes most recent for the next interaction.
-        if let activeTabID, let index = tabs.firstIndex(where: { $0.id == activeTabID }) {
+        // Flows without a Control-release event (auto-hide) end their
+        // interaction here: commit the access time the cycling deferred.
+        // Control-release flows already stamped the landed tab in
+        // finishTabSwitcherInteraction — stamping again here would hit the
+        // old tab when the switch is deferred behind the return morph.
+        if isTabSwitcherCycling, let activeTabID, let index = tabs.firstIndex(where: { $0.id == activeTabID }) {
             tabs[index].lastAccessedAt = Date()
         }
+        isTabSwitcherCycling = false
     }
 
     private func recentTabsForActiveSpace() -> [BrowserTab] {

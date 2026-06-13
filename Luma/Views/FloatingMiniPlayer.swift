@@ -249,7 +249,14 @@ struct FloatingMiniPlayerContainer: View {
             let bounds = CGRect(origin: .zero, size: availableSize)
             let visible = pageFrame.intersection(bounds)
             let pageArea = pageFrame.width * pageFrame.height
-            if pageArea > 0, visible.width * visible.height >= pageArea * 0.5 {
+            let contentArea = max(availableSize.width * availableSize.height, 1)
+            // A rect that dominates the content area (YouTube's player on a
+            // big window) would make the morph read as a fullscreen
+            // transition, not a PiP handoff — those take the quiet corner
+            // fade instead.
+            if pageArea > 0,
+               visible.width * visible.height >= pageArea * 0.5,
+               pageArea / contentArea <= 0.5 {
                 return MorphTarget(frame: pageFrame, fades: false)
             }
         }

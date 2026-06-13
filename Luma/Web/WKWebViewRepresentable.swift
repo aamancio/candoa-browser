@@ -39,22 +39,58 @@ struct MiniPlayerWebViewHost: NSViewRepresentable {
     let tabID: UUID
     @ObservedObject var store: BrowserStore
 
-    func makeNSView(context: Context) -> NSView {
-        let view = NSView()
+    func makeNSView(context: Context) -> MiniPlayerHostView {
+        let view = MiniPlayerHostView()
         view.wantsLayer = true
         view.layer?.backgroundColor = NSColor.black.cgColor
         return view
     }
 
-    func updateNSView(_ container: NSView, context: Context) {
+    func updateNSView(_ container: MiniPlayerHostView, context: Context) {
         // During the return-to-tab morph the page has been handed back and
         // is relayouting hidden; re-hosting would strip it down again
         // mid-flight. (The player shows the freeze frame instead.)
         guard store.miniPlayerReturn == nil else { return }
-        store.webCoordinator.hostMiniPlayerWebView(for: tabID, in: container)
+
+        // updateNSView runs inside the SwiftUI commit, before this container
+        // is laid out at the panel's corner — adopting the web view now
+        // flashes it at the window's top-left. Wait for the first real
+        // layout, which also guarantees the active host swap has happened.
+        let coordinator = store.webCoordinator
+        if container.isPositioned {
+            coordinator.hostMiniPlayerWebView(for: tabID, in: container)
+        } else {
+            let tabID = tabID
+            container.onPositioned = { [weak container] in
+                guard let container else { return }
+                coordinator.hostMiniPlayerWebView(for: tabID, in: container)
+            }
+        }
     }
 
-    static func dismantleNSView(_ nsView: NSView, coordinator: ()) {
+    static func dismantleNSView(_ nsView: MiniPlayerHostView, coordinator: ()) {
+        nsView.onPositioned = nil
         nsView.subviews.forEach { $0.removeFromSuperview() }
+    }
+}
+
+/// Reports the first layout pass where the view has real geometry in a
+/// window, so the web view adoption can wait until the panel is in place.
+final class MiniPlayerHostView: NSView {
+    private(set) var isPositioned = false
+    var onPositioned: (() -> Void)?
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        needsLayout = true
+    }
+
+    override func layout() {
+        super.layout()
+        guard !isPositioned, window != nil, !bounds.isEmpty else { return }
+        isPositioned = true
+        let callback = onPositioned
+        onPositioned = nil
+        callback?()
     }
 }

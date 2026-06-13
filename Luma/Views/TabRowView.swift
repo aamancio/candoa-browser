@@ -165,9 +165,18 @@ private struct TabHoverTracker: NSViewRepresentable {
             // .mouseMoved matters: a row inserted under a stationary cursor
             // never gets a mouseEntered crossing, so moves inside the row are
             // the only signal that the cursor is here.
+            // .enabledDuringMouseDrag keeps crossings firing during tab drag
+            // sessions — without it the dragged row's exit is swallowed and
+            // its hover highlight (and close button) sticks after the drop.
             let trackingArea = NSTrackingArea(
                 rect: bounds,
-                options: [.mouseEnteredAndExited, .mouseMoved, .activeInKeyWindow, .inVisibleRect],
+                options: [
+                    .mouseEnteredAndExited,
+                    .mouseMoved,
+                    .activeInKeyWindow,
+                    .inVisibleRect,
+                    .enabledDuringMouseDrag
+                ],
                 owner: self
             )
             addTrackingArea(trackingArea)

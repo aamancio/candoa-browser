@@ -332,6 +332,7 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         if let previousID = miniPlayerHostedTabID, previousID != tabID {
             detachMiniPlayerWebView(for: previousID)
         }
+        coverActiveContainerWhileAdopting(webView)
         miniPlayerHostedTabID = tabID
         // Activate before shrinking the web view: media selection scores
         // element rects, and at mini player size no video can meet the
@@ -351,6 +352,29 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         restoreMiniPlayerPresentation(tabID: tabID)
         miniPlayerHostedTabID = nil
         webViews[tabID]?.isHidden = true
+    }
+
+    /// Summoning steals the page that was covering the content area before
+    /// the incoming web view has painted, leaving a black void for a beat.
+    /// Bridge it with the incoming tab's wake snapshot — the same cover a
+    /// hibernation wake uses — released as soon as the page is up.
+    private func coverActiveContainerWhileAdopting(_ stolenWebView: WKWebView) {
+        guard
+            let activeID = hostedActiveTabID,
+            let activeWebView = webViews[activeID],
+            activeWebView !== stolenWebView,
+            let activeContainer = activeWebView.superview,
+            stolenWebView.superview === activeContainer,
+            restoreOverlays[activeID] == nil,
+            let snapshot = wakeSnapshots[activeID]
+        else { return }
+
+        presentRestoreOverlay(snapshot, for: activeID, in: activeContainer)
+        // Same beat the outgoing web view normally stays visible for after
+        // a switch; the overlay then fades onto the painted page.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+            self?.removeRestoreOverlay(for: activeID, animated: true)
+        }
     }
 
     /// Starts the return-to-tab handoff: captures a freeze frame of the

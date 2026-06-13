@@ -233,9 +233,11 @@ struct SidebarView: View {
             onOpenInSplit: { store.openSplitView(with: tab.id) },
             onTogglePin: { store.togglePin(tab.id) }
         )
+        // The system drag image is the only visible copy while dragging; the
+        // source tile leaves a gap that doubles as the insertion indicator.
+        .opacity(store.draggedTabID == tab.id ? 0 : 1)
         .onDrag {
-            store.draggedTabID = tab.id
-            return NSItemProvider(object: tab.id.uuidString as NSString)
+            store.beginTabDrag(tab.id)
         }
         .onDrop(
             of: [UTType.text],
@@ -289,9 +291,12 @@ struct SidebarView: View {
                             onTogglePin: { store.togglePin(tab.id) },
                             onToggleMute: { store.toggleMediaMute(tabID: tab.id) }
                         )
+                        // Hide the source row while its drag session is live so
+                        // the cursor ghost isn't doubled by the in-list row; the
+                        // gap it leaves is the insertion indicator.
+                        .opacity(store.draggedTabID == tab.id ? 0 : 1)
                         .onDrag {
-                            store.draggedTabID = tab.id
-                            return NSItemProvider(object: tab.id.uuidString as NSString)
+                            store.beginTabDrag(tab.id)
                         }
                         .onDrop(
                             of: [UTType.text],
@@ -2703,6 +2708,12 @@ private struct TabReorderDropDelegate: DropDelegate {
     let tabs: [BrowserTab]
     let pinned: Bool
     let store: BrowserStore
+
+    // Only tab drags reorder the list; text dragged off a web page also
+    // matches UTType.text and must fall through.
+    func validateDrop(info: DropInfo) -> Bool {
+        store.draggedTabID != nil
+    }
 
     func dropEntered(info: DropInfo) {
         guard
