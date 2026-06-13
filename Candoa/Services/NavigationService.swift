@@ -362,28 +362,36 @@ struct NavigationService {
     }
 
     func searchQuery(from url: URL) -> String? {
+        for provider in Self.searchProviders {
+            if let query = searchQuery(from: url, provider: provider) {
+                return query
+            }
+        }
+
+        return nil
+    }
+
+    func searchQuery(from url: URL, provider: SearchProvider) -> String? {
         guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
               let host = components.host?.lowercased(),
               let queryItems = components.queryItems else {
             return nil
         }
 
-        for provider in Self.searchProviders {
-            guard let providerComponents = URLComponents(url: provider.baseURL, resolvingAgainstBaseURL: false),
-                  let providerHost = providerComponents.host?.lowercased(),
-                  host == providerHost || host.hasSuffix(".\(providerHost)"),
-                  components.path == providerComponents.path else {
-                continue
-            }
+        guard let providerComponents = URLComponents(url: provider.baseURL, resolvingAgainstBaseURL: false),
+              let providerHost = providerComponents.host?.lowercased(),
+              host == providerHost || host.hasSuffix(".\(providerHost)"),
+              components.path == providerComponents.path else {
+            return nil
+        }
 
-            let query = queryItems
-                .first { $0.name == provider.queryItemName }?
-                .value?
-                .trimmingCharacters(in: .whitespacesAndNewlines)
+        let query = queryItems
+            .first { $0.name == provider.queryItemName }?
+            .value?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
 
-            if let query, !query.isEmpty {
-                return query
-            }
+        if let query, !query.isEmpty {
+            return query
         }
 
         return nil

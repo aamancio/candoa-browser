@@ -421,7 +421,12 @@ struct CommandPaletteView: View {
         let commands = tabCommands + historyCommands(for: trimmedQuery) + spaceCommands + baseCommands
 
         if let selectedSearchProvider {
-            guard !trimmedQuery.isEmpty else { return commands }
+            let suggestionCommands = providerSearchSuggestionCommands(
+                for: selectedSearchProvider,
+                matching: trimmedQuery
+            )
+
+            guard !trimmedQuery.isEmpty else { return suggestionCommands }
 
             let providerSearchCommand = PaletteCommand(
                 title: trimmedQuery,
@@ -432,7 +437,9 @@ struct CommandPaletteView: View {
                 action: .searchProvider(selectedSearchProvider, trimmedQuery)
             )
 
-            return [providerSearchCommand] + commands
+            return [providerSearchCommand] + suggestionCommands.filter {
+                $0.title.localizedCaseInsensitiveCompare(trimmedQuery) != .orderedSame
+            } + commands
         }
 
         guard !trimmedQuery.isEmpty else { return defaultSuggestions }
@@ -526,6 +533,57 @@ struct CommandPaletteView: View {
                 action: openTab.map { .switchTab($0.id) } ?? .navigate(provider.homeURL.absoluteString)
             )
         }
+    }
+
+    private func providerSearchSuggestionCommands(
+        for provider: SearchProvider,
+        matching rawQuery: String
+    ) -> [PaletteCommand] {
+        let query = rawQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+        let lowercasedQuery = query.lowercased()
+
+        let tabSuggestions = store.tabs
+            .filter { $0.spaceID == store.activeSpaceID }
+            .compactMap { tab -> (Date, String)? in
+                guard
+                    let url = tab.url,
+                    let suggestion = store.navigationService.searchQuery(from: url, provider: provider)
+                else {
+                    return nil
+                }
+
+                return (tab.lastAccessedAt, suggestion)
+            }
+
+        let historySuggestions = store.recentHistory(limit: 40)
+            .compactMap { visit -> (Date, String)? in
+                guard let suggestion = store.navigationService.searchQuery(from: visit.url, provider: provider) else {
+                    return nil
+                }
+
+                return (visit.visitedAt, suggestion)
+            }
+
+        var seenSuggestions = Set<String>()
+        return (tabSuggestions + historySuggestions)
+            .sorted { $0.0 > $1.0 }
+            .compactMap { _, suggestion -> PaletteCommand? in
+                let normalizedSuggestion = suggestion.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !normalizedSuggestion.isEmpty else { return nil }
+
+                let suggestionKey = normalizedSuggestion.lowercased()
+                guard seenSuggestions.insert(suggestionKey).inserted else { return nil }
+                guard lowercasedQuery.isEmpty || suggestionKey.contains(lowercasedQuery) else { return nil }
+
+                return PaletteCommand(
+                    title: normalizedSuggestion,
+                    detail: nil,
+                    symbolName: "magnifyingglass",
+                    searchText: "\(provider.name) \(normalizedSuggestion)",
+                    style: .providerSearch(provider),
+                    action: .searchProvider(provider, normalizedSuggestion)
+                )
+            }
     }
 
     private var baseCommands: [PaletteCommand] {
