@@ -56,7 +56,7 @@ struct SpaceSwitcherView: View {
             Image(systemName: "arrow.down.to.line.compact")
                 .font(.system(size: 15.5, weight: .medium))
                 .frame(width: 28, height: 28)
-                .foregroundStyle(LumaChromeStyle.sidebarIcon)
+                .foregroundStyle(CandoaChromeStyle.sidebarIcon)
                 .background(bottomButtonBackground(isActive: isDownloadsPresented, isHovering: isHoveringDownloads))
                 .contentShape(Rectangle())
         }
@@ -78,7 +78,7 @@ struct SpaceSwitcherView: View {
             Image(systemName: "plus")
                 .font(.system(size: 18, weight: .regular))
                 .frame(width: 28, height: 28)
-                .foregroundStyle(LumaChromeStyle.sidebarTextSecondary)
+                .foregroundStyle(CandoaChromeStyle.sidebarTextSecondary)
                 .background(bottomButtonBackground(isActive: isActionMenuPresented, isHovering: isHoveringAddSpace))
                 .contentShape(Rectangle())
         }
@@ -96,10 +96,10 @@ struct SpaceSwitcherView: View {
 
     private func bottomButtonBackground(isActive: Bool, isHovering: Bool) -> some View {
         RoundedRectangle(cornerRadius: 8, style: .continuous)
-            .fill(isActive ? LumaChromeStyle.sidebarControlFillActive : (isHovering ? LumaChromeStyle.sidebarControlFillHover : Color.clear))
+            .fill(isActive ? CandoaChromeStyle.sidebarControlFillActive : (isHovering ? CandoaChromeStyle.sidebarControlFillHover : Color.clear))
             .overlay {
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .stroke(isActive || isHovering ? LumaChromeStyle.sidebarControlStroke : Color.clear, lineWidth: 1)
+                    .stroke(isActive || isHovering ? CandoaChromeStyle.sidebarControlStroke : Color.clear, lineWidth: 1)
             }
     }
 

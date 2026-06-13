@@ -60,7 +60,7 @@ struct CopiedURLToastView: View {
 
     private var prefersDarkForeground: Bool {
         guard let themeColorHex else { return false }
-        return LumaChromeStyle.prefersDarkForeground(forSpaceHex: themeColorHex)
+        return CandoaChromeStyle.prefersDarkForeground(forSpaceHex: themeColorHex)
     }
 
     private var foreground: Color {

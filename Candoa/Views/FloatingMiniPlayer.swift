@@ -735,7 +735,7 @@ private struct MiniPlayerResizeHandle: View {
     var body: some View {
         Color.clear
             .contentShape(Rectangle())
-            .lumaCursor(edge.cursor)
+            .candoaCursor(edge.cursor)
             .help("Resize")
     }
 }
@@ -792,7 +792,7 @@ private final class CursorRectNSView: NSView {
 }
 
 private extension View {
-    func lumaCursor(_ cursor: NSCursor) -> some View {
+    func candoaCursor(_ cursor: NSCursor) -> some View {
         modifier(CursorHoverModifier(cursor: cursor))
     }
 }
@@ -837,7 +837,7 @@ private struct MiniPlayerProgressBar: View {
         }
         .frame(height: 16)
         .disabled(!isSeekable)
-        .lumaCursor(isSeekable ? .pointingHand : .arrow)
+        .candoaCursor(isSeekable ? .pointingHand : .arrow)
         .onHover { isHovering = $0 }
         .animation(.easeOut(duration: 0.10), value: isHovering)
         .onChange(of: currentTime) { _, _ in

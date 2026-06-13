@@ -90,6 +90,7 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         webView.uiDelegate = self
         webView.allowsBackForwardNavigationGestures = true
         webView.allowsMagnification = true
+        webView.isInspectable = WebInspectorConfiguration.isEnabled
         webView.customUserAgent = Self.desktopSafariUserAgent
         webView.setValue(false, forKey: "drawsBackground")
 
@@ -250,6 +251,21 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
 
     func clearFindSelection(in tabID: UUID) {
         webViews[tabID]?.evaluateJavaScript("window.getSelection().removeAllRanges()")
+    }
+
+    func captureVisiblePage(for tabID: UUID, completion: @escaping (NSImage?) -> Void) {
+        guard let webView = webViews[tabID], !webView.bounds.isEmpty else {
+            completion(nil)
+            return
+        }
+
+        let configuration = WKSnapshotConfiguration()
+        configuration.rect = CGRect(origin: .zero, size: webView.bounds.size)
+        configuration.snapshotWidth = NSNumber(value: Double(webView.bounds.width))
+
+        webView.takeSnapshot(with: configuration) { image, _ in
+            completion(image)
+        }
     }
 
     func zoomIn(tabID: UUID) {
@@ -486,10 +502,10 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
     /// shown only while the page is actively scrolling.
     private static let overlayScrollbarScript = """
     (() => {
-      if (window.__lumaOverlayScrollbar) { return; }
-      window.__lumaOverlayScrollbar = true;
+      if (window.__candoaOverlayScrollbar) { return; }
+      window.__candoaOverlayScrollbar = true;
 
-      const scrollingClass = "__luma-scrolling";
+      const scrollingClass = "__candoa-scrolling";
       const style = document.createElement("style");
       style.textContent = `
         ::-webkit-scrollbar {
@@ -660,14 +676,14 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
 
     // MARK: - Media Playback State & Controls
 
-    static let mediaStateMessageName = "lumaMediaState"
+    static let mediaStateMessageName = "candoaMediaState"
 
     /// Injected at document start; reports playback state for the selected
     /// foreground video candidate and ignores small/autoplay ad-like media.
     private static let mediaObserverScript = """
     (() => {
-      if (window.__lumaMediaObserved) { return; }
-      window.__lumaMediaObserved = true;
+      if (window.__candoaMediaObserved) { return; }
+      window.__candoaMediaObserved = true;
 
       const trustedMediaHosts = [
         "youtube.com",
@@ -685,10 +701,10 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
       ];
       const likelyAdPattern = /(^|[^a-z])(ad|ads|advert|advertisement|sponsor|sponsored|promo|preroll|midroll|postroll|ima|doubleclick|outstream|instream|teads|taboola|outbrain|aniview|primis|spotx|yieldmo|adchoices|google_ads|gpt)([^a-z]|$)/i;
       const likelyPreviewPattern = /(^|[^a-z])(hover|thumbnail|preview|previews|inline-preview|video-preview|moving-thumbnail|ytp-inline-preview)([^a-z]|$)/i;
-      const miniPlayerClass = "__luma-mini-player-active";
-      const miniPlayerAttr = "data-luma-mini-player";
-      const miniPlayerHostID = "__luma-mini-player-host";
-      const miniPlayerStyleID = "__luma-mini-player-style";
+      const miniPlayerClass = "__candoa-mini-player-active";
+      const miniPlayerAttr = "data-candoa-mini-player";
+      const miniPlayerHostID = "__candoa-mini-player-host";
+      const miniPlayerStyleID = "__candoa-mini-player-style";
 
       const normalizedHostname = () => location.hostname.toLowerCase().replace(/^www[.]/, "");
 
@@ -819,7 +835,7 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
       };
 
       const restoreMiniPlayerMedia = () => {
-        const state = window.__lumaMiniPlayerState;
+        const state = window.__candoaMiniPlayerState;
         if (!state?.media) { return; }
 
         state.media.removeAttribute(miniPlayerAttr);
@@ -835,7 +851,7 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
           }
         }
 
-        delete window.__lumaMiniPlayerState;
+        delete window.__candoaMiniPlayerState;
 
         // Collapsing the page to the video zeroed the scroll position; put
         // it back so the page returns exactly where the user left it.
@@ -863,9 +879,9 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
       // can satisfy the area thresholds — this remembers the right element.
       let lastEligibleMedia = null;
 
-      window.__lumaSelectMedia = selectMedia;
-      window.__lumaActivateMiniPlayerPresentation = () => {
-        const existingState = window.__lumaMiniPlayerState;
+      window.__candoaSelectMedia = selectMedia;
+      window.__candoaActivateMiniPlayerPresentation = () => {
+        const existingState = window.__candoaMiniPlayerState;
         if (
           existingState?.media?.isConnected &&
           existingState.media.parentElement?.id === miniPlayerHostID
@@ -884,7 +900,7 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         installMiniPlayerStyle();
         clearMiniPlayerMarkers();
         const host = ensureMiniPlayerHost();
-        const placeholder = document.createComment("Luma mini player media placeholder");
+        const placeholder = document.createComment("Candoa mini player media placeholder");
         const parent = media.parentNode;
         const nextSibling = media.nextSibling;
 
@@ -892,7 +908,7 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
           parent.insertBefore(placeholder, media);
         }
 
-        window.__lumaMiniPlayerState = {
+        window.__candoaMiniPlayerState = {
           media,
           parent,
           nextSibling,
@@ -908,12 +924,12 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         return true;
       };
 
-      window.__lumaDeactivateMiniPlayerPresentation = () => {
+      window.__candoaDeactivateMiniPlayerPresentation = () => {
         document.documentElement.classList.remove(miniPlayerClass);
         restoreMiniPlayerMedia();
         clearMiniPlayerMarkers();
         document.getElementById(miniPlayerHostID)?.remove();
-        window.__lumaReportMediaState?.();
+        window.__candoaReportMediaState?.();
       };
 
       let playbackTicker = null;
@@ -951,7 +967,7 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
             : null
         });
       };
-      window.__lumaReportMediaState = report;
+      window.__candoaReportMediaState = report;
 
       let reportQueued = false;
       const queueReport = () => {
@@ -1016,17 +1032,17 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
     }
 
     private func activateMiniPlayerPresentation(tabID: UUID) {
-        webViews[tabID]?.evaluateJavaScript("window.__lumaActivateMiniPlayerPresentation?.()")
+        webViews[tabID]?.evaluateJavaScript("window.__candoaActivateMiniPlayerPresentation?.()")
     }
 
     private func restoreMiniPlayerPresentation(tabID: UUID) {
-        webViews[tabID]?.evaluateJavaScript("window.__lumaDeactivateMiniPlayerPresentation?.()")
+        webViews[tabID]?.evaluateJavaScript("window.__candoaDeactivateMiniPlayerPresentation?.()")
     }
 
     func toggleMediaPlayback(tabID: UUID) {
         webViews[tabID]?.evaluateJavaScript("""
         (() => {
-          const selected = window.__lumaSelectMedia?.();
+          const selected = window.__candoaSelectMedia?.();
           const medias = selected ? [selected] : Array.from(document.querySelectorAll("video, audio"));
           const playing = medias.filter((media) => !media.paused && !media.ended);
           if (playing.length > 0) {
@@ -1044,12 +1060,12 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
     func pauseMediaPlayback(tabID: UUID) {
         webViews[tabID]?.evaluateJavaScript("""
         (() => {
-          const selected = window.__lumaSelectMedia?.();
+          const selected = window.__candoaSelectMedia?.();
           const medias = selected ? [selected] : Array.from(document.querySelectorAll("video, audio"));
           medias
             .filter((media) => !media.paused && !media.ended)
             .forEach((media) => media.pause());
-          window.__lumaReportMediaState?.();
+          window.__candoaReportMediaState?.();
         })();
         """)
     }
@@ -1057,7 +1073,7 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
     func toggleMediaMute(tabID: UUID) {
         webViews[tabID]?.evaluateJavaScript("""
         (() => {
-          const selected = window.__lumaSelectMedia?.();
+          const selected = window.__candoaSelectMedia?.();
           const medias = (selected ? [selected] : Array.from(document.querySelectorAll("video, audio")))
             .filter((media) => media.readyState >= 1 || media.currentTime > 0);
           if (medias.length === 0) { return; }
@@ -1083,7 +1099,7 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
           }
 
           // No track controls on this page: nudge the timeline instead.
-          const media = window.__lumaSelectMedia?.()
+          const media = window.__candoaSelectMedia?.()
             || Array.from(document.querySelectorAll("video, audio"))
             .find((candidate) => !candidate.paused && !candidate.ended)
             || Array.from(document.querySelectorAll("video, audio")).find((candidate) => candidate.currentTime > 0);
@@ -1098,7 +1114,7 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
     func seekMedia(tabID: UUID, by seconds: Double) {
         webViews[tabID]?.evaluateJavaScript("""
         (() => {
-          const media = window.__lumaSelectMedia?.()
+          const media = window.__candoaSelectMedia?.()
             || Array.from(document.querySelectorAll("video, audio"))
             .find((candidate) => !candidate.paused && !candidate.ended)
             || Array.from(document.querySelectorAll("video, audio")).find((candidate) => candidate.currentTime > 0);
@@ -1106,7 +1122,7 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
 
           const target = media.currentTime + (\(seconds));
           media.currentTime = Math.max(0, Number.isFinite(media.duration) ? Math.min(media.duration, target) : target);
-          window.__lumaReportMediaState?.();
+          window.__candoaReportMediaState?.();
         })();
         """)
     }
@@ -1116,7 +1132,7 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
 
         webViews[tabID]?.evaluateJavaScript("""
         (() => {
-          const media = window.__lumaSelectMedia?.()
+          const media = window.__candoaSelectMedia?.()
             || Array.from(document.querySelectorAll("video, audio"))
             .find((candidate) => !candidate.paused && !candidate.ended)
             || Array.from(document.querySelectorAll("video, audio")).find((candidate) => candidate.currentTime > 0);
@@ -1124,13 +1140,13 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
 
           const target = \(targetTime);
           media.currentTime = Number.isFinite(media.duration) ? Math.min(media.duration, target) : target;
-          window.__lumaReportMediaState?.();
+          window.__candoaReportMediaState?.();
         })();
         """)
     }
 
     func refreshMediaState(tabID: UUID) {
-        webViews[tabID]?.evaluateJavaScript("window.__lumaReportMediaState?.()")
+        webViews[tabID]?.evaluateJavaScript("window.__candoaReportMediaState?.()")
     }
 
     func navigationState(for tabID: UUID) -> (canGoBack: Bool, canGoForward: Bool) {
@@ -1627,7 +1643,7 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         </head>
         <body>
           <main>
-            <h1>Luma</h1>
+            <h1>Candoa</h1>
             <p>Search or enter a URL from the address bar.</p>
           </main>
         </body>

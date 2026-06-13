@@ -5,6 +5,8 @@ import UniformTypeIdentifiers
 struct SidebarView: View {
     @ObservedObject var store: BrowserStore
     let availableUpdate: AppUpdate?
+    let showsWindowControls: Bool
+    let windowControlsHiddenOffset: CGFloat
     let onUpdateBannerTapped: () -> Void
     let onToggleSidebar: () -> Void
 
@@ -35,9 +37,9 @@ struct SidebarView: View {
     }
 
     private var sidebarIconColor: Color {
-        guard isSetupThemePreviewActive else { return LumaChromeStyle.sidebarIcon }
+        guard isSetupThemePreviewActive else { return CandoaChromeStyle.sidebarIcon }
 
-        let usesDarkForeground = LumaChromeStyle.prefersDarkForeground(
+        let usesDarkForeground = CandoaChromeStyle.prefersDarkForeground(
             forSpaceHex: store.activeThemeColorHexes.first ?? ""
         )
         return (usesDarkForeground ? Color.black : Color.white).opacity(0.42)
@@ -64,7 +66,7 @@ struct SidebarView: View {
                         spaceLabel
 
                         Rectangle()
-                            .fill(LumaChromeStyle.sidebarSeparator)
+                            .fill(CandoaChromeStyle.sidebarSeparator)
                             .frame(height: 1)
                             .padding(.top, 3)
                             .padding(.bottom, 2)
@@ -102,7 +104,10 @@ struct SidebarView: View {
 
     private var sidebarHeader: some View {
         HStack(spacing: 6) {
-            WindowControlsView()
+            WindowControlsView(
+                isVisible: showsWindowControls,
+                hiddenOffset: windowControlsHiddenOffset
+            )
                 .frame(width: windowControlsWidth, height: 24)
 
             Button {
@@ -156,7 +161,7 @@ struct SidebarView: View {
                 Image(systemName: isLocalDevelopmentURL ? "info.circle" : "magnifyingglass")
                     .font(.system(size: 15, weight: .medium))
                     .frame(width: 18)
-                    .foregroundStyle(LumaChromeStyle.sidebarIcon)
+                    .foregroundStyle(CandoaChromeStyle.sidebarIcon)
 
                 Text(sidebarAddressText)
                     .lineLimit(1)
@@ -166,13 +171,13 @@ struct SidebarView: View {
                             ? .system(size: 13, weight: .medium, design: .monospaced)
                             : .system(size: 14, weight: .semibold)
                     )
-                    .foregroundStyle(LumaChromeStyle.sidebarTextSecondary)
+                    .foregroundStyle(CandoaChromeStyle.sidebarTextSecondary)
 
                 Spacer(minLength: 0)
             }
             .padding(.horizontal, 11)
             .frame(height: 40)
-            .background(LumaChromeStyle.sidebarControlFill)
+            .background(CandoaChromeStyle.sidebarControlFill)
             .clipShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
         }
         .buttonStyle(.plain)
@@ -257,7 +262,7 @@ struct SidebarView: View {
         if let name = store.activeSpace?.name.trimmingCharacters(in: .whitespacesAndNewlines), !name.isEmpty {
             Text(name)
                 .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(LumaChromeStyle.sidebarTextSecondary)
+                .foregroundStyle(CandoaChromeStyle.sidebarTextSecondary)
                 .lineLimit(1)
                 .padding(.horizontal, 4)
                 .padding(.top, 2)
@@ -333,13 +338,13 @@ struct SidebarView: View {
             HStack(spacing: 8) {
                 Image(systemName: "plus")
                     .font(.system(size: 14.5, weight: .medium))
-                    .foregroundStyle(isArmed ? LumaChromeStyle.sidebarText : LumaChromeStyle.sidebarIcon)
+                    .foregroundStyle(isArmed ? CandoaChromeStyle.sidebarText : CandoaChromeStyle.sidebarIcon)
                     .frame(width: 16, height: 16)
 
                 Text(BrowserCommandTitles.newTab)
                     .lineLimit(1)
                     .font(.system(size: 13.5, weight: .semibold))
-                    .foregroundStyle(isArmed ? LumaChromeStyle.sidebarText : LumaChromeStyle.sidebarTextSecondary)
+                    .foregroundStyle(isArmed ? CandoaChromeStyle.sidebarText : CandoaChromeStyle.sidebarTextSecondary)
 
                 Spacer(minLength: 8)
             }
@@ -355,7 +360,7 @@ struct SidebarView: View {
         .overlay {
             if isHoveringNewTab && !isArmed {
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .stroke(LumaChromeStyle.sidebarControlStroke, lineWidth: 1)
+                    .stroke(CandoaChromeStyle.sidebarControlStroke, lineWidth: 1)
                     .allowsHitTesting(false)
             }
         }
@@ -368,7 +373,7 @@ struct SidebarView: View {
             return activeSpaceTint.opacity(0.18)
         }
         if isHoveringNewTab {
-            return LumaChromeStyle.sidebarControlFillHover
+            return CandoaChromeStyle.sidebarControlFillHover
         }
         return Color.clear
     }
@@ -382,26 +387,26 @@ private struct AppUpdateBanner: View {
 
     var body: some View {
         Button(action: action) {
-            Text("New Luma Version Available")
+            Text("New Candoa Version Available")
                 .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(LumaChromeStyle.sidebarText)
+                .foregroundStyle(CandoaChromeStyle.sidebarText)
                 .lineLimit(1)
                 .minimumScaleFactor(0.82)
                 .frame(maxWidth: .infinity)
                 .frame(height: 38)
                 .background(
                     RoundedRectangle(cornerRadius: 22, style: .continuous)
-                        .fill(isHovering ? LumaChromeStyle.updateBannerFillHover : LumaChromeStyle.updateBannerFill)
+                        .fill(isHovering ? CandoaChromeStyle.updateBannerFillHover : CandoaChromeStyle.updateBannerFill)
                 )
                 .overlay {
                     RoundedRectangle(cornerRadius: 22, style: .continuous)
-                        .stroke(LumaChromeStyle.updateBannerStroke, lineWidth: 1)
+                        .stroke(CandoaChromeStyle.updateBannerStroke, lineWidth: 1)
                 }
                 .contentShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
         }
         .buttonStyle(.plain)
         .onHover { isHovering = $0 }
-        .help("Luma \(update.version) is available")
+        .help("Candoa \(update.version) is available")
         .animation(.easeOut(duration: 0.10), value: isHovering)
     }
 }
@@ -443,7 +448,7 @@ private struct UpsertSpaceSidebarComposer: View {
 
     private var usesDarkForeground: Bool {
         guard let themeColorHex else { return false }
-        return LumaChromeStyle.prefersDarkForeground(forSpaceHex: themeColorHex)
+        return CandoaChromeStyle.prefersDarkForeground(forSpaceHex: themeColorHex)
     }
 
     private var foregroundBase: Color {
@@ -455,7 +460,7 @@ private struct UpsertSpaceSidebarComposer: View {
     }
 
     private var primaryButtonUsesDarkForeground: Bool {
-        LumaChromeStyle.prefersDarkForeground(forSpaceHex: primaryButtonTintHex)
+        CandoaChromeStyle.prefersDarkForeground(forSpaceHex: primaryButtonTintHex)
     }
 
     private var primaryButtonForegroundBase: Color {
@@ -463,27 +468,27 @@ private struct UpsertSpaceSidebarComposer: View {
     }
 
     private var textColor: Color {
-        isThemePreviewActive ? foregroundBase.opacity(usesDarkForeground ? 0.82 : 0.88) : LumaChromeStyle.sidebarText
+        isThemePreviewActive ? foregroundBase.opacity(usesDarkForeground ? 0.82 : 0.88) : CandoaChromeStyle.sidebarText
     }
 
     private var secondaryTextColor: Color {
-        isThemePreviewActive ? foregroundBase.opacity(usesDarkForeground ? 0.55 : 0.58) : LumaChromeStyle.sidebarTextSecondary
+        isThemePreviewActive ? foregroundBase.opacity(usesDarkForeground ? 0.55 : 0.58) : CandoaChromeStyle.sidebarTextSecondary
     }
 
     private var iconColor: Color {
-        isThemePreviewActive ? foregroundBase.opacity(0.42) : LumaChromeStyle.sidebarIcon
+        isThemePreviewActive ? foregroundBase.opacity(0.42) : CandoaChromeStyle.sidebarIcon
     }
 
     private var controlFill: Color {
-        isThemePreviewActive ? foregroundBase.opacity(usesDarkForeground ? 0.06 : 0.075) : LumaChromeStyle.spaceSetupControlFill
+        isThemePreviewActive ? foregroundBase.opacity(usesDarkForeground ? 0.06 : 0.075) : CandoaChromeStyle.spaceSetupControlFill
     }
 
     private var controlStroke: Color {
-        isThemePreviewActive ? foregroundBase.opacity(0.08) : LumaChromeStyle.spaceSetupControlStroke
+        isThemePreviewActive ? foregroundBase.opacity(0.08) : CandoaChromeStyle.spaceSetupControlStroke
     }
 
     private var pillFill: Color {
-        isThemePreviewActive ? foregroundBase.opacity(usesDarkForeground ? 0.08 : 0.10) : LumaChromeStyle.spaceSetupPillFill
+        isThemePreviewActive ? foregroundBase.opacity(usesDarkForeground ? 0.08 : 0.10) : CandoaChromeStyle.spaceSetupPillFill
     }
 
     private var createButtonTextColor: Color {
@@ -606,7 +611,7 @@ private struct UpsertSpaceSidebarComposer: View {
                     themeColorHex: themeColorHex,
                     strokeColor: isThemePreviewActive
                         ? foregroundBase.opacity(0.46)
-                        : LumaChromeStyle.sidebarIcon.opacity(0.78)
+                        : CandoaChromeStyle.sidebarIcon.opacity(0.78)
                 )
             }
             .buttonStyle(.plain)
@@ -794,7 +799,7 @@ private struct UpsertSpaceSidebarComposer: View {
 private struct SpaceIconPreview: View {
     let symbolName: String
     let themeColorHex: String?
-    var strokeColor: Color = LumaChromeStyle.sidebarIcon.opacity(0.78)
+    var strokeColor: Color = CandoaChromeStyle.sidebarIcon.opacity(0.78)
 
     var body: some View {
         ZStack {
@@ -1017,7 +1022,7 @@ private struct SpaceIconPicker: View {
 
             HStack(spacing: 8) {
                 Image(systemName: "magnifyingglass")
-                    .foregroundStyle(LumaChromeStyle.sidebarIcon)
+                    .foregroundStyle(CandoaChromeStyle.sidebarIcon)
 
                 TextField(mode.searchPlaceholder, text: $query)
                     .textFieldStyle(.plain)
@@ -1029,7 +1034,7 @@ private struct SpaceIconPicker: View {
             .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .stroke(LumaChromeStyle.popoverBorder, lineWidth: 1)
+                    .stroke(CandoaChromeStyle.popoverBorder, lineWidth: 1)
             }
 
             ScrollView(.vertical, showsIndicators: false) {
@@ -1053,7 +1058,7 @@ private struct SpaceIconPicker: View {
         }
         .padding(14)
         .frame(width: 304, height: 340)
-        .background(LumaChromeStyle.popoverBackground)
+        .background(CandoaChromeStyle.popoverBackground)
     }
 }
 
@@ -1072,7 +1077,7 @@ private struct SpaceIconOptionView: View {
             } else {
                 Image(systemName: option.symbolName)
                     .font(.system(size: 17, weight: .semibold))
-                    .foregroundStyle(isSelected ? Color.accentColor : LumaChromeStyle.sidebarText)
+                    .foregroundStyle(isSelected ? Color.accentColor : CandoaChromeStyle.sidebarText)
             }
         }
         .frame(width: 34, height: 34)
@@ -1099,12 +1104,12 @@ private struct SpaceProfilePicker: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(mode.title)
                                 .font(.system(size: 15, weight: .semibold))
-                                .foregroundStyle(LumaChromeStyle.sidebarText)
+                                .foregroundStyle(CandoaChromeStyle.sidebarText)
                                 .lineLimit(1)
 
                             Text(mode.detail)
                                 .font(.system(size: 11, weight: .medium))
-                                .foregroundStyle(LumaChromeStyle.sidebarIcon)
+                                .foregroundStyle(CandoaChromeStyle.sidebarIcon)
                                 .lineLimit(1)
                         }
 
@@ -1127,7 +1132,7 @@ private struct SpaceProfilePicker: View {
         }
         .padding(10)
         .frame(width: 220)
-        .background(LumaChromeStyle.popoverBackground)
+        .background(CandoaChromeStyle.popoverBackground)
     }
 }
 
@@ -1259,7 +1264,7 @@ private struct SpaceThemePanel: View {
         .frame(height: 352)
         .overlay {
             RoundedRectangle(cornerRadius: 13, style: .continuous)
-                .stroke(LumaChromeStyle.popoverBorder, lineWidth: 1)
+                .stroke(CandoaChromeStyle.popoverBorder, lineWidth: 1)
         }
     }
 
@@ -1272,7 +1277,7 @@ private struct SpaceThemePanel: View {
                     Image(systemName: option.symbolName)
                         .font(.system(size: 17, weight: .semibold))
                         .frame(width: 34, height: 32)
-                        .foregroundStyle(LumaChromeStyle.sidebarText)
+                        .foregroundStyle(CandoaChromeStyle.sidebarText)
                         .background(
                             RoundedRectangle(cornerRadius: 9, style: .continuous)
                                 .fill(selectedAppearance == option ? Color.primary.opacity(0.13) : Color.clear)
@@ -1360,7 +1365,7 @@ private struct SpaceThemePanel: View {
                         .overlay {
                             Circle()
                                 .strokeBorder(
-                                    selectedHex == option.hex ? LumaChromeStyle.sidebarText.opacity(0.68) : Color.clear,
+                                    selectedHex == option.hex ? CandoaChromeStyle.sidebarText.opacity(0.68) : Color.clear,
                                     lineWidth: 1
                                 )
                                 .padding(-1)
@@ -1697,7 +1702,7 @@ private struct ThemeColorFieldDots: View {
     let positions: [ThemeDotPosition]
     let onDrag: (Int, ThemeDotPosition) -> Void
 
-    private static let coordinateSpaceName = "LumaThemeColorField"
+    private static let coordinateSpaceName = "CandoaThemeColorField"
 
     var body: some View {
         GeometryReader { proxy in
@@ -1751,7 +1756,7 @@ private struct ThemeIconButton: View {
         Button(action: action) {
             Image(systemName: systemName)
                 .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(LumaChromeStyle.sidebarText.opacity(isEnabled ? 0.92 : 0.34))
+                .foregroundStyle(CandoaChromeStyle.sidebarText.opacity(isEnabled ? 0.92 : 0.34))
                 .frame(width: 22, height: 24)
                 .contentShape(Rectangle())
         }
@@ -1776,7 +1781,7 @@ private struct ThemeHarmonyButton: View {
             Image(systemName: "point.3.connected.trianglepath.dotted")
                 .font(.system(size: 17, weight: .semibold))
                 .symbolRenderingMode(.hierarchical)
-                .foregroundStyle(LumaChromeStyle.sidebarText.opacity(isEnabled ? (isActive ? 0.94 : 0.54) : 0.30))
+                .foregroundStyle(CandoaChromeStyle.sidebarText.opacity(isEnabled ? (isActive ? 0.94 : 0.54) : 0.30))
                 .frame(width: 34, height: 32)
                 .background(
                     RoundedRectangle(cornerRadius: 8, style: .continuous)
@@ -2298,7 +2303,7 @@ private struct EssentialTileView: View {
                     .fill(
                         isActive
                             ? AnyShapeStyle(accentColor.opacity(0.18))
-                            : AnyShapeStyle(LumaChromeStyle.sidebarControlFill)
+                            : AnyShapeStyle(CandoaChromeStyle.sidebarControlFill)
                     )
 
                 faviconImage
@@ -2310,8 +2315,8 @@ private struct EssentialTileView: View {
                     Button(action: onClose) {
                         Image(systemName: "xmark.circle.fill")
                             .font(.system(size: 12))
-                            .foregroundStyle(LumaChromeStyle.sidebarTextSecondary)
-                            .background(Circle().fill(LumaChromeStyle.sidebarBackground))
+                            .foregroundStyle(CandoaChromeStyle.sidebarTextSecondary)
+                            .background(Circle().fill(CandoaChromeStyle.sidebarBackground))
                     }
                     .buttonStyle(.plain)
                     .help("Close Tab")
@@ -2323,7 +2328,7 @@ private struct EssentialTileView: View {
                     .stroke(
                         isActive
                             ? accentColor.opacity(0.34)
-                            : (isHovering ? LumaChromeStyle.sidebarControlStroke : Color.clear),
+                            : (isHovering ? CandoaChromeStyle.sidebarControlStroke : Color.clear),
                         lineWidth: 1
                     )
             }
@@ -2352,7 +2357,7 @@ private struct EssentialTileView: View {
         } else {
             Image(systemName: tab.faviconSymbol)
                 .font(.system(size: 18, weight: .medium))
-                .foregroundStyle(isActive ? LumaChromeStyle.sidebarText : LumaChromeStyle.sidebarTextSecondary)
+                .foregroundStyle(isActive ? CandoaChromeStyle.sidebarText : CandoaChromeStyle.sidebarTextSecondary)
         }
     }
 }
@@ -2360,23 +2365,35 @@ private struct EssentialTileView: View {
 // MARK: - Window controls
 
 private struct WindowControlsView: View {
+    let isVisible: Bool
+    let hiddenOffset: CGFloat
+
     var body: some View {
-        NativeWindowControlsView()
+        NativeWindowControlsView(
+            isVisible: isVisible,
+            hiddenOffset: hiddenOffset
+        )
     }
 }
 
 private struct NativeWindowControlsView: NSViewRepresentable {
+    let isVisible: Bool
+    let hiddenOffset: CGFloat
+
     func makeNSView(context: Context) -> NSView {
         let view = NativeWindowControlsHost()
+        view.configure(isVisible: isVisible, hiddenOffset: hiddenOffset, animated: false)
         DispatchQueue.main.async {
-            view.attachWindowControls()
+            view.attachWindowControls(animated: false)
         }
         return view
     }
 
     func updateNSView(_ nsView: NSView, context: Context) {
+        (nsView as? NativeWindowControlsHost)?
+            .configure(isVisible: isVisible, hiddenOffset: hiddenOffset, animated: true)
         DispatchQueue.main.async {
-            (nsView as? NativeWindowControlsHost)?.attachWindowControls()
+            (nsView as? NativeWindowControlsHost)?.attachWindowControls(animated: true)
         }
     }
 
@@ -2393,10 +2410,15 @@ private final class NativeWindowControlsHost: NSView {
     ]
     private static let centerSpacing: CGFloat = 20
     private static let fallbackButtonSize = NSSize(width: 14, height: 14)
+    private static let transitionDuration: TimeInterval = 0.18
 
     private weak var attachedWindow: NSWindow?
-    private var originalSuperviews: [Int: NSView] = [:]
     private var originalFrames: [Int: NSRect] = [:]
+    private var originalHiddenStates: [Int: Bool] = [:]
+    private var lastVisibleHostFrameBySuperview: [ObjectIdentifier: NSRect] = [:]
+    private var isControlsVisible = true
+    private var hiddenOffset: CGFloat = 0
+    private var shouldAnimateNextLayout = false
 
     override var intrinsicContentSize: NSSize {
         NSSize(width: 60, height: 24)
@@ -2404,10 +2426,18 @@ private final class NativeWindowControlsHost: NSView {
 
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
-        attachWindowControls()
+        attachWindowControls(animated: false)
     }
 
-    func attachWindowControls() {
+    func configure(isVisible: Bool, hiddenOffset: CGFloat, animated: Bool) {
+        let visibilityChanged = isControlsVisible != isVisible
+        let offsetChanged = self.hiddenOffset != hiddenOffset
+        isControlsVisible = isVisible
+        self.hiddenOffset = hiddenOffset
+        shouldAnimateNextLayout = animated && (visibilityChanged || offsetChanged)
+    }
+
+    func attachWindowControls(animated: Bool) {
         guard let window else { return }
 
         if let attachedWindow, attachedWindow !== window {
@@ -2420,20 +2450,16 @@ private final class NativeWindowControlsHost: NSView {
             guard let button = window.standardWindowButton(buttonType) else { continue }
             let key = Int(buttonType.rawValue)
 
-            if originalSuperviews[key] == nil, button.superview !== self {
-                originalSuperviews[key] = button.superview
+            if originalFrames[key] == nil {
                 originalFrames[key] = button.frame
-            }
-
-            if button.superview !== self {
-                button.removeFromSuperview()
-                addSubview(button)
+                originalHiddenStates[key] = button.isHidden
             }
 
             button.isHidden = false
         }
 
-        needsLayout = true
+        layoutWindowControls(animated: animated || shouldAnimateNextLayout)
+        shouldAnimateNextLayout = false
     }
 
     func restoreWindowControls() {
@@ -2443,33 +2469,72 @@ private final class NativeWindowControlsHost: NSView {
             guard let button = attachedWindow.standardWindowButton(buttonType) else { continue }
             let key = Int(buttonType.rawValue)
 
-            if button.superview === self {
-                button.removeFromSuperview()
+            if let originalFrame = originalFrames[key] {
+                button.frame = originalFrame
+            }
 
-                if let originalSuperview = originalSuperviews[key] {
-                    originalSuperview.addSubview(button)
-                    button.frame = originalFrames[key] ?? button.frame
-                }
+            if let wasHidden = originalHiddenStates[key] {
+                button.isHidden = wasHidden
             }
         }
 
-        originalSuperviews.removeAll()
         originalFrames.removeAll()
+        originalHiddenStates.removeAll()
+        lastVisibleHostFrameBySuperview.removeAll()
         self.attachedWindow = nil
     }
 
     override func layout() {
         super.layout()
+        layoutWindowControls(animated: false)
+    }
+
+    private func layoutWindowControls(animated: Bool) {
+        guard let attachedWindow else { return }
 
         for (index, buttonType) in Self.buttonTypes.enumerated() {
-            guard let button = attachedWindow?.standardWindowButton(buttonType) else { continue }
+            guard
+                let button = attachedWindow.standardWindowButton(buttonType),
+                let buttonSuperview = button.superview
+            else { continue }
+
             let currentSize = button.frame.size
             let buttonSize = currentSize.width > 0 && currentSize.height > 0
                 ? currentSize
                 : Self.fallbackButtonSize
-            let x = CGFloat(index) * Self.centerSpacing
-            let y = floor((bounds.height - buttonSize.height) / 2)
-            button.frame = NSRect(origin: CGPoint(x: x, y: y), size: buttonSize)
+            button.isHidden = false
+
+            let hostFrameInWindow = convert(bounds, to: nil)
+            let superviewID = ObjectIdentifier(buttonSuperview)
+            let hostFrameInButtonSuperview = buttonSuperview.convert(hostFrameInWindow, from: nil)
+            let isHostOnscreen = hostFrameInWindow.maxX > 0
+                && hostFrameInWindow.minX < attachedWindow.frame.width
+
+            let resolvedHostFrame: NSRect
+            if isHostOnscreen {
+                lastVisibleHostFrameBySuperview[superviewID] = hostFrameInButtonSuperview
+                resolvedHostFrame = hostFrameInButtonSuperview
+            } else if let lastVisibleHostFrame = lastVisibleHostFrameBySuperview[superviewID] {
+                resolvedHostFrame = lastVisibleHostFrame
+            } else {
+                resolvedHostFrame = hostFrameInButtonSuperview
+            }
+
+            let x = resolvedHostFrame.minX
+                + (isControlsVisible ? 0 : hiddenOffset)
+                + CGFloat(index) * Self.centerSpacing
+            let y = floor(resolvedHostFrame.midY - buttonSize.height / 2)
+            let nextFrame = NSRect(origin: CGPoint(x: x, y: y), size: buttonSize)
+
+            if animated {
+                NSAnimationContext.runAnimationGroup { context in
+                    context.duration = Self.transitionDuration
+                    context.timingFunction = CAMediaTimingFunction(name: .easeOut)
+                    button.animator().frame = nextFrame
+                }
+            } else {
+                button.frame = nextFrame
+            }
         }
     }
 }
@@ -2496,7 +2561,7 @@ private extension View {
 
 // MARK: - Shared chrome styling
 
-enum LumaChromeStyle {
+enum CandoaChromeStyle {
     static let sidebarWidth: CGFloat = 234
     static let setupNeutralTint = Color.primary.opacity(0.10)
     static let windowBackground = Color(nsColor: .windowBackgroundColor)
@@ -2543,7 +2608,7 @@ enum LumaChromeStyle {
 /// The single chrome surface painted across the entire window (Zen-style):
 /// sidebar, title-bar strip, and the gutter around the web view all share it,
 /// so the theme tint reads as one continuous backdrop.
-struct LumaWindowBackdrop: View {
+struct CandoaWindowBackdrop: View {
     @ObservedObject var store: BrowserStore
 
     private var hasThemeTint: Bool {
@@ -2579,7 +2644,7 @@ struct LumaWindowBackdrop: View {
 
     var body: some View {
         ZStack {
-            LumaChromeStyle.windowBackground
+            CandoaChromeStyle.windowBackground
             Color(spaceHex: store.activeThemeColorHexes.first ?? "#8A8F98")
                 .opacity(spaceTintOpacity)
             SpaceThemeBackdrop(
@@ -2587,7 +2652,7 @@ struct LumaWindowBackdrop: View {
                 intensity: backdropIntensity * store.activeThemeIntensityMultiplier,
                 texture: store.activeThemeTexture
             )
-            LumaChromeStyle.setupNeutralTint.opacity(usesSetupChrome && !isSetupThemePreviewActive ? 0.18 : 0)
+            CandoaChromeStyle.setupNeutralTint.opacity(usesSetupChrome && !isSetupThemePreviewActive ? 0.18 : 0)
         }
     }
 }

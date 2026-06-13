@@ -12,19 +12,19 @@ struct HistoryVisit: Identifiable, Hashable {
 }
 
 struct PersistenceSyncConfiguration: Equatable {
-    static let cloudKitContainerIdentifier = "iCloud.org.lumabrowser.LumaBrowser"
+    static let cloudKitContainerIdentifier = "iCloud.org.candoa.Candoa"
 
     var syncsWorkspaceWithICloud: Bool
     var syncsHistoryWithICloud: Bool
     var cloudKitContainerIdentifier: String
 
     static var current: PersistenceSyncConfiguration {
-        let canUseICloud = LumaCloudKitEntitlements.hasConfiguredContainer
+        let canUseICloud = CandoaCloudKitEntitlements.hasConfiguredContainer
         return PersistenceSyncConfiguration(
-            syncsWorkspaceWithICloud: canUseICloud && LumaSyncPreferences.syncsWorkspaceWithICloud,
+            syncsWorkspaceWithICloud: canUseICloud && CandoaSyncPreferences.syncsWorkspaceWithICloud,
             syncsHistoryWithICloud: canUseICloud
-                && LumaSyncPreferences.syncsWorkspaceWithICloud
-                && LumaSyncPreferences.syncsHistoryWithICloud,
+                && CandoaSyncPreferences.syncsWorkspaceWithICloud
+                && CandoaSyncPreferences.syncsHistoryWithICloud,
             cloudKitContainerIdentifier: cloudKitContainerIdentifier
         )
     }
@@ -38,14 +38,17 @@ struct PersistenceSyncConfiguration: Equatable {
     }
 }
 
-enum LumaSyncPreferences {
-    private static let workspaceKey = "Luma.Sync.WorkspaceWithICloud"
-    private static let historyKey = "Luma.Sync.HistoryWithICloud"
+enum CandoaSyncPreferences {
+    private static let workspaceKey = "Candoa.Sync.WorkspaceWithICloud"
+    private static let historyKey = "Candoa.Sync.HistoryWithICloud"
+    private static let legacyWorkspaceKey = "Luma.Sync.WorkspaceWithICloud"
+    private static let legacyHistoryKey = "Luma.Sync.HistoryWithICloud"
 
     static var syncsWorkspaceWithICloud: Bool {
-        get { UserDefaults.standard.bool(forKey: workspaceKey) }
+        get { bool(forKey: workspaceKey, legacyKey: legacyWorkspaceKey) }
         set {
             UserDefaults.standard.set(newValue, forKey: workspaceKey)
+            UserDefaults.standard.removeObject(forKey: legacyWorkspaceKey)
             if !newValue {
                 syncsHistoryWithICloud = false
             }
@@ -53,12 +56,23 @@ enum LumaSyncPreferences {
     }
 
     static var syncsHistoryWithICloud: Bool {
-        get { UserDefaults.standard.bool(forKey: historyKey) }
-        set { UserDefaults.standard.set(newValue, forKey: historyKey) }
+        get { bool(forKey: historyKey, legacyKey: legacyHistoryKey) }
+        set {
+            UserDefaults.standard.set(newValue, forKey: historyKey)
+            UserDefaults.standard.removeObject(forKey: legacyHistoryKey)
+        }
+    }
+
+    private static func bool(forKey key: String, legacyKey: String) -> Bool {
+        if UserDefaults.standard.object(forKey: key) != nil {
+            return UserDefaults.standard.bool(forKey: key)
+        }
+
+        return UserDefaults.standard.bool(forKey: legacyKey)
     }
 }
 
-enum LumaCloudKitEntitlements {
+enum CandoaCloudKitEntitlements {
     static var hasConfiguredContainer: Bool {
         guard let task = SecTaskCreateFromSelf(nil) else { return false }
         guard let value = SecTaskCopyValueForEntitlement(
@@ -79,10 +93,10 @@ enum LumaCloudKitEntitlements {
 
 struct PersistenceService: @unchecked Sendable {
     static let shared = PersistenceService()
-    static let remoteStoreDidChange = Notification.Name("Luma.PersistenceService.RemoteStoreDidChange")
+    static let remoteStoreDidChange = Notification.Name("Candoa.PersistenceService.RemoteStoreDidChange")
 
-    private static let appName = "Luma"
-    private static let legacyAppName = "Luma Browser"
+    private static let appName = "Candoa"
+    private static let legacyAppNames = ["Luma", "Luma Browser"]
 
     private let container: NSPersistentContainer
     private let syncConfiguration: PersistenceSyncConfiguration
@@ -106,9 +120,12 @@ struct PersistenceService: @unchecked Sendable {
         let model = Self.makeModel()
         let usesCloudKit = syncConfiguration.syncsWorkspaceWithICloud || syncConfiguration.syncsHistoryWithICloud
         let container: NSPersistentContainer = usesCloudKit
-            ? NSPersistentCloudKitContainer(name: "Luma", managedObjectModel: model)
-            : NSPersistentContainer(name: "Luma", managedObjectModel: model)
+            ? NSPersistentCloudKitContainer(name: "Candoa", managedObjectModel: model)
+            : NSPersistentContainer(name: "Candoa", managedObjectModel: model)
         let storeURLs = Self.storeURLs(from: storeURL)
+        if storeURL == nil {
+            Self.migrateLegacySplitStoresIfNeeded(to: storeURLs)
+        }
         let needsLegacyMigration = storeURL == nil
             && !FileManager.default.fileExists(atPath: storeURLs.session.path)
             && FileManager.default.fileExists(atPath: Self.legacyCombinedStoreURL.path)
@@ -169,8 +186,8 @@ struct PersistenceService: @unchecked Sendable {
     private static func storeURLs(from baseStoreURL: URL?) -> (session: URL, history: URL) {
         guard let baseStoreURL else {
             return (
-                applicationSupportURL.appendingPathComponent("LumaSession.sqlite"),
-                applicationSupportURL.appendingPathComponent("LumaHistory.sqlite")
+                applicationSupportURL.appendingPathComponent("CandoaSession.sqlite"),
+                applicationSupportURL.appendingPathComponent("CandoaHistory.sqlite")
             )
         }
 
@@ -207,22 +224,70 @@ struct PersistenceService: @unchecked Sendable {
     private static var applicationSupportURL: URL {
         let baseURL = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
         let currentURL = baseURL.appendingPathComponent(appName, isDirectory: true)
-        let legacyURL = baseURL.appendingPathComponent(legacyAppName, isDirectory: true)
 
-        if !FileManager.default.fileExists(atPath: currentURL.path),
-           FileManager.default.fileExists(atPath: legacyURL.path) {
-            return legacyURL
+        if FileManager.default.fileExists(atPath: currentURL.path) {
+            return currentURL
+        }
+
+        for legacyAppName in legacyAppNames {
+            let legacyURL = baseURL.appendingPathComponent(legacyAppName, isDirectory: true)
+            guard FileManager.default.fileExists(atPath: legacyURL.path) else { continue }
+
+            do {
+                try FileManager.default.moveItem(at: legacyURL, to: currentURL)
+                return currentURL
+            } catch {
+                NSLog("\(appName) failed to move legacy application support folder: \(error.localizedDescription)")
+                return legacyURL
+            }
         }
 
         return currentURL
     }
 
     private static var legacyCombinedStoreURL: URL {
-        applicationSupportURL.appendingPathComponent("Luma.sqlite")
+        let lumaStoreURL = applicationSupportURL.appendingPathComponent("Luma.sqlite")
+        if FileManager.default.fileExists(atPath: lumaStoreURL.path) {
+            return lumaStoreURL
+        }
+
+        return applicationSupportURL.appendingPathComponent("Candoa.sqlite")
     }
 
     private static var legacyStateURL: URL {
         applicationSupportURL.appendingPathComponent("session.json")
+    }
+
+    private static func migrateLegacySplitStoresIfNeeded(to storeURLs: (session: URL, history: URL)) {
+        let directory = storeURLs.session.deletingLastPathComponent()
+        migrateSQLiteStoreIfNeeded(
+            from: directory.appendingPathComponent("LumaSession.sqlite"),
+            to: storeURLs.session
+        )
+        migrateSQLiteStoreIfNeeded(
+            from: directory.appendingPathComponent("LumaHistory.sqlite"),
+            to: storeURLs.history
+        )
+    }
+
+    private static func migrateSQLiteStoreIfNeeded(from sourceURL: URL, to destinationURL: URL) {
+        guard !FileManager.default.fileExists(atPath: destinationURL.path),
+              FileManager.default.fileExists(atPath: sourceURL.path)
+        else {
+            return
+        }
+
+        for suffix in ["", "-shm", "-wal"] {
+            let source = URL(fileURLWithPath: sourceURL.path + suffix)
+            let destination = URL(fileURLWithPath: destinationURL.path + suffix)
+            guard FileManager.default.fileExists(atPath: source.path) else { continue }
+
+            do {
+                try FileManager.default.moveItem(at: source, to: destination)
+            } catch {
+                NSLog("\(appName) failed to move legacy store \(source.lastPathComponent): \(error.localizedDescription)")
+            }
+        }
     }
 
     func loadState() -> BrowserWindowState? {
@@ -345,7 +410,7 @@ struct PersistenceService: @unchecked Sendable {
     private func loadLegacyJSONState() -> BrowserWindowState? {
         do {
             let data = try Data(contentsOf: Self.legacyStateURL)
-            return try JSONDecoder.luma.decode(BrowserWindowState.self, from: data)
+            return try JSONDecoder.candoa.decode(BrowserWindowState.self, from: data)
         } catch {
             return nil
         }
@@ -461,7 +526,7 @@ struct PersistenceService: @unchecked Sendable {
         historyVisits: [HistoryVisit]
     ) {
         let legacyContainer = NSPersistentContainer(
-            name: "LumaLegacy",
+            name: "CandoaLegacy",
             managedObjectModel: makeModel(configuresStoreConfigurations: false)
         )
         let description = NSPersistentStoreDescription(url: legacyURL)
@@ -800,7 +865,7 @@ private extension NSManagedObject {
 }
 
 private extension JSONEncoder {
-    static var luma: JSONEncoder {
+    static var candoa: JSONEncoder {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         encoder.dateEncodingStrategy = .iso8601
@@ -809,7 +874,7 @@ private extension JSONEncoder {
 }
 
 private extension JSONDecoder {
-    static var luma: JSONDecoder {
+    static var candoa: JSONDecoder {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
         return decoder

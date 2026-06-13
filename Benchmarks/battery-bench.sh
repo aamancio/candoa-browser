@@ -12,7 +12,7 @@
 #
 # Presets:
 #   sudo ./battery-bench.sh baseline 'match-nothing^'                 600
-#   sudo ./battery-bench.sh luma     'Luma|com.apple.WebKit'          600
+#   sudo ./battery-bench.sh candoa     'Candoa|com.apple.WebKit'          600
 #   sudo ./battery-bench.sh arc      'Arc'                            600
 #   sudo ./battery-bench.sh brave    'Brave'                          600
 #   sudo ./battery-bench.sh zen      'zen|plugin-container'           600

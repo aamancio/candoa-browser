@@ -142,7 +142,7 @@ private struct AppUpdateManifest: Decodable {
 }
 
 private enum AppUpdateConfiguration {
-    static let manifestInfoKey = "LumaUpdateManifestURL"
+    static let manifestInfoKey = "CandoaUpdateManifestURL"
     static let checkIntervalNanoseconds: UInt64 = 6 * 60 * 60 * 1_000_000_000
     static let requestTimeout: TimeInterval = 10
 }

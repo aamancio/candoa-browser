@@ -6,13 +6,13 @@ struct ContentView: View {
     @StateObject private var updateService = AppUpdateService()
     @StateObject private var systemAppearance = SystemAppearanceObserver()
     @Environment(\.scenePhase) private var scenePhase
-    @SceneStorage("luma.windowAutosaveID") private var windowAutosaveID = UUID().uuidString
+    @SceneStorage("candoa.windowAutosaveID") private var windowAutosaveID = UUID().uuidString
     @State private var isSidebarVisible = true
     @State private var isSidebarHoverRevealed = false
     @State private var isSidebarRevealSuppressed = false
     @State private var miniPlayerOrigin: CGPoint?
     @State private var miniPlayerExpandedSize = MiniPlayerLayout.defaultExpandedSize
-    private let sidebarWidth = LumaChromeStyle.sidebarWidth
+    private let sidebarWidth = CandoaChromeStyle.sidebarWidth
     private let sidebarDividerWidth: CGFloat = 0
 
     private var activeThemeAppearance: SpaceThemeAppearance {
@@ -136,7 +136,7 @@ struct ContentView: View {
         }
         .animation(.spring(duration: 0.5, bounce: 0.2), value: store.copiedURLToast)
         .background {
-            LumaWindowBackdrop(store: store)
+            CandoaWindowBackdrop(store: store)
                 .ignoresSafeArea()
         }
         .preferredColorScheme(resolvedColorScheme)
@@ -157,6 +157,22 @@ struct ContentView: View {
                 openNewTabFlow()
             } onCommandW: {
                 closeTabOrWindow()
+            } onFocusAddressBar: {
+                store.focusAddressBar()
+            } onCopyURL: {
+                store.copyActiveTabURL()
+            } onCopyURLAsMarkdown: {
+                store.copyActiveTabURL(asMarkdown: true)
+            } onCaptureFullPage: {
+                store.captureActiveTabPage()
+            } onPinOrUnpinTab: {
+                store.togglePinForActiveTab()
+            } onToggleSidebar: {
+                toggleSidebar()
+            } onFindInPage: {
+                store.showFindBar()
+            } onReload: {
+                store.reloadActiveTab()
             } onControlTab: {
                 store.switchToNextRecentTab(keepsPreviewOpen: true)
             } onControlShiftTab: {
@@ -191,7 +207,7 @@ struct ContentView: View {
         .animation(.easeOut(duration: 0.18), value: isSidebarVisible)
         .focusedSceneValue(\.browserCommandActions, browserCommandActions)
         .alert(
-            "Relaunch Luma",
+            "Relaunch Candoa",
             isPresented: Binding(
                 get: { store.syncRestartMessage != nil },
                 set: { isPresented in
@@ -260,6 +276,8 @@ struct ContentView: View {
             SidebarView(
                 store: store,
                 availableUpdate: updateService.availableUpdate,
+                showsWindowControls: isSidebarPresented,
+                windowControlsHiddenOffset: -sidebarTotalWidth,
                 onUpdateBannerTapped: {
                     updateService.openAvailableUpdate()
                 },
@@ -274,7 +292,7 @@ struct ContentView: View {
             // (hover reveal). When pinned, it stays transparent so the
             // window-wide backdrop reads as one continuous surface.
             if isSidebarOverlaying {
-                LumaWindowBackdrop(store: store)
+                CandoaWindowBackdrop(store: store)
                     .ignoresSafeArea(.container, edges: .top)
             }
         }

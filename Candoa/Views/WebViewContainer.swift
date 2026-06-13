@@ -15,7 +15,7 @@ struct WebViewContainer: View {
     /// space is unthemed, falling back to the system appearance.
     private var themeIsDarkChrome: Bool? {
         guard let hex = store.activeThemeColorHexes.first else { return nil }
-        return !LumaChromeStyle.prefersDarkForeground(forSpaceHex: hex)
+        return !CandoaChromeStyle.prefersDarkForeground(forSpaceHex: hex)
     }
 
     var body: some View {
@@ -49,13 +49,16 @@ struct WebViewContainer: View {
                                 DeveloperToolbar(
                                     urlText: url.localDevelopmentDisplayText,
                                     tintHex: store.activeThemeColorHexes.first,
+                                    isSplitViewEnabled: store.isSplitViewEnabled,
                                     onCopyURL: { store.copyActiveTabURL() },
+                                    onCapturePage: { store.captureActiveTabPage() },
+                                    onToggleSplitView: { store.toggleSplitView() },
                                     onSubmitURL: { store.navigateActiveTab(to: $0) }
                                 )
                             }
 
                             ActiveWebViewHost(tab: tab, store: store)
-                                .background(LumaChromeStyle.surfaceFill.opacity(0.72))
+                                .background(CandoaChromeStyle.surfaceFill.opacity(0.72))
                                 .overlay(alignment: .top) {
                                     PageLoadingPill(
                                         isLoading: tab.isLoading,
@@ -96,11 +99,11 @@ struct WebViewContainer: View {
             .clipShape(RoundedRectangle(cornerRadius: surfaceCornerRadius, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: surfaceCornerRadius, style: .continuous)
-                    .stroke(LumaChromeStyle.surfaceBorder, lineWidth: 1)
+                    .stroke(CandoaChromeStyle.surfaceBorder, lineWidth: 1)
             }
             .background(
                 RoundedRectangle(cornerRadius: surfaceCornerRadius, style: .continuous)
-                    .fill(LumaChromeStyle.surfaceFill.opacity(0.74))
+                    .fill(CandoaChromeStyle.surfaceFill.opacity(0.74))
             )
             .compositingGroup()
             .shadow(color: Color.black.opacity(0.10), radius: 16, x: -2, y: 2)
@@ -151,10 +154,10 @@ struct WebViewContainer: View {
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
-            .background(LumaChromeStyle.popoverBackground, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .background(CandoaChromeStyle.popoverBackground, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .stroke(LumaChromeStyle.popoverBorder, lineWidth: 1)
+                    .stroke(CandoaChromeStyle.popoverBorder, lineWidth: 1)
             }
             .onAppear { isFieldFocused = true }
             .onExitCommand { store.dismissFindBar() }
@@ -185,12 +188,12 @@ struct WebViewContainer: View {
             }
             .padding(.horizontal, 10)
             .padding(.vertical, 6)
-            .foregroundStyle(LumaChromeStyle.sidebarTextSecondary)
-            .background(LumaChromeStyle.surfaceFill.opacity(0.72))
+            .foregroundStyle(CandoaChromeStyle.sidebarTextSecondary)
+            .background(CandoaChromeStyle.surfaceFill.opacity(0.72))
 
             WKWebViewRepresentable(tab: tab, store: store)
                 .id(tab.id)
-                .background(LumaChromeStyle.surfaceFill.opacity(0.72))
+                .background(CandoaChromeStyle.surfaceFill.opacity(0.72))
                 .overlay(alignment: .top) {
                     PageLoadingPill(
                         isLoading: tab.isLoading,
@@ -210,19 +213,57 @@ struct WebViewContainer: View {
 private struct DeveloperToolbar: View {
     let urlText: String
     let tintHex: String?
+    let isSplitViewEnabled: Bool
     let onCopyURL: () -> Void
+    let onCapturePage: () -> Void
+    let onToggleSplitView: () -> Void
     let onSubmitURL: (String) -> Void
 
+    private static let arcDevStripBlueHex = "#5156D0"
+    private static let storageKey = "CandoaDeveloperToolbarControlIDs"
+    private static let noControlIDsValue = "none"
+    private static let defaultControlIDs = DeveloperToolbarControlKind.allCases
+        .filter(\.isDefaultVisible)
+        .map(\.id)
+        .joined(separator: ",")
+
     @State private var draftURL = ""
-    @State private var isHoveringCopy = false
+    @State private var hoveredControl: DeveloperToolbarControlKind?
+    @State private var isHoveringControlMenu = false
+    @AppStorage(Self.storageKey) private var storedControlIDs = ""
     @FocusState private var isURLFieldFocused: Bool
 
+    private var resolvedTintHex: String {
+        tintHex ?? Self.arcDevStripBlueHex
+    }
+
     private var tint: Color {
-        Color(spaceHex: tintHex ?? "#8A8F98")
+        Color(spaceHex: resolvedTintHex)
     }
 
     private var foreground: Color {
-        LumaChromeStyle.prefersDarkForeground(forSpaceHex: tintHex ?? "") ? .black : .white
+        CandoaChromeStyle.prefersDarkForeground(forSpaceHex: resolvedTintHex) ? .black : .white
+    }
+
+    private var selectedControlIDs: [String] {
+        if storedControlIDs == Self.noControlIDsValue {
+            return []
+        }
+
+        let value = storedControlIDs.isEmpty ? Self.defaultControlIDs : storedControlIDs
+        return value
+            .split(separator: ",")
+            .map(String.init)
+            .filter { id in DeveloperToolbarControlKind.allCases.contains { $0.id == id } }
+    }
+
+    private var selectedControlIDSet: Set<String> {
+        Set(selectedControlIDs)
+    }
+
+    private var visibleControls: [DeveloperToolbarControlKind] {
+        let ids = selectedControlIDSet
+        return DeveloperToolbarControlKind.allCases.filter { ids.contains($0.id) }
     }
 
     var body: some View {
@@ -258,19 +299,20 @@ private struct DeveloperToolbar: View {
 
             Spacer(minLength: 8)
 
-            Button(action: onCopyURL) {
-                Image(systemName: "link")
-                    .font(.system(size: 11.5, weight: .semibold))
-                    .foregroundStyle(foreground.opacity(isHoveringCopy ? 0.95 : 0.72))
-                    .frame(width: 22, height: 22)
-                    .background(foreground.opacity(isHoveringCopy ? 0.12 : 0))
-                    .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
-                    .contentShape(Rectangle())
+            HStack(spacing: 6) {
+                ForEach(Array(visibleControls.enumerated()), id: \.element.id) { index, control in
+                    if shouldInsertSeparator(before: index) {
+                        Rectangle()
+                            .fill(foreground.opacity(0.18))
+                            .frame(width: 1, height: 16)
+                            .padding(.horizontal, 3)
+                    }
+
+                    toolbarButton(for: control)
+                }
+
+                controlMenu
             }
-            .buttonStyle(.plain)
-            .onHover { isHoveringCopy = $0 }
-            .animation(.easeOut(duration: 0.10), value: isHoveringCopy)
-            .help(BrowserCommandTitles.copyURL)
         }
         .padding(.horizontal, 10)
         .frame(height: 30)
@@ -287,29 +329,230 @@ private struct DeveloperToolbar: View {
                 .background(tint.opacity(0.92))
 
                 DiagonalStripes()
-                    .fill(foreground.opacity(0.04))
+                    .fill(Color.black.opacity(0.045))
             }
         }
     }
+
+    private var controlMenu: some View {
+        Menu {
+            Text("Shown Controls")
+
+            ForEach(DeveloperToolbarControlKind.allCases) { control in
+                Button {
+                    toggleControl(control)
+                } label: {
+                    if selectedControlIDSet.contains(control.id) {
+                        Label(control.title(isSplitViewEnabled: isSplitViewEnabled), systemImage: "checkmark")
+                    } else {
+                        Text(control.title(isSplitViewEnabled: isSplitViewEnabled))
+                    }
+                }
+                .disabled(!control.isImplemented)
+            }
+
+            Divider()
+
+            Button("Reset to Arc Controls") {
+                storedControlIDs = Self.defaultControlIDs
+            }
+        } label: {
+            Image(systemName: "slider.horizontal.3")
+                .font(.system(size: 11.5, weight: .semibold))
+                .foregroundStyle(foreground.opacity(isHoveringControlMenu ? 0.95 : 0.72))
+                .frame(width: 22, height: 22)
+                .background(foreground.opacity(isHoveringControlMenu ? 0.12 : 0))
+                .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
+                .contentShape(Rectangle())
+        }
+        .menuStyle(.borderlessButton)
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .onHover { isHoveringControlMenu = $0 }
+        .help("Customize Developer Controls")
+    }
+
+    private func toolbarButton(for control: DeveloperToolbarControlKind) -> some View {
+        Button {
+            perform(control)
+        } label: {
+            Image(systemName: control.symbolName(isSplitViewEnabled: isSplitViewEnabled))
+                .font(.system(size: 11.5, weight: .semibold))
+                .foregroundStyle(
+                    foreground.opacity(
+                        control.isImplemented
+                            ? (hoveredControl == control ? 0.95 : 0.72)
+                            : 0.34
+                    )
+                )
+                .frame(width: 22, height: 22)
+                .background(foreground.opacity(hoveredControl == control && control.isImplemented ? 0.12 : 0))
+                .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .disabled(!control.isImplemented)
+        .onHover { isHovering in
+            hoveredControl = isHovering ? control : nil
+        }
+        .help(control.help(isSplitViewEnabled: isSplitViewEnabled))
+    }
+
+    private func shouldInsertSeparator(before index: Int) -> Bool {
+        guard index > 0 else { return false }
+        return visibleControls[index].group != visibleControls[index - 1].group
+    }
+
+    private func perform(_ control: DeveloperToolbarControlKind) {
+        switch control {
+        case .copyURL:
+            onCopyURL()
+        case .capturePage:
+            onCapturePage()
+        case .splitView:
+            onToggleSplitView()
+        case .easel, .developerTools, .siteInfo, .inspectElement, .extensions:
+            break
+        }
+    }
+
+    private func toggleControl(_ control: DeveloperToolbarControlKind) {
+        var ids = Set(selectedControlIDs)
+        if ids.contains(control.id) {
+            ids.remove(control.id)
+        } else {
+            ids.insert(control.id)
+        }
+
+        let orderedIDs = DeveloperToolbarControlKind.allCases
+            .map(\.id)
+            .filter { ids.contains($0) }
+        storedControlIDs = orderedIDs.isEmpty
+            ? Self.noControlIDsValue
+            : orderedIDs.joined(separator: ",")
+    }
 }
 
-/// Arc's developer strip isn't a flat fill: faint 45° stripes run across
+private enum DeveloperToolbarControlKind: String, CaseIterable, Identifiable {
+    case copyURL
+    case easel
+    case capturePage
+    case developerTools
+    case siteInfo
+    case inspectElement
+    case extensions
+    case splitView
+
+    var id: String { rawValue }
+
+    var group: Int {
+        switch self {
+        case .copyURL:
+            return 0
+        case .easel, .capturePage:
+            return 1
+        case .developerTools, .siteInfo, .inspectElement:
+            return 2
+        case .extensions, .splitView:
+            return 3
+        }
+    }
+
+    var isDefaultVisible: Bool {
+        switch self {
+        case .copyURL, .capturePage, .siteInfo, .splitView:
+            return true
+        case .easel, .developerTools, .inspectElement, .extensions:
+            return false
+        }
+    }
+
+    var isImplemented: Bool {
+        switch self {
+        case .copyURL, .capturePage, .siteInfo, .splitView:
+            return true
+        case .easel, .developerTools, .inspectElement, .extensions:
+            return false
+        }
+    }
+
+    func title(isSplitViewEnabled: Bool) -> String {
+        switch self {
+        case .copyURL:
+            return "Copy Link"
+        case .easel:
+            return "Capture to Easel"
+        case .capturePage:
+            return "Capture Page"
+        case .developerTools:
+            return "Developer Tools"
+        case .siteInfo:
+            return "Site Info"
+        case .inspectElement:
+            return "Inspect Element"
+        case .extensions:
+            return "Extensions"
+        case .splitView:
+            return isSplitViewEnabled ? BrowserCommandTitles.closeSplitView : BrowserCommandTitles.addSplitView
+        }
+    }
+
+    func symbolName(isSplitViewEnabled: Bool) -> String {
+        switch self {
+        case .copyURL:
+            return "link"
+        case .easel:
+            return "rectangle.on.rectangle"
+        case .capturePage:
+            return "camera"
+        case .developerTools:
+            return "terminal"
+        case .siteInfo:
+            return "globe"
+        case .inspectElement:
+            return "scope"
+        case .extensions:
+            return "puzzlepiece.extension"
+        case .splitView:
+            return isSplitViewEnabled ? "rectangle.split.1x2.fill" : "rectangle.split.1x2"
+        }
+    }
+
+    var shortcutText: String {
+        switch self {
+        case .copyURL:
+            return "⇧⌘C"
+        case .capturePage:
+            return "Set in Settings > Shortcuts"
+        case .splitView:
+            return "⌃⇧+ / ⌃⇧-"
+        case .easel, .developerTools, .siteInfo, .inspectElement, .extensions:
+            return "Not implemented in Candoa yet"
+        }
+    }
+
+    func help(isSplitViewEnabled: Bool) -> String {
+        "\(title(isSplitViewEnabled: isSplitViewEnabled))\n\(shortcutText)"
+    }
+}
+
+/// Arc's developer strip isn't a flat fill: faint diagonal stripes run across
 /// the tint, marking the page as a dev server at a glance. Measured from
-/// Arc: lit band and gap are equal width (~1:1) at a ~20pt period, kept low
+/// Arc: dark band and gap are equal width (~1:1) at a broad period, kept low
 /// contrast so the texture stays a whisper. Static geometry only — drawn
 /// with the chrome, never animated.
 private struct DiagonalStripes: Shape {
-    var period: CGFloat = 25
+    var period: CGFloat = 44
 
     func path(in rect: CGRect) -> Path {
         var path = Path()
         let band = period / 2
         var x = rect.minX - rect.height
         while x < rect.maxX {
-            path.move(to: CGPoint(x: x, y: rect.maxY))
-            path.addLine(to: CGPoint(x: x + band, y: rect.maxY))
-            path.addLine(to: CGPoint(x: x + band + rect.height, y: rect.minY))
-            path.addLine(to: CGPoint(x: x + rect.height, y: rect.minY))
+            path.move(to: CGPoint(x: x, y: rect.minY))
+            path.addLine(to: CGPoint(x: x + band, y: rect.minY))
+            path.addLine(to: CGPoint(x: x + band + rect.height, y: rect.maxY))
+            path.addLine(to: CGPoint(x: x + rect.height, y: rect.maxY))
             path.closeSubpath()
             x += period
         }
@@ -481,7 +724,7 @@ private struct SpaceSetupCanvas: View {
 
     private var canvasFill: Color {
         guard let firstHex = hexes.first else {
-            return LumaChromeStyle.surfaceFill.opacity(0.88)
+            return CandoaChromeStyle.surfaceFill.opacity(0.88)
         }
 
         // The window backdrop already carries the theme color at full

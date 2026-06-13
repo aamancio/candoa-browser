@@ -4,7 +4,7 @@ import Foundation
 enum AppConfiguration {
     static let minimumWindowWidth: CGFloat = 980
     static let minimumWindowHeight: CGFloat = 640
-    static let windowAutosaveNamePrefix = "Luma.BrowserWindow"
+    static let windowAutosaveNamePrefix = "Candoa.BrowserWindow"
 }
 
 enum BrowserCommandTitles {
@@ -45,7 +45,7 @@ enum BrowserCommandTitles {
 enum BrowserDefaults {
     static let newTabTitle = BrowserCommandTitles.newTab
     static let addressPlaceholder = "Search or enter URL"
-    static let defaultHomeTitle = "Luma"
+    static let defaultHomeTitle = "Candoa"
     static let googleHomeURL = URL(string: "https://www.google.com/?hl=en&gl=us")!
     static let googleSearchURL = URL(string: "https://www.google.com/search?hl=en&gl=us")!
 }
@@ -72,6 +72,14 @@ enum TabHibernationConfiguration {
 
     /// Upper bound on retained wake-up snapshots, preferring hibernated tabs.
     static let snapshotCacheLimit = 16
+}
+
+enum WebInspectorConfiguration {
+    #if DEBUG
+    static let isEnabled = true
+    #else
+    static let isEnabled = UserDefaults.standard.bool(forKey: "CandoaEnableWebInspector")
+    #endif
 }
 
 enum TabSwitcherConfiguration {

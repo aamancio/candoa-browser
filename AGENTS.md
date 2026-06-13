@@ -9,7 +9,7 @@ These three rules override everything else in this file and any default instinct
 "Make it feel native/smooth" is never a request to add motion. Native feel comes from correct geometry, instant response, and quiet settles — not from animating things.
 
 - Default answer to "should this animate?" is **no**. Ship state changes as instant or near-instant first; add motion only when the *absence* of it reads as broken (e.g. a list snapping shut, an element teleporting between two real on-screen positions).
-- Reference points are Apple's own apps: Safari's sidebar (rows settle when a tab closes), Finder (selection moves instantly), macOS PiP (morphs anchored to real geometry). If Safari wouldn't animate it, Luma doesn't.
+- Reference points are Apple's own apps: Safari's sidebar (rows settle when a tab closes), Finder (selection moves instantly), macOS PiP (morphs anchored to real geometry). If Safari wouldn't animate it, Candoa doesn't.
 - Allowed motion vocabulary: 0.10–0.20s easeOut for chrome state changes; springs only for spatial morphs between two real positions, damped enough to show no visible bounce. Context jumps (space switch, page swap) are instant cuts.
 - Never add scale pops, bounces, staggered reveals, attention-seeking transitions, or motion that exists to be noticed.
 
@@ -32,7 +32,7 @@ Battery/memory efficiency is the product's selling point (see "Battery Efficienc
 
 ## Product Direction
 
-Luma is intended to be an Arc-style browser workspace clone for macOS, while still feeling native to macOS and original in its implementation details.
+Candoa is intended to be an Arc-style browser workspace clone for macOS, while still feeling native to macOS and original in its implementation details.
 
 Use Arc as the primary product/interaction benchmark:
 - Sidebar-first browser workflow
@@ -40,7 +40,7 @@ Use Arc as the primary product/interaction benchmark:
 - Minimal top chrome
 - Hidden sidebar behavior with left-edge reveal
 - Contained browser surface with subtle outer spacing/border
-- Keyboard shortcuts should match Arc behavior wherever Luma implements the same feature.
+- Keyboard shortcuts should match Arc behavior wherever Candoa implements the same feature.
 - Do not invent replacement shortcuts for Arc-like features. If the Arc shortcut is unknown, inspect Arc, check current Arc documentation, or leave the feature unassigned until it is verified.
 - The command/new-tab surface should follow Arc's shortcut model, including using Command-T for the new tab/command bar flow rather than Command-K.
 
@@ -48,7 +48,7 @@ Use Arc as the primary product/interaction benchmark:
 
 Primary source: Arc Help Center, "Keyboard Shortcuts" at https://resources.arc.net/hc/en-us/articles/20595231349911-Keyboard-Shortcuts. Verify against the current official Arc documentation before changing or adding shortcuts.
 
-Luma should use Arc's macOS shortcuts for any feature it implements. If a feature is not implemented yet, reserve the Arc shortcut and do not assign it to a different behavior.
+Candoa should use Arc's macOS shortcuts for any feature it implements. If a feature is not implemented yet, reserve the Arc shortcut and do not assign it to a different behavior.
 
 Everyday use:
 - New tab / command bar flow: Command-T
@@ -86,15 +86,15 @@ Other browser actions:
 
 Use Zen Browser as an additional open-source product and implementation reference:
 - Reference: https://github.com/zen-browser/desktop
-- Treat the Zen Browser desktop codebase as available reference material for layout, interaction behavior, theme behavior, browser chrome structure, workspace/space flows, and detailed UI mechanics when Luma is implementing a comparable feature.
-- When a Luma behavior is unclear, inspect Zen's repository and source files to understand the product intent and mechanics before inventing a new interaction.
-- Translate useful Zen concepts into Luma's architecture using Swift, SwiftUI, AppKit where needed, and WKWebView. Preserve a native macOS feel and SwiftUI implementation style.
+- Treat the Zen Browser desktop codebase as available reference material for layout, interaction behavior, theme behavior, browser chrome structure, workspace/space flows, and detailed UI mechanics when Candoa is implementing a comparable feature.
+- When a Candoa behavior is unclear, inspect Zen's repository and source files to understand the product intent and mechanics before inventing a new interaction.
+- Translate useful Zen concepts into Candoa's architecture using Swift, SwiftUI, AppKit where needed, and WKWebView. Preserve a native macOS feel and SwiftUI implementation style.
 - Do not copy Zen code, branding, icons, assets, exact visual identity, Firefox-specific architecture, XUL/CSS implementation details, or browser engine assumptions.
 - Zen is a reference for behavior and structure, not a dependency or source to paste from.
 
 ## Battery Efficiency (Core Feature — Always Follow)
 
-Battery efficiency is Luma's flagship differentiator against Arc, Brave, and Zen, and the reason Luma uses system WebKit instead of Chromium. Every feature and change must preserve it. These rules are not optional:
+Battery efficiency is Candoa's flagship differentiator against Arc, Brave, and Zen, and the reason Candoa uses system WebKit instead of Chromium. Every feature and change must preserve it. These rules are not optional:
 
 - **No steady-state work on idle pages.** Never add an unconditional `setInterval`, polling timer, or recurring task to injected JavaScript or app code. Timers must be event-driven, exist only while the condition they serve is active (e.g. the media progress ticker runs only during playback), and be torn down the moment it ends.
 - **Background web views stay out of the view hierarchy.** Only tabs with media stay parented (hidden) so playback survives tab switches. Everything else must be unparented so WebKit can throttle it. Do not "fix" a bug by re-parenting all background web views.
@@ -106,7 +106,7 @@ Battery efficiency is Luma's flagship differentiator against Arc, Brave, and Zen
 
 ## Technical Guardrails
 
-- Keep Luma native to macOS.
+- Keep Candoa native to macOS.
 - Use Swift, SwiftUI, AppKit only where needed for native window behavior, and WKWebView.
 - Do not use Chromium, CEF, Electron, Firefox, or any external browser engine.
 - Preserve the lightweight WebKit-native architecture.
@@ -118,4 +118,4 @@ Battery efficiency is Luma's flagship differentiator against Arc, Brave, and Zen
 - The app should feel like a native macOS Arc-inspired browser, not a web app shell.
 - Do not directly copy Arc or Zen branding, icons, UI assets, or exact visual identity.
 - Prefer native macOS materials, subtle spacing, clean borders, and restrained animation.
-- Match the spirit of Arc/Zen layout behavior while keeping Luma visually original.
+- Match the spirit of Arc/Zen layout behavior while keeping Candoa visually original.

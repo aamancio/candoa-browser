@@ -38,7 +38,7 @@ struct TabRowView: View {
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .foregroundStyle(isActive ? LumaChromeStyle.sidebarText : LumaChromeStyle.sidebarIcon)
+                .foregroundStyle(isActive ? CandoaChromeStyle.sidebarText : CandoaChromeStyle.sidebarIcon)
                 .help(mediaState?.isMuted == true ? "Unmute Tab" : "Mute Tab")
                 .transition(.opacity)
             }
@@ -47,14 +47,14 @@ struct TabRowView: View {
                 .lineLimit(1)
                 .truncationMode(.tail)
                 .font(.system(size: 13.5, weight: .semibold))
-                .foregroundStyle(isActive ? LumaChromeStyle.sidebarText : LumaChromeStyle.sidebarTextSecondary)
+                .foregroundStyle(isActive ? CandoaChromeStyle.sidebarText : CandoaChromeStyle.sidebarTextSecondary)
 
             Spacer(minLength: 8)
 
             if isSplit {
                 Image(systemName: "rectangle.split.1x2")
                     .font(.caption)
-                    .foregroundStyle(LumaChromeStyle.sidebarIcon)
+                    .foregroundStyle(CandoaChromeStyle.sidebarIcon)
             }
 
             Button(action: onClose) {
@@ -64,7 +64,7 @@ struct TabRowView: View {
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .foregroundStyle(LumaChromeStyle.sidebarIcon)
+            .foregroundStyle(CandoaChromeStyle.sidebarIcon)
             .help("Close Tab")
             .opacity(isHovering ? 1 : 0)
             .accessibilityHidden(!isHovering)
@@ -91,7 +91,7 @@ struct TabRowView: View {
         .overlay {
             if isHovering {
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .stroke(LumaChromeStyle.sidebarControlStroke, lineWidth: 1)
+                    .stroke(CandoaChromeStyle.sidebarControlStroke, lineWidth: 1)
                     .allowsHitTesting(false)
             }
         }
@@ -116,7 +116,7 @@ struct TabRowView: View {
             return accentColor.opacity(0.18)
         }
         if isHovering {
-            return LumaChromeStyle.sidebarControlFillHover
+            return CandoaChromeStyle.sidebarControlFillHover
         }
         return Color.clear
     }
@@ -133,7 +133,7 @@ struct TabRowView: View {
         } else {
             Image(systemName: tab.faviconSymbol)
                 .font(.system(size: 14.5, weight: .medium))
-                .foregroundStyle(isActive ? LumaChromeStyle.sidebarText : LumaChromeStyle.sidebarIcon)
+                .foregroundStyle(isActive ? CandoaChromeStyle.sidebarText : CandoaChromeStyle.sidebarIcon)
         }
     }
 }

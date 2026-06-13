@@ -1,7 +1,7 @@
 import SwiftUI
 
 @main
-struct LumaApp: App {
+struct CandoaApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
@@ -14,6 +14,10 @@ struct LumaApp: App {
         .commands {
             BrowserCommands()
         }
+
+        Settings {
+            ShortcutSettingsView()
+        }
     }
 }
 
@@ -25,7 +29,6 @@ private struct BrowserCommands: Commands {
             Button(BrowserCommandTitles.newTab) {
                 actions?.newTab()
             }
-            .keyboardShortcut("t", modifiers: .command)
             .disabled(actions == nil)
 
             Button(BrowserCommandTitles.reopenClosedTab) {
@@ -39,7 +42,6 @@ private struct BrowserCommands: Commands {
             Button(BrowserCommandTitles.findInPage) {
                 actions?.findInPage()
             }
-            .keyboardShortcut("f", modifiers: .command)
             .disabled(actions == nil)
 
             Button(BrowserCommandTitles.findNext) {
@@ -59,7 +61,6 @@ private struct BrowserCommands: Commands {
             Button(BrowserCommandTitles.focusAddressBar) {
                 actions?.focusAddressBar()
             }
-            .keyboardShortcut("l", modifiers: .command)
             .disabled(actions == nil)
 
             Button(BrowserCommandTitles.commandBar) {
@@ -70,7 +71,6 @@ private struct BrowserCommands: Commands {
             Button(BrowserCommandTitles.toggleSidebar) {
                 actions?.toggleSidebar()
             }
-            .keyboardShortcut("s", modifiers: .command)
             .disabled(actions == nil)
 
             Divider()
@@ -78,7 +78,6 @@ private struct BrowserCommands: Commands {
             Button(BrowserCommandTitles.reloadTab) {
                 actions?.reloadTab()
             }
-            .keyboardShortcut("r", modifiers: .command)
             .disabled(actions == nil)
 
             Button(BrowserCommandTitles.back) {
@@ -104,7 +103,6 @@ private struct BrowserCommands: Commands {
             Button(BrowserCommandTitles.pinOrUnpinTab) {
                 actions?.pinOrUnpinTab()
             }
-            .keyboardShortcut("d", modifiers: .command)
             .disabled(actions == nil)
 
             Button(BrowserCommandTitles.clearUnpinnedTabs) {
@@ -116,13 +114,11 @@ private struct BrowserCommands: Commands {
             Button(BrowserCommandTitles.copyURL) {
                 actions?.copyURL()
             }
-            .keyboardShortcut("c", modifiers: [.command, .shift])
             .disabled(actions == nil)
 
             Button(BrowserCommandTitles.copyURLAsMarkdown) {
                 actions?.copyURLAsMarkdown()
             }
-            .keyboardShortcut("c", modifiers: [.command, .shift, .option])
             .disabled(actions == nil)
 
             Divider()

@@ -84,9 +84,9 @@ final class BrowserStore: ObservableObject {
     @Published private(set) var dismissedMiniPlayerTabID: UUID?
     @Published private(set) var retainedPausedMiniPlayerTabID: UUID?
     @Published private(set) var iCloudWorkspaceSyncEnabled =
-        LumaCloudKitEntitlements.hasConfiguredContainer && LumaSyncPreferences.syncsWorkspaceWithICloud
+        CandoaCloudKitEntitlements.hasConfiguredContainer && CandoaSyncPreferences.syncsWorkspaceWithICloud
     @Published private(set) var iCloudHistorySyncEnabled =
-        LumaCloudKitEntitlements.hasConfiguredContainer && LumaSyncPreferences.syncsHistoryWithICloud
+        CandoaCloudKitEntitlements.hasConfiguredContainer && CandoaSyncPreferences.syncsHistoryWithICloud
     @Published var syncRestartMessage: String?
     @Published private(set) var copiedURLToast: CopiedURLToast?
 
@@ -769,6 +769,34 @@ final class BrowserStore: ObservableObject {
         )
     }
 
+    func captureActiveTabPage() {
+        guard let tab = activeTab, let url = tab.url else { return }
+
+        webCoordinator.captureVisiblePage(for: tab.id) { [weak self] image in
+            guard let self, let image else { return }
+            guard
+                let tiffData = image.tiffRepresentation,
+                let bitmap = NSBitmapImageRep(data: tiffData),
+                let pngData = bitmap.representation(using: .png, properties: [:]),
+                let downloadsURL = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first
+            else {
+                return
+            }
+
+            let host = url.host(percentEncoded: false)?
+                .replacingOccurrences(of: ":", with: "-")
+                .replacingOccurrences(of: "/", with: "-") ?? "page"
+            let fileURL = downloadsURL.appendingPathComponent("Candoa Capture - \(host).png")
+
+            do {
+                try pngData.write(to: fileURL, options: .atomic)
+                presentCopiedURLToast(title: "Captured Page", url: fileURL)
+            } catch {
+                NSSound.beep()
+            }
+        }
+    }
+
     private func presentCopiedURLToast(title: String, url: URL) {
         isCopiedURLToastSharing = false
         copiedURLToast = CopiedURLToast(id: UUID(), title: title, url: url)
@@ -1430,31 +1458,31 @@ final class BrowserStore: ObservableObject {
     func setWorkspaceICloudSyncEnabled(_ enabled: Bool) {
         guard iCloudWorkspaceSyncEnabled != enabled else { return }
 
-        if enabled, !LumaCloudKitEntitlements.hasConfiguredContainer {
+        if enabled, !CandoaCloudKitEntitlements.hasConfiguredContainer {
             syncRestartMessage = """
-            This build is not signed with the CloudKit entitlement yet. Enable the iCloud capability for iCloud.org.lumabrowser.LumaBrowser in Xcode, then build with your Apple Developer team.
+            This build is not signed with the CloudKit entitlement yet. Enable the iCloud capability for iCloud.org.candoa.Candoa in Xcode, then build with your Apple Developer team.
             """
             return
         }
 
         iCloudWorkspaceSyncEnabled = enabled
-        LumaSyncPreferences.syncsWorkspaceWithICloud = enabled
+        CandoaSyncPreferences.syncsWorkspaceWithICloud = enabled
 
         if !enabled {
             iCloudHistorySyncEnabled = false
         }
 
         syncRestartMessage = enabled
-            ? "Luma will start syncing Spaces and tabs through your private iCloud database after you relaunch the app."
-            : "Luma will return to local-only Spaces and tabs after you relaunch the app."
+            ? "Candoa will start syncing Spaces and tabs through your private iCloud database after you relaunch the app."
+            : "Candoa will return to local-only Spaces and tabs after you relaunch the app."
     }
 
     func setHistoryICloudSyncEnabled(_ enabled: Bool) {
         guard iCloudHistorySyncEnabled != enabled else { return }
 
-        if enabled, !LumaCloudKitEntitlements.hasConfiguredContainer {
+        if enabled, !CandoaCloudKitEntitlements.hasConfiguredContainer {
             syncRestartMessage = """
-            This build is not signed with the CloudKit entitlement yet. Enable the iCloud capability for iCloud.org.lumabrowser.LumaBrowser in Xcode before syncing history.
+            This build is not signed with the CloudKit entitlement yet. Enable the iCloud capability for iCloud.org.candoa.Candoa in Xcode before syncing history.
             """
             return
         }
@@ -1464,10 +1492,10 @@ final class BrowserStore: ObservableObject {
         }
 
         iCloudHistorySyncEnabled = enabled
-        LumaSyncPreferences.syncsHistoryWithICloud = enabled
+        CandoaSyncPreferences.syncsHistoryWithICloud = enabled
         syncRestartMessage = enabled
-            ? "Luma will sync browsing history through your private iCloud database after you relaunch the app."
-            : "Luma will keep browsing history local-only after you relaunch the app."
+            ? "Candoa will sync browsing history through your private iCloud database after you relaunch the app."
+            : "Candoa will keep browsing history local-only after you relaunch the app."
     }
 
     func setLoading(_ isLoading: Bool, for tabID: UUID) {
@@ -1859,7 +1887,7 @@ final class BrowserStore: ObservableObject {
         spaces[0].name = ""
     }
 
-    private static let didRevertSeededColorKey = "luma.didRevertSeededColor"
+    private static let didRevertSeededColorKey = "candoa.didRevertSeededColor"
 
     private func revertSeededColorIfNeeded() {
         // An earlier build seeded a stock blue onto the default space to avoid
@@ -1877,7 +1905,7 @@ final class BrowserStore: ObservableObject {
         spaces[0].themeColorHex = nil
     }
 
-    private static let didNormalizeSeededAppearanceKey = "luma.didNormalizeSeededAppearance"
+    private static let didNormalizeSeededAppearanceKey = "candoa.didNormalizeSeededAppearance"
 
     private func normalizeSeededAppearanceIfNeeded() {
         // The first theme seed forced .light chrome to keep pages light. That

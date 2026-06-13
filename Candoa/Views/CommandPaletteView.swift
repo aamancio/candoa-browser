@@ -76,7 +76,7 @@ struct CommandPaletteView: View {
                 .padding(.vertical, 20)
 
                 Rectangle()
-                    .fill(LumaChromeStyle.popoverBorder)
+                    .fill(CandoaChromeStyle.popoverBorder)
                     .frame(height: 1)
 
                 ScrollView {
@@ -111,7 +111,7 @@ struct CommandPaletteView: View {
             .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .strokeBorder(LumaChromeStyle.popoverBorder, lineWidth: 1)
+                    .strokeBorder(CandoaChromeStyle.popoverBorder, lineWidth: 1)
             }
             .shadow(color: Color(nsColor: .shadowColor).opacity(0.24), radius: 46, y: 24)
             .frame(height: anchoredPaletteHeight, alignment: .top)
@@ -880,11 +880,11 @@ struct CommandPaletteView: View {
 
 // Arc's command bar is a consistent, near-solid surface — it never picks up
 // what's behind the window. The previous behind-window material sampled the
-// desktop wallpaper through Luma, washing the panel with whatever happened
+// desktop wallpaper through Candoa, washing the panel with whatever happened
 // to be back there (and kept a live blur compositing while open).
 private struct PaletteBackground: View {
     var body: some View {
-        LumaChromeStyle.popoverBackground
+        CandoaChromeStyle.popoverBackground
     }
 }
 

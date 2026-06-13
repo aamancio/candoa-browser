@@ -10,7 +10,7 @@ final class ContentBlockerService {
 
     /// Bump the suffix whenever `blockedTrackerDomains` changes so the
     /// on-disk compiled cache is invalidated.
-    private static let ruleListIdentifier = "LumaTrackerBlockRules-v1"
+    private static let ruleListIdentifier = "CandoaTrackerBlockRules-v1"
 
     private var cachedRuleList: WKContentRuleList?
 

@@ -4,6 +4,14 @@ import SwiftUI
 struct KeyboardShortcutMonitor: NSViewRepresentable {
     let onCommandT: () -> Void
     let onCommandW: () -> Void
+    let onFocusAddressBar: () -> Void
+    let onCopyURL: () -> Void
+    let onCopyURLAsMarkdown: () -> Void
+    let onCaptureFullPage: () -> Void
+    let onPinOrUnpinTab: () -> Void
+    let onToggleSidebar: () -> Void
+    let onFindInPage: () -> Void
+    let onReload: () -> Void
     let onControlTab: () -> Void
     let onControlShiftTab: () -> Void
     let onControlReleased: () -> Void
@@ -35,6 +43,14 @@ struct KeyboardShortcutMonitor: NSViewRepresentable {
     private func apply(to coordinator: Coordinator) {
         coordinator.onCommandT = onCommandT
         coordinator.onCommandW = onCommandW
+        coordinator.onFocusAddressBar = onFocusAddressBar
+        coordinator.onCopyURL = onCopyURL
+        coordinator.onCopyURLAsMarkdown = onCopyURLAsMarkdown
+        coordinator.onCaptureFullPage = onCaptureFullPage
+        coordinator.onPinOrUnpinTab = onPinOrUnpinTab
+        coordinator.onToggleSidebar = onToggleSidebar
+        coordinator.onFindInPage = onFindInPage
+        coordinator.onReload = onReload
         coordinator.onControlTab = onControlTab
         coordinator.onControlShiftTab = onControlShiftTab
         coordinator.onControlReleased = onControlReleased
@@ -51,6 +67,14 @@ struct KeyboardShortcutMonitor: NSViewRepresentable {
     final class Coordinator: NSObject {
         var onCommandT: () -> Void = {}
         var onCommandW: () -> Void = {}
+        var onFocusAddressBar: () -> Void = {}
+        var onCopyURL: () -> Void = {}
+        var onCopyURLAsMarkdown: () -> Void = {}
+        var onCaptureFullPage: () -> Void = {}
+        var onPinOrUnpinTab: () -> Void = {}
+        var onToggleSidebar: () -> Void = {}
+        var onFindInPage: () -> Void = {}
+        var onReload: () -> Void = {}
         var onControlTab: () -> Void = {}
         var onControlShiftTab: () -> Void = {}
         var onControlReleased: () -> Void = {}
@@ -86,8 +110,48 @@ struct KeyboardShortcutMonitor: NSViewRepresentable {
                     return event
                 }
 
-                if Self.isCommandT(event) {
+                if Self.matchesConfiguredShortcut(.newTab, event) {
                     onCommandT()
+                    return nil
+                }
+
+                if Self.matchesConfiguredShortcut(.focusAddressBar, event) {
+                    onFocusAddressBar()
+                    return nil
+                }
+
+                if Self.matchesConfiguredShortcut(.copyURLAsMarkdown, event) {
+                    onCopyURLAsMarkdown()
+                    return nil
+                }
+
+                if Self.matchesConfiguredShortcut(.copyURL, event) {
+                    onCopyURL()
+                    return nil
+                }
+
+                if Self.matchesConfiguredShortcut(.captureFullPage, event) {
+                    onCaptureFullPage()
+                    return nil
+                }
+
+                if Self.matchesConfiguredShortcut(.pinOrUnpinTab, event) {
+                    onPinOrUnpinTab()
+                    return nil
+                }
+
+                if Self.matchesConfiguredShortcut(.toggleSidebar, event) {
+                    onToggleSidebar()
+                    return nil
+                }
+
+                if Self.matchesConfiguredShortcut(.findInPage, event) {
+                    onFindInPage()
+                    return nil
+                }
+
+                if Self.matchesConfiguredShortcut(.reloadTab, event) {
+                    onReload()
                     return nil
                 }
 
@@ -152,9 +216,7 @@ struct KeyboardShortcutMonitor: NSViewRepresentable {
         }
 
         private static func isCommandT(_ event: NSEvent) -> Bool {
-            let modifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
-            return modifiers == .command &&
-                event.charactersIgnoringModifiers?.lowercased() == "t"
+            matchesConfiguredShortcut(.newTab, event)
         }
 
         private static func isCommandW(_ event: NSEvent) -> Bool {
@@ -214,6 +276,43 @@ struct KeyboardShortcutMonitor: NSViewRepresentable {
             event.modifierFlags
                 .intersection(.deviceIndependentFlagsMask)
                 .subtracting([.capsLock, .function, .numericPad])
+        }
+
+        private static func matchesConfiguredShortcut(_ definition: CandoaShortcutDefinition, _ event: NSEvent) -> Bool {
+            let storedShortcut = UserDefaults.standard.string(forKey: definition.storageKey) ?? ""
+            guard storedShortcut != CandoaShortcutDefinition.removedValue else { return false }
+
+            let targetShortcut = storedShortcut.isEmpty ? definition.defaultShortcut : storedShortcut
+            guard targetShortcut != "None" else { return false }
+
+            return shortcutString(for: event) == targetShortcut
+        }
+
+        private static func shortcutString(for event: NSEvent) -> String? {
+            let modifiers = normalizedModifiers(for: event)
+            guard !modifiers.isEmpty else { return nil }
+
+            var parts: [String] = []
+            if modifiers.contains(.control) { parts.append("Control") }
+            if modifiers.contains(.option) { parts.append("Option") }
+            if modifiers.contains(.shift) { parts.append("Shift") }
+            if modifiers.contains(.command) { parts.append("Command") }
+
+            let key = keyString(for: event)
+            guard !key.isEmpty else { return nil }
+            parts.append(key)
+            return parts.joined(separator: "-")
+        }
+
+        private static func keyString(for event: NSEvent) -> String {
+            switch event.keyCode {
+            case 123: return "Left"
+            case 124: return "Right"
+            case 125: return "Down"
+            case 126: return "Up"
+            default:
+                return event.charactersIgnoringModifiers?.uppercased() ?? ""
+            }
         }
 
         deinit {

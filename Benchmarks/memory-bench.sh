@@ -2,7 +2,7 @@
 # Memory benchmark: samples the total resident memory of a browser's process
 # tree over time. No sudo needed.
 #
-# The interesting shape for Luma is the hibernation cliff: open the tab set,
+# The interesting shape for Candoa is the hibernation cliff: open the tab set,
 # run this for 35+ minutes, and total memory drops as idle tabs give up their
 # WebContent processes (15 min idle threshold + scan interval). Chromium and
 # Gecko browsers stay flat or grow.
@@ -11,7 +11,7 @@
 #   ./memory-bench.sh <label> <process-pattern> [duration-seconds]
 #
 # Presets (match battery-bench.sh):
-#   ./memory-bench.sh luma  'Luma|com.apple.WebKit'  2400
+#   ./memory-bench.sh candoa  'Candoa|com.apple.WebKit'  2400
 #   ./memory-bench.sh arc   'Arc'                    2400
 #   ./memory-bench.sh brave 'Brave'                  2400
 #   ./memory-bench.sh zen   'zen|plugin-container'   2400
