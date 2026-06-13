@@ -58,6 +58,7 @@ final class BrowserStore: ObservableObject {
     @Published var commandPaletteInitialText = ""
     @Published var commandPaletteResumeQuery = ""
     @Published var commandPaletteSessionID = UUID()
+    @Published private(set) var commandPalettePrefersCurrentTabNavigation = false
     @Published private(set) var commandPaletteOpensNewTab = false
     @Published var isCreateSpacePresented = false
     @Published var editingSpaceID: UUID?
@@ -281,6 +282,7 @@ final class BrowserStore: ObservableObject {
         commandPaletteInitialText = activeURL?.absoluteString ?? ""
         commandPaletteResumeQuery = activeURL.flatMap(navigationService.searchQuery(from:)) ?? ""
         commandPaletteSessionID = UUID()
+        commandPalettePrefersCurrentTabNavigation = true
         commandPaletteOpensNewTab = false
         presentCommandPalette()
         addressFocusRequestID = UUID()
@@ -292,6 +294,7 @@ final class BrowserStore: ObservableObject {
         commandPaletteInitialText = ""
         commandPaletteResumeQuery = ""
         commandPaletteSessionID = UUID()
+        commandPalettePrefersCurrentTabNavigation = false
         commandPaletteOpensNewTab = false
         presentCommandPalette()
     }
@@ -302,6 +305,7 @@ final class BrowserStore: ObservableObject {
         commandPaletteInitialText = ""
         commandPaletteResumeQuery = ""
         commandPaletteSessionID = UUID()
+        commandPalettePrefersCurrentTabNavigation = false
         commandPaletteOpensNewTab = true
         presentCommandPalette()
     }
@@ -319,6 +323,7 @@ final class BrowserStore: ObservableObject {
 
     func dismissCommandPalette() {
         isCommandPalettePresented = false
+        commandPalettePrefersCurrentTabNavigation = false
         commandPaletteOpensNewTab = false
 
         // The palette's TextField unmounts while the window's field editor is

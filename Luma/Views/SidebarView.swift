@@ -2360,88 +2360,116 @@ private struct EssentialTileView: View {
 // MARK: - Window controls
 
 private struct WindowControlsView: View {
-    @State private var window: NSWindow?
-    @State private var isHovering = false
-
     var body: some View {
-        HStack(spacing: 8) {
-            WindowControlButton(
-                color: Color(red: 1.0, green: 0.27, blue: 0.29),
-                symbolName: "xmark",
-                accessibilityLabel: "Close",
-                isHovering: isHovering
-            ) {
-                window?.performClose(nil)
-            }
-
-            WindowControlButton(
-                color: Color(red: 1.0, green: 0.78, blue: 0.16),
-                symbolName: "minus",
-                accessibilityLabel: "Minimize",
-                isHovering: isHovering
-            ) {
-                window?.miniaturize(nil)
-            }
-
-            WindowControlButton(
-                color: Color(red: 0.20, green: 0.80, blue: 0.28),
-                symbolName: "arrow.up.left.and.arrow.down.right",
-                accessibilityLabel: "Zoom",
-                isHovering: isHovering
-            ) {
-                window?.zoom(nil)
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(WindowReader(window: $window))
-        .onHover { isHovering = $0 }
+        NativeWindowControlsView()
     }
 }
 
-private struct WindowControlButton: View {
-    let color: Color
-    let symbolName: String
-    let accessibilityLabel: String
-    let isHovering: Bool
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            ZStack {
-                Circle()
-                    .fill(isHovering ? color : LumaChromeStyle.windowControlInactive)
-                    .overlay {
-                        Circle()
-                            .stroke(Color.black.opacity(isHovering ? 0.14 : 0.08), lineWidth: 0.5)
-                    }
-
-                Image(systemName: symbolName)
-                    .font(.system(size: 6.2, weight: .bold))
-                    .foregroundStyle(Color.black.opacity(0.58))
-                    .opacity(isHovering ? 1 : 0)
-            }
-            .frame(width: 13, height: 13)
-            .contentShape(Circle())
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(accessibilityLabel)
-    }
-}
-
-private struct WindowReader: NSViewRepresentable {
-    @Binding var window: NSWindow?
-
+private struct NativeWindowControlsView: NSViewRepresentable {
     func makeNSView(context: Context) -> NSView {
-        let view = NSView(frame: .zero)
+        let view = NativeWindowControlsHost()
         DispatchQueue.main.async {
-            window = view.window
+            view.attachWindowControls()
         }
         return view
     }
 
     func updateNSView(_ nsView: NSView, context: Context) {
         DispatchQueue.main.async {
-            window = nsView.window
+            (nsView as? NativeWindowControlsHost)?.attachWindowControls()
+        }
+    }
+
+    static func dismantleNSView(_ nsView: NSView, coordinator: ()) {
+        (nsView as? NativeWindowControlsHost)?.restoreWindowControls()
+    }
+}
+
+private final class NativeWindowControlsHost: NSView {
+    private static let buttonTypes: [NSWindow.ButtonType] = [
+        .closeButton,
+        .miniaturizeButton,
+        .zoomButton
+    ]
+    private static let centerSpacing: CGFloat = 20
+    private static let fallbackButtonSize = NSSize(width: 14, height: 14)
+
+    private weak var attachedWindow: NSWindow?
+    private var originalSuperviews: [Int: NSView] = [:]
+    private var originalFrames: [Int: NSRect] = [:]
+
+    override var intrinsicContentSize: NSSize {
+        NSSize(width: 60, height: 24)
+    }
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        attachWindowControls()
+    }
+
+    func attachWindowControls() {
+        guard let window else { return }
+
+        if let attachedWindow, attachedWindow !== window {
+            restoreWindowControls()
+        }
+
+        attachedWindow = window
+
+        for buttonType in Self.buttonTypes {
+            guard let button = window.standardWindowButton(buttonType) else { continue }
+            let key = Int(buttonType.rawValue)
+
+            if originalSuperviews[key] == nil, button.superview !== self {
+                originalSuperviews[key] = button.superview
+                originalFrames[key] = button.frame
+            }
+
+            if button.superview !== self {
+                button.removeFromSuperview()
+                addSubview(button)
+            }
+
+            button.isHidden = false
+        }
+
+        needsLayout = true
+    }
+
+    func restoreWindowControls() {
+        guard let attachedWindow else { return }
+
+        for buttonType in Self.buttonTypes {
+            guard let button = attachedWindow.standardWindowButton(buttonType) else { continue }
+            let key = Int(buttonType.rawValue)
+
+            if button.superview === self {
+                button.removeFromSuperview()
+
+                if let originalSuperview = originalSuperviews[key] {
+                    originalSuperview.addSubview(button)
+                    button.frame = originalFrames[key] ?? button.frame
+                }
+            }
+        }
+
+        originalSuperviews.removeAll()
+        originalFrames.removeAll()
+        self.attachedWindow = nil
+    }
+
+    override func layout() {
+        super.layout()
+
+        for (index, buttonType) in Self.buttonTypes.enumerated() {
+            guard let button = attachedWindow?.standardWindowButton(buttonType) else { continue }
+            let currentSize = button.frame.size
+            let buttonSize = currentSize.width > 0 && currentSize.height > 0
+                ? currentSize
+                : Self.fallbackButtonSize
+            let x = CGFloat(index) * Self.centerSpacing
+            let y = floor((bounds.height - buttonSize.height) / 2)
+            button.frame = NSRect(origin: CGPoint(x: x, y: y), size: buttonSize)
         }
     }
 }
@@ -2455,6 +2483,7 @@ private struct ToolbarIconButtonModifier: ViewModifier {
             .font(.system(size: 15, weight: .medium))
             .symbolRenderingMode(.hierarchical)
             .frame(width: 25, height: 25)
+            .offset(y: -2)
             .contentShape(Rectangle())
     }
 }

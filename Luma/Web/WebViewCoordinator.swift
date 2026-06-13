@@ -10,7 +10,7 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
     }
 
     private static let acceptLanguageHeader = "en-US,en;q=0.9"
-    private static let googleLocaleCookieNames: Set<String> = ["PREF", "NID", "SOCS"]
+    private static let desktopSafariUserAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15"
     private static let pageZoomLevels: [CGFloat] = [0.5, 0.65, 0.8, 0.9, 1.0, 1.1, 1.25, 1.5, 1.75, 2.0, 2.5, 3.0]
 
     private weak var store: BrowserStore?
@@ -18,7 +18,6 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
     private var tabIDsByWebView = NSMapTable<WKWebView, NSString>.weakToStrongObjects()
     private var observations: [UUID: [NSKeyValueObservation]] = [:]
     private var pendingWebAppPrompts: [UUID: PendingWebAppPrompt] = [:]
-    private var cleanedLocaleCookieDataStoreIDs = Set<UUID>()
     private var popupTabIDsAwaitingFirstLoad = Set<UUID>()
     private var activeDownloads = Set<WKDownload>()
     private var downloadDestinations: [WKDownload: URL] = [:]
@@ -77,9 +76,9 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         let configuration = WKWebViewConfiguration()
         configuration.allowsAirPlayForMediaPlayback = true
         configuration.defaultWebpagePreferences.allowsContentJavaScript = true
+        configuration.defaultWebpagePreferences.preferredContentMode = .desktop
         configuration.preferences.isElementFullscreenEnabled = true
         configuration.websiteDataStore = dataStore
-        resetGoogleLocaleCookiesIfNeeded(in: dataStore, id: dataStoreID)
 
         let webView = WKWebView(frame: .zero, configuration: configuration)
         register(webView, for: tab.id)
@@ -91,6 +90,7 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         webView.uiDelegate = self
         webView.allowsBackForwardNavigationGestures = true
         webView.allowsMagnification = true
+        webView.customUserAgent = Self.desktopSafariUserAgent
         webView.setValue(false, forKey: "drawsBackground")
 
         // Web content appearance is decoupled from the window chrome (Arc's
@@ -1438,21 +1438,6 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         var request = URLRequest(url: url)
         request.setValue(Self.acceptLanguageHeader, forHTTPHeaderField: "Accept-Language")
         return request
-    }
-
-    private func resetGoogleLocaleCookiesIfNeeded(in dataStore: WKWebsiteDataStore, id: UUID) {
-        guard !cleanedLocaleCookieDataStoreIDs.contains(id) else { return }
-        cleanedLocaleCookieDataStoreIDs.insert(id)
-
-        dataStore.httpCookieStore.getAllCookies { cookies in
-            let localeCookies = cookies.filter { cookie in
-                let domain = cookie.domain.lowercased()
-                let isGoogleDomain = domain == "google.com" || domain == ".google.com" || domain.hasSuffix(".google.com")
-                return isGoogleDomain && Self.googleLocaleCookieNames.contains(cookie.name)
-            }
-
-            localeCookies.forEach { dataStore.httpCookieStore.delete($0) }
-        }
     }
 
     private func refreshFavicon(for webView: WKWebView) {

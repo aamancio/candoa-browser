@@ -57,11 +57,8 @@ struct WindowInteractionConfigurator: NSViewRepresentable {
             window.titleVisibility = .hidden
             window.titlebarAppearsTransparent = true
             window.styleMask.insert(.fullSizeContentView)
+            window.collectionBehavior.insert(.fullScreenPrimary)
             window.isMovableByWindowBackground = false
-
-            window.standardWindowButton(.closeButton)?.isHidden = true
-            window.standardWindowButton(.miniaturizeButton)?.isHidden = true
-            window.standardWindowButton(.zoomButton)?.isHidden = true
         }
     }
 }

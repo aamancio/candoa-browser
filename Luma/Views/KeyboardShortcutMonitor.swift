@@ -9,6 +9,8 @@ struct KeyboardShortcutMonitor: NSViewRepresentable {
     let onControlReleased: () -> Void
     let onCommandDigit: (Int) -> Void
     let onControlDigit: (Int) -> Void
+    let onGoBack: () -> Void
+    let onGoForward: () -> Void
     let onZoomIn: () -> Void
     let onZoomOut: () -> Void
     let onAddSplit: () -> Void
@@ -38,6 +40,8 @@ struct KeyboardShortcutMonitor: NSViewRepresentable {
         coordinator.onControlReleased = onControlReleased
         coordinator.onCommandDigit = onCommandDigit
         coordinator.onControlDigit = onControlDigit
+        coordinator.onGoBack = onGoBack
+        coordinator.onGoForward = onGoForward
         coordinator.onZoomIn = onZoomIn
         coordinator.onZoomOut = onZoomOut
         coordinator.onAddSplit = onAddSplit
@@ -52,14 +56,20 @@ struct KeyboardShortcutMonitor: NSViewRepresentable {
         var onControlReleased: () -> Void = {}
         var onCommandDigit: (Int) -> Void = { _ in }
         var onControlDigit: (Int) -> Void = { _ in }
+        var onGoBack: () -> Void = {}
+        var onGoForward: () -> Void = {}
         var onZoomIn: () -> Void = {}
         var onZoomOut: () -> Void = {}
         var onAddSplit: () -> Void = {}
         var onCloseSplit: () -> Void = {}
         private var monitor: Any?
 
+        private static let closeBracketKeyCode: UInt16 = 30
+        private static let openBracketKeyCode: UInt16 = 33
         private static let equalsKeyCode: UInt16 = 24
         private static let minusKeyCode: UInt16 = 27
+        private static let leftArrowKeyCode: UInt16 = 123
+        private static let rightArrowKeyCode: UInt16 = 124
 
         func installMonitorIfNeeded() {
             guard monitor == nil else { return }
@@ -83,6 +93,16 @@ struct KeyboardShortcutMonitor: NSViewRepresentable {
 
                 if Self.isCommandW(event) {
                     onCommandW()
+                    return nil
+                }
+
+                if Self.isGoBack(event) {
+                    onGoBack()
+                    return nil
+                }
+
+                if Self.isGoForward(event) {
+                    onGoForward()
                     return nil
                 }
 
@@ -141,6 +161,16 @@ struct KeyboardShortcutMonitor: NSViewRepresentable {
             let modifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
             return modifiers == .command &&
                 event.charactersIgnoringModifiers?.lowercased() == "w"
+        }
+
+        private static func isGoBack(_ event: NSEvent) -> Bool {
+            matchesKey(event, keyCode: openBracketKeyCode, modifiers: .command) ||
+                matchesKey(event, keyCode: leftArrowKeyCode, modifiers: .command)
+        }
+
+        private static func isGoForward(_ event: NSEvent) -> Bool {
+            matchesKey(event, keyCode: closeBracketKeyCode, modifiers: .command) ||
+                matchesKey(event, keyCode: rightArrowKeyCode, modifiers: .command)
         }
 
         private static func isControlTab(_ event: NSEvent) -> Bool {

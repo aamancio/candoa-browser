@@ -167,6 +167,10 @@ struct ContentView: View {
                 store.switchToTab(at: digit)
             } onControlDigit: { digit in
                 store.switchToSpace(at: digit)
+            } onGoBack: {
+                store.goBack()
+            } onGoForward: {
+                store.goForward()
             } onZoomIn: {
                 store.zoomInActiveTab()
             } onZoomOut: {

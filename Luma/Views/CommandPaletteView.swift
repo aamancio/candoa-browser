@@ -13,6 +13,12 @@ struct CommandPaletteView: View {
 
     /// Arc's command bar accent — the one selection color everywhere.
     static let paletteTint = Color(red: 0.26, green: 0.27, blue: 0.88)
+    private static let maxVisibleCommandCount = 6
+    private static let commandRowHeight: CGFloat = 46
+    private static let commandRowSpacing: CGFloat = 7
+    private static let resultsVerticalPadding: CGFloat = 22
+    private static let headerHeight: CGFloat = 70
+    private static let dividerHeight: CGFloat = 1
 
     private var activeTint: Color {
         selectedSearchProvider?.paletteColor ?? Self.paletteTint
@@ -108,6 +114,7 @@ struct CommandPaletteView: View {
                     .strokeBorder(LumaChromeStyle.popoverBorder, lineWidth: 1)
             }
             .shadow(color: Color(nsColor: .shadowColor).opacity(0.24), radius: 46, y: 24)
+            .frame(height: anchoredPaletteHeight, alignment: .top)
         }
         .background(
             CommandPaletteKeyMonitor(
@@ -143,14 +150,23 @@ struct CommandPaletteView: View {
     }
 
     private var visibleCommands: [PaletteCommand] {
-        Array(dedupedCommands(filteredCommands).prefix(6))
+        Array(dedupedCommands(filteredCommands).prefix(Self.maxVisibleCommandCount))
     }
 
     /// Exact height of the visible rows (46pt rows, 7pt spacing, 11pt
     /// vertical padding), so the results area hugs its content.
     private var resultsHeight: CGFloat {
-        let count = CGFloat(visibleCommands.count)
-        return count * 46 + max(0, count - 1) * 7 + 22
+        resultsHeight(for: CGFloat(visibleCommands.count))
+    }
+
+    /// The palette itself shrinks with its result count, but it sits inside
+    /// this fixed-height anchor so typing does not recenter the surface.
+    private var anchoredPaletteHeight: CGFloat {
+        Self.headerHeight + Self.dividerHeight + resultsHeight(for: CGFloat(Self.maxVisibleCommandCount))
+    }
+
+    private func resultsHeight(for count: CGFloat) -> CGFloat {
+        count * Self.commandRowHeight + max(0, count - 1) * Self.commandRowSpacing + Self.resultsVerticalPadding
     }
 
     /// The same page can surface as several history visits plus an open tab;
@@ -440,7 +456,8 @@ struct CommandPaletteView: View {
             )
         }
 
-        if let provider = suggestedSearchProvider(for: trimmedQuery, allowsAutocomplete: !isResumingSearchURL) {
+        if !store.commandPalettePrefersCurrentTabNavigation,
+           let provider = suggestedSearchProvider(for: trimmedQuery, allowsAutocomplete: !isResumingSearchURL) {
             let matchingProviders = searchProviderCommands.filter { $0.provider == provider }
             return matchingProviders + [navigateCommand] + commands
         }

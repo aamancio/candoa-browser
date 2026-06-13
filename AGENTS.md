@@ -18,8 +18,9 @@ These three rules override everything else in this file and any default instinct
 Use the system control and style it; do not rebuild it.
 
 - Inputs, buttons, menus, pickers, toggles, scroll views, progress indicators, context menus, popovers, alerts, focus rings, text selection: use the SwiftUI/AppKit built-in (`TextField`, `Menu`, `.contextMenu`, `.popover`, `ScrollView`, `ProgressView`, …) with modifiers. SF Symbols for icons, system materials for surfaces, system cursors via `NSCursor`.
+- Do not draw custom lookalikes for native controls or native icons. Window traffic lights, toolbar controls, disclosure arrows, menu indicators, search/address fields, selection states, drag handles, and standard glyphs must come from AppKit/SwiftUI/SF Symbols whenever a native equivalent exists.
 - Before writing any custom control, the bar is: *the native one provably cannot be configured to match the required Arc/Zen design*. If that bar is met, compose the custom view **from** native primitives and keep native behavior intact (keyboard navigation, focus, accessibility, standard shortcuts, text editing gestures).
-- Hand-rolled text inputs, scrollbars, menu lookalikes, or re-implemented system behaviors are rejected by default.
+- Hand-rolled text inputs, scrollbars, menu lookalikes, drawn traffic lights, custom icon paths for SF Symbol-equivalent glyphs, or re-implemented system behaviors are rejected by default.
 
 ### 3. Never trade memory or energy for anything
 
