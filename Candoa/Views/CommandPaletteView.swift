@@ -677,8 +677,8 @@ struct CommandPaletteView: View {
             .sorted { $0.visitedAt > $1.visitedAt }
             .map(\.command)
 
-        let primaryCommands = isAskSupported ? [defaultSearchCommand, askCommand] : [defaultSearchCommand]
-        return primaryCommands + recentTrail + Array(searchProviderCommands.dropFirst().prefix(2))
+        let tailCommands = (isAskSupported ? [askCommand] : []) + Array(searchProviderCommands.dropFirst().prefix(2))
+        return [defaultSearchCommand] + recentTrail + tailCommands
     }
 
     private var askCommand: PaletteCommand {

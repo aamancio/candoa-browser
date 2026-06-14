@@ -1,7 +1,10 @@
+import AppKit
 import SwiftUI
 
 @main
 struct CandoaApp: App {
+    @NSApplicationDelegateAdaptor(CandoaAppDelegate.self) private var appDelegate
+
     var body: some Scene {
         WindowGroup {
             ContentView()
@@ -18,6 +21,42 @@ struct CandoaApp: App {
         Settings {
             ShortcutSettingsView()
         }
+    }
+}
+
+@MainActor
+private final class CandoaAppDelegate: NSObject, NSApplicationDelegate {
+    private let appearanceChangedNotification = Notification.Name("AppleInterfaceThemeChangedNotification")
+
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        updateDockIcon()
+        DistributedNotificationCenter.default().addObserver(
+            self,
+            selector: #selector(systemAppearanceDidChange),
+            name: appearanceChangedNotification,
+            object: nil
+        )
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        DistributedNotificationCenter.default().removeObserver(self)
+    }
+
+    @objc private func systemAppearanceDidChange(_ notification: Notification) {
+        updateDockIcon()
+    }
+
+    private func updateDockIcon() {
+        let appearance = NSApplication.shared.effectiveAppearance
+        let isDark = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+        let imageName = NSImage.Name(isDark ? "DockIconDark" : "DockIconLight")
+
+        guard let image = NSImage(named: imageName) else {
+            return
+        }
+
+        image.isTemplate = false
+        NSApplication.shared.applicationIconImage = image
     }
 }
 
