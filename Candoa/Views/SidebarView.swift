@@ -387,7 +387,7 @@ private struct AppUpdateBanner: View {
 
     var body: some View {
         Button(action: action) {
-            Text("New Candoa Version Available")
+            Text("Candoa \(update.version) Available")
                 .font(.system(size: 14, weight: .semibold))
                 .foregroundStyle(CandoaChromeStyle.sidebarText)
                 .lineLimit(1)
