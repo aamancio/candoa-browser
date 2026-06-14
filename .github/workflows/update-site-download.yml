@@ -23,7 +23,6 @@ jobs:
       APP_DMG: ${{ github.workspace }}/artifacts/Candoa.dmg
       APP_BUNDLE: ${{ github.workspace }}/build/DerivedData/Build/Products/Release/Candoa.app
       SPARKLE_VERSION: 2.9.3
-      SPARKLE_TOOLS: ${{ runner.temp }}/sparkle-tools
 
     steps:
       - name: Check out Candoa
@@ -60,6 +59,8 @@ jobs:
 
       - name: Install Sparkle tools
         run: |
+          SPARKLE_TOOLS="$RUNNER_TEMP/sparkle-tools"
+          echo "SPARKLE_TOOLS=$SPARKLE_TOOLS" >> "$GITHUB_ENV"
           curl -L --fail \
             "https://github.com/sparkle-project/Sparkle/releases/download/$SPARKLE_VERSION/Sparkle-$SPARKLE_VERSION.tar.xz" \
             -o "$RUNNER_TEMP/Sparkle.tar.xz"
