@@ -94,8 +94,29 @@ jobs:
             CODE_SIGN_STYLE=Manual \
             CODE_SIGN_IDENTITY="$CODE_SIGN_IDENTITY" \
             DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
+            CODE_SIGN_INJECT_BASE_ENTITLEMENTS=NO \
             OTHER_CODE_SIGN_FLAGS="--timestamp" \
             build
+
+      - name: Re-sign Sparkle helpers
+        run: |
+          SPARKLE_FRAMEWORK="$APP_BUNDLE/Contents/Frameworks/Sparkle.framework"
+          SPARKLE_VERSION="$SPARKLE_FRAMEWORK/Versions/B"
+          APP_ENTITLEMENTS="build/DerivedData/Build/Intermediates.noindex/Candoa.build/Release/Candoa.build/Candoa.app.xcent"
+
+          codesign --force --sign "$CODE_SIGN_IDENTITY" --timestamp --options runtime \
+            "$SPARKLE_VERSION/Autoupdate"
+          codesign --force --sign "$CODE_SIGN_IDENTITY" --timestamp --options runtime \
+            "$SPARKLE_VERSION/XPCServices/Downloader.xpc"
+          codesign --force --sign "$CODE_SIGN_IDENTITY" --timestamp --options runtime \
+            "$SPARKLE_VERSION/XPCServices/Installer.xpc"
+          codesign --force --sign "$CODE_SIGN_IDENTITY" --timestamp --options runtime \
+            "$SPARKLE_VERSION/Updater.app"
+          codesign --force --sign "$CODE_SIGN_IDENTITY" --timestamp --options runtime \
+            "$SPARKLE_FRAMEWORK"
+          codesign --force --sign "$CODE_SIGN_IDENTITY" --timestamp --options runtime \
+            --entitlements "$APP_ENTITLEMENTS" \
+            "$APP_BUNDLE"
 
       - name: Verify app signature
         run: |

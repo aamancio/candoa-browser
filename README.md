@@ -1,52 +1,87 @@
 # Candoa
 
-Candoa is an open-source, Arc-inspired browser workspace for macOS.
+A lightweight browser workspace for macOS.
 
-The goal is to build the browser I want to use every day: a native-feeling Mac app with Arc-style navigation, a sidebar-first workspace, spaces, pinned tabs, vertical tabs, and keyboard-driven tab management. Candoa is not trying to copy Arc's branding, assets, or exact visual identity. It is an independent implementation of a similar workflow.
+Candoa is an open-source Mac browser for people who like Arc-style sidebars,
+Spaces, pinned tabs, and keyboard-first navigation, but want the app to stay
+native, quiet, and battery-conscious.
 
-Candoa uses Apple's WebKit through `WKWebView`, the same browser engine family behind Safari. That choice is intentional. I want Candoa to stay lightweight, battery-conscious, easier to maintain, and native to macOS instead of becoming a Chromium, Electron, CEF, or Firefox-based app.
+[Download](https://candoa.app/downloads/Candoa.dmg) - [Website](https://candoa.app) - [Updates](https://candoa.app/downloads/appcast.xml)
 
-This project is currently built around my personal browsing workflow. For development-heavy work I still often use Chrome, but Candoa is where I am exploring a more focused, native, keyboard-first browser experience.
+## Why Candoa
 
-## Product Goals
+Most modern browsers ship a whole cross-platform stack. Candoa takes a simpler
+Mac-first path: SwiftUI, AppKit where native behavior needs it, and Apple's
+WebKit through `WKWebView`.
 
-- Arc-style sidebar navigation without copying Arc's visual identity
-- Native macOS feel using SwiftUI, AppKit where needed, and WebKit
-- Keyboard-first browser workflows
-- Spaces, pinned tabs, vertical tabs, and fast switching
-- Minimal top chrome with the browser surface as the focus
-- Lightweight architecture that a small open-source project can maintain
-- Battery-conscious browsing through WebKit instead of a bundled browser engine
+That means Candoa can focus on the workflow:
 
-## Features
+- A sidebar-first browser surface
+- Spaces for separating work, personal browsing, projects, and research
+- Pinned tabs and vertical tabs
+- Fast keyboard navigation
+- Split view for two pages at once
+- Local session restore and history
+- Optional iCloud sync for workspace state
+- Automatic updates through Sparkle
 
-- Native macOS SwiftUI app
-- `WKWebView`-only browsing engine
-- Sidebar-first workspace
-- Spaces with name, icon, theme, and local site-data scope
-- Space switcher with rename, delete, icon, theme color, and tab move actions
-- Pinned tabs and regular tabs
-- Multiple reusable `WKWebView`-backed tabs
-- Two-tab split view
-- Active tab switching
-- Drag and drop tab reordering
-- Address/search bar
-- Back, forward, reload, and stop controls
-- Live page title updates
-- Loading progress indicators
-- Favicon fetching and caching
-- Session restore with local Core Data / SQLite persistence
-- Local-only history visit recording
-- Optional iCloud sync preparation for Spaces, open tabs, and pinned tabs through CloudKit
-- Optional separate iCloud history sync toggle, off by default
-- Space-scoped WebKit website data stores for isolated cookies, cache, localStorage, and IndexedDB
-- `Cmd+L` focuses the address/search bar
-- `Cmd+T` opens the command/new-tab surface
-- Command palette actions and tab search across spaces
+Candoa is inspired by the workflow ideas in Arc and the open-source spirit of
+Zen Browser. It is not a clone of either product's branding, assets, icons, or
+exact visual identity.
+
+## Status
+
+Candoa is an early public prototype. The core shell, WebKit tab model, Spaces,
+pinned tabs, split view, local persistence, Sparkle updates, and the first sync
+hooks are in place.
+
+Expect rough edges. The project is still shaping the daily browsing experience,
+with battery efficiency and native macOS behavior treated as product features,
+not implementation details.
+
+## Download
+
+The latest public build is available here:
+
+```text
+https://candoa.app/downloads/Candoa.dmg
+```
+
+Installed builds check for updates using Sparkle and the public appcast at:
+
+```text
+https://candoa.app/downloads/appcast.xml
+```
+
+## Build From Source
+
+Requirements:
+
+- macOS 14 or newer
+- Xcode
+
+Open `Candoa.xcodeproj`, select the `Candoa` scheme, then build and run.
+
+From Terminal:
+
+```sh
+cd ~/Projects/Candoa/Candoa
+xcodebuild -project "Candoa.xcodeproj" -scheme "Candoa" -configuration Debug -derivedDataPath build/DerivedData build
+open "build/DerivedData/Build/Products/Debug/Candoa.app"
+```
+
+## Project Principles
+
+- Keep the app native to macOS.
+- Use WebKit, not Chromium, Electron, CEF, or Firefox.
+- Preserve Arc-compatible shortcuts for Arc-like features.
+- Prefer native SwiftUI and AppKit controls over custom lookalikes.
+- Keep background tabs cheap so idle browsing stays efficient.
+- Avoid copying another browser's visual identity.
 
 ## Keyboard Shortcuts
 
-Candoa aims to match Arc's macOS keyboard shortcuts for Arc-like features it implements. When an Arc shortcut is unknown or a feature is not implemented yet, the shortcut should remain unassigned instead of being reused for a different behavior.
+Candoa reserves Arc's macOS shortcut model for comparable features.
 
 - `Cmd+T`: New tab / command surface
 - `Cmd+W`: Close current tab
@@ -57,99 +92,27 @@ Candoa aims to match Arc's macOS keyboard shortcuts for Arc-like features it imp
 - `Cmd+Shift+Option+C`: Copy current tab URL as Markdown
 - `Cmd+S`: Show or hide sidebar
 - `Cmd+Shift+K`: Clear unpinned tabs
-- `Cmd+1`, `Cmd+2`, `Cmd+3`, and so on: Go directly to tab
-- `Control+1`, `Control+2`, `Control+3`, and so on: Focus space
+- `Cmd+1`, `Cmd+2`, `Cmd+3`: Go directly to a tab
+- `Control+1`, `Control+2`, `Control+3`: Focus a Space
 - `Control+Tab`: Toggle between recent tabs
-- `Cmd+Option+Up`: Previous tab
-- `Cmd+Option+Down`: Next tab
-- `Cmd+Option+Left`: Previous space
-- `Cmd+Option+Right`: Next space
+- `Cmd+Option+Up` / `Cmd+Option+Down`: Switch tabs
+- `Cmd+Option+Left` / `Cmd+Option+Right`: Switch Spaces
 - `Cmd+Left` or `Cmd+[`: Back
 - `Cmd+Right` or `Cmd+]`: Forward
 - `Cmd+R`: Reload
 - `Cmd+F`: Find in page
 
-## Tech Stack
+## For Contributors
 
-- Swift
-- SwiftUI
-- AppKit where native window behavior needs it
-- WebKit / `WKWebView`
-- Combine
-- Core Data / SQLite persistence in Application Support
-- macOS target
+The app is organized around a small native browser core:
 
-## Project Status
+- `BrowserStore` owns browser state and user actions.
+- `WebViewCoordinator` owns reusable `WKWebView` instances.
+- `PersistenceService` stores Spaces, tabs, selection, and local history.
+- `NavigationService` handles URL and search input.
+- `FaviconService` fetches and caches page icons.
 
-Early prototype. The first milestone focuses on proving the native app shell, WebKit tab model, sidebar workspace, keyboard flow, and persistence architecture.
-
-Expect rough edges. The intent is to keep iterating in public while preserving the core direction: native macOS, Arc-inspired workflow, and WebKit-only browsing.
-
-## Setup
-
-1. Open `Candoa.xcodeproj` in Xcode.
-2. Select the `Candoa` scheme.
-3. Build and run on macOS.
-
-From Terminal:
-
-```sh
-cd ~/Projects/Candoa/Candoa
-xcodebuild -project "Candoa.xcodeproj" -scheme "Candoa" -configuration Debug -derivedDataPath build/DerivedData build
-open "build/DerivedData/Build/Products/Debug/Candoa.app"
-```
-
-## Release Builds and Downloads
-
-The public marketing site and download live in the separate
-[`aamancio/candoa-site`](https://github.com/aamancio/candoa-site) repository.
-The production site is deployed on Vercel at [candoa.app](https://candoa.app).
-
-Pushing to `main` in this repository publishes a signed, notarized,
-drag-to-Applications DMG to the marketing site.
-
-The stable download URL is `https://candoa.app/downloads/Candoa.dmg`. The
-versioned archive remains available for internal handoff, and `latest.json`
-still provides the displayed app version and suggested download filename, such
-as `Candoa 0.1.0.dmg`.
-
-## Updates
-
-Candoa uses Sparkle for automatic updates. The app reads
-`https://candoa.app/downloads/appcast.xml` from `SUFeedURL`, verifies update
-archives with the embedded `SUPublicEDKey`, and can download/install updates
-through Sparkle's standard updater UI.
-
-The release workflow publishes the appcast alongside the site download files.
-
-`https://candoa.app/downloads/latest.json` still exists for the website's
-versioned download filename and lightweight metadata, but Sparkle owns in-app
-update detection and installation.
-
-The DMG packaging script can also be run locally:
-
-```sh
-xcodebuild -project "Candoa.xcodeproj" -scheme "Candoa" -configuration Release -derivedDataPath build/DerivedData build
-Scripts/package_dmg.sh \
-  build/DerivedData/Build/Products/Release/Candoa.app \
-  artifacts/Candoa.dmg
-```
-
-## iCloud Sync
-
-Candoa is local-only by default. The Browser > iCloud Sync menu can opt the app into syncing workspace state through the user's private iCloud database. History has a separate opt-in toggle and stays local-only unless explicitly enabled.
-
-The sync layer intentionally does not sync cookies, cache, localStorage, IndexedDB, website sessions, downloads, or private browsing state. Those remain in the local `WKWebsiteDataStore`.
-
-To test real iCloud sync, enable the iCloud capability in Xcode with an Apple Developer team and add a CloudKit container named:
-
-```text
-iCloud.org.candoa.Candoa
-```
-
-The project currently keeps that entitlement out of source control because the default manual/ad-hoc signing setup cannot build with iCloud entitlements and no provisioning profile. Once the capability is enabled for your team, turn on Browser > iCloud Sync > Enable iCloud Sync for Spaces and Tabs, relaunch Candoa, and test with another signed-in Mac using the same iCloud account.
-
-## Folder Structure
+Important paths:
 
 ```text
 Candoa/
@@ -159,57 +122,37 @@ Candoa/
   Services/
   Web/
   Resources/
+Scripts/
+Benchmarks/
 ```
 
-## Architecture
+Contributions are welcome, especially around native Mac behavior,
+keyboard-first browsing, WebKit lifecycle, and battery efficiency.
 
-- `BrowserStore` owns browser state and exposes actions for views.
-- `PersistenceService` saves Spaces, tabs, active selection, and Space data-store identifiers in `~/Library/Application Support/Candoa/CandoaSession.sqlite`.
-- `PersistenceService` saves history visits in `~/Library/Application Support/Candoa/CandoaHistory.sqlite`.
-- Legacy `~/Library/Application Support/Luma/` and `~/Library/Application Support/Luma Browser/` data is moved under Candoa on first launch, including old split stores and the older combined `Luma.sqlite` store.
-- `NavigationService` normalizes URL input and search queries.
-- `WebViewCoordinator` owns and reuses `WKWebView` instances per tab, creating them with the active Space's WebKit website data store.
-- `FaviconService` fetches page-discovered icons with a lightweight in-memory cache.
-- SwiftUI views stay thin and call store/service methods.
+Please keep changes aligned with the project principles above. In particular,
+do not introduce another browser engine, do not add idle polling, and do not
+copy Arc or Zen branding, icons, assets, or exact UI.
 
-## Roadmap
+## Releases
 
-- Arc-parity keyboard shortcut audit
-- Hidden sidebar with left-edge reveal
-- Deeper space management
-- Profile manager for assigning multiple Spaces to one data profile
-- Better split views
-- Downloads
-- History UI and search
-- Bookmark import/export
-- Themes
-- Smarter tab organization
-- Optional sync layer
+Release builds are packaged as a drag-to-Applications DMG. The GitHub workflow
+on `main` publishes the signed DMG, `latest.json`, and Sparkle `appcast.xml` to
+the separate marketing site repository.
 
-## Contributing
+Local DMG packaging:
 
-Contributions are welcome, especially if you care about native Mac software, keyboard-first browsing, and lightweight browser architecture.
-
-Please keep changes aligned with the project direction:
-
-- Keep Candoa native to macOS.
-- Use Swift, SwiftUI, AppKit where needed, and `WKWebView`.
-- Do not introduce Chromium, CEF, Electron, Firefox, or another browser engine.
-- Keep `WKWebView` lifecycle separate from SwiftUI view state.
-- Prefer Arc shortcut parity for Arc-like features.
-- Avoid copying Arc or Zen branding, icons, assets, or exact UI.
-- Keep the codebase approachable for a small open-source project.
-
-By submitting a contribution, you agree it is provided under the project's MPL-2.0 license.
+```sh
+xcodebuild -project "Candoa.xcodeproj" -scheme "Candoa" -configuration Release -derivedDataPath build/DerivedData build
+Scripts/package_dmg.sh \
+  build/DerivedData/Build/Products/Release/Candoa.app \
+  artifacts/Candoa.dmg
+```
 
 ## License
 
-Candoa is open source under the Mozilla Public License 2.0 (MPL-2.0) — the same license used by Firefox, Zen, and Brave. See `LICENSE`.
-
-In short: you are free to use, build, modify, and redistribute Candoa, but if you distribute modified versions of Candoa's source files, those files must remain available under MPL-2.0. This is not legal advice; the `LICENSE` text is what governs.
-
-Code contributed before the license change was published under the MIT License; from this point forward the project is MPL-2.0.
+Candoa is open source under the Mozilla Public License 2.0. See `LICENSE`.
 
 ## Trademark
 
-"Candoa" and the Candoa app identity are not covered by the source-code license. You may not use the Candoa name, icon, or branding for forks, modified builds, or derived products without permission. Forks must ship under a different name and identity.
+The Candoa name, icon, and app identity are not covered by the source-code
+license. Forks and modified builds should use a different name and identity.
