@@ -22,6 +22,8 @@ jobs:
       SITE_BRANCH: ${{ vars.CANDOA_SITE_BRANCH || 'main' }}
       APP_DMG: ${{ github.workspace }}/artifacts/Candoa.dmg
       APP_BUNDLE: ${{ github.workspace }}/build/DerivedData/Build/Products/Release/Candoa.app
+      SPARKLE_VERSION: 2.9.3
+      SPARKLE_TOOLS: ${{ runner.temp }}/sparkle-tools
 
     steps:
       - name: Check out Candoa
@@ -53,7 +55,17 @@ jobs:
             echo "APP_VERSION=$APP_VERSION"
             echo "APP_BUILD=$APP_BUILD"
             echo "APP_FILE_NAME=Candoa $APP_VERSION.dmg"
+            echo "APP_ARCHIVE_NAME=Candoa-$APP_VERSION.dmg"
           } >> "$GITHUB_ENV"
+
+      - name: Install Sparkle tools
+        run: |
+          curl -L --fail \
+            "https://github.com/sparkle-project/Sparkle/releases/download/$SPARKLE_VERSION/Sparkle-$SPARKLE_VERSION.tar.xz" \
+            -o "$RUNNER_TEMP/Sparkle.tar.xz"
+          mkdir -p "$SPARKLE_TOOLS"
+          tar -xf "$RUNNER_TEMP/Sparkle.tar.xz" -C "$SPARKLE_TOOLS" --strip-components=1
+          "$SPARKLE_TOOLS/bin/generate_appcast" --help >/dev/null
 
       - name: Check out CandoaSite
         uses: actions/checkout@v4
@@ -64,11 +76,36 @@ jobs:
           path: CandoaSite
 
       - name: Update site download
+        env:
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
         run: |
+          if [ -z "$SPARKLE_PRIVATE_KEY" ]; then
+            echo "SPARKLE_PRIVATE_KEY secret is required to sign Sparkle updates." >&2
+            exit 1
+          fi
+
           mkdir -p CandoaSite/public/downloads
           cp "$APP_DMG" CandoaSite/public/downloads/Candoa.dmg
-          find CandoaSite/public/downloads -maxdepth 1 -type f -name 'Candoa *.dmg' -delete
-          cp "$APP_DMG" "CandoaSite/public/downloads/$APP_FILE_NAME"
+          find CandoaSite/public/downloads -maxdepth 1 -type f \( -name 'Candoa *.dmg' -o -name 'Candoa-*.dmg' \) -delete
+          cp "$APP_DMG" "CandoaSite/public/downloads/$APP_ARCHIVE_NAME"
+
+          APPCAST_DIR="$(mktemp -d)"
+          cp "$APP_DMG" "$APPCAST_DIR/$APP_ARCHIVE_NAME"
+          cat > "$APPCAST_DIR/Candoa-$APP_VERSION.md" <<EOF
+          # Candoa $APP_VERSION
+
+          This update was generated automatically from Candoa commit ${GITHUB_SHA::7}.
+          EOF
+          printf '%s' "$SPARKLE_PRIVATE_KEY" | "$SPARKLE_TOOLS/bin/generate_appcast" \
+            --ed-key-file - \
+            --download-url-prefix "https://candoa.app/downloads/" \
+            --link "https://candoa.app" \
+            --maximum-versions 1 \
+            --embed-release-notes \
+            -o "$APPCAST_DIR/appcast.xml" \
+            "$APPCAST_DIR"
+          cp "$APPCAST_DIR/appcast.xml" CandoaSite/public/downloads/appcast.xml
+
           python3 - <<'PY'
           import json
           import os
@@ -79,6 +116,8 @@ jobs:
               "build": os.environ["APP_BUILD"],
               "fileName": os.environ["APP_FILE_NAME"],
               "downloadURL": "https://candoa.app/downloads/Candoa.dmg",
+              "archiveURL": f"https://candoa.app/downloads/{os.environ['APP_ARCHIVE_NAME']}",
+              "appcastURL": "https://candoa.app/downloads/appcast.xml",
               "releaseNotesURL": "https://github.com/aamancio/candoa/releases",
           }
 

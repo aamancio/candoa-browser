@@ -111,8 +111,9 @@ GitHub Actions workflow. That workflow:
 1. Builds the `Candoa` Xcode scheme in Release.
 2. Reads the app version from `CFBundleShortVersionString`.
 3. Packages `Candoa.app` into a drag-to-Applications `Candoa.dmg`.
-4. Commits the latest DMG, a versioned display filename, and
-   `public/downloads/latest.json` to `aamancio/candoa-site`.
+4. Commits the latest DMG, a versioned archive, `public/downloads/latest.json`,
+   and Sparkle's signed `public/downloads/appcast.xml` to
+   `aamancio/candoa-site`.
 5. Lets Vercel deploy the updated site so
    `https://candoa.app/downloads/Candoa.dmg` serves the latest build.
 
@@ -122,15 +123,21 @@ the site asks browsers to save it as a versioned file name such as
 
 ## Updates
 
-Candoa checks `https://candoa.app/downloads/latest.json` for updates. The app
-compares the manifest `version` with its bundled `CFBundleShortVersionString`.
-When the manifest is newer, the app exposes an available update that opens the
-latest DMG download URL.
+Candoa uses Sparkle for automatic updates. The app reads
+`https://candoa.app/downloads/appcast.xml` from `SUFeedURL`, verifies update
+archives with the embedded `SUPublicEDKey`, and can download/install updates
+through Sparkle's standard updater UI.
 
-The current updater is intentionally simple: it is a check-and-download flow,
-not a Sparkle-style background installer. A production-ready public release
-should add Developer ID signing, notarization, release notes, and either a
-signed in-app update framework or a clearly guided manual replace/install flow.
+The GitHub Actions workflow signs Sparkle updates with the
+`SPARKLE_PRIVATE_KEY` repository secret and publishes the appcast alongside the
+site download files. Keep the private key out of source control.
+
+`https://candoa.app/downloads/latest.json` still exists for the website's
+versioned download filename and lightweight metadata, but Sparkle owns in-app
+update detection and installation.
+
+Current automated builds are ad-hoc signed for local distribution. A public
+release should be Developer ID signed and notarized before broad distribution.
 
 The DMG packaging script can also be run locally:
 
@@ -140,9 +147,6 @@ Scripts/package_dmg.sh \
   build/DerivedData/Build/Products/Release/Candoa.app \
   artifacts/Candoa.dmg
 ```
-
-Current automated builds are ad-hoc signed for local distribution. A public
-release should be Developer ID signed and notarized before broad distribution.
 
 ## iCloud Sync
 

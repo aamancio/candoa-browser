@@ -3,7 +3,7 @@ import SwiftUI
 
 struct ContentView: View {
     @StateObject private var store = BrowserStore()
-    @StateObject private var updateService = AppUpdateService()
+    @StateObject private var updateService = AppUpdateService.shared
     @StateObject private var systemAppearance = SystemAppearanceObserver()
     @Environment(\.scenePhase) private var scenePhase
     @SceneStorage("candoa.windowAutosaveID") private var windowAutosaveID = UUID().uuidString

@@ -20,8 +20,18 @@
 	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
-	<key>CandoaUpdateManifestURL</key>
-	<string>https://candoa.app/downloads/latest.json</string>
+	<key>SUAutomaticallyUpdate</key>
+	<true/>
+	<key>SUEnableAutomaticChecks</key>
+	<true/>
+	<key>SUEnableInstallerLauncherService</key>
+	<true/>
+	<key>SUFeedURL</key>
+	<string>https://candoa.app/downloads/appcast.xml</string>
+	<key>SUPublicEDKey</key>
+	<string>7hlen0OBf/rnp6rzc7HciDscLkSbL84t0oppJCAUVf4=</string>
+	<key>SUScheduledCheckInterval</key>
+	<integer>21600</integer>
 	<key>LSApplicationCategoryType</key>
 	<string>public.app-category.productivity</string>
 	<key>NSAppTransportSecurity</key>
