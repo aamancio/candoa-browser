@@ -115,11 +115,12 @@ GitHub Actions workflow. That workflow:
    and Sparkle's signed `public/downloads/appcast.xml` to
    `aamancio/candoa-site`.
 5. Lets Vercel deploy the updated site so
-   `https://candoa.app/downloads/Candoa.dmg` serves the latest build.
+   `https://candoa.app/downloads/Candoa-<version>.dmg` serves the user-facing
+   installer.
 
-The stable download URL remains `https://candoa.app/downloads/Candoa.dmg`, but
-the site asks browsers to save it as a versioned file name such as
-`Candoa 0.1.0.dmg`.
+The stable download URL remains `https://candoa.app/downloads/Candoa.dmg` as a
+fallback, but the site points download buttons at the versioned archive and asks
+browsers to save it as a versioned file name such as `Candoa 0.1.0.dmg`.
 
 ## Updates
 
