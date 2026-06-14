@@ -34,6 +34,13 @@ Battery/memory efficiency is the product's selling point (see "Battery Efficienc
 
 Candoa is intended to be an Arc-style browser workspace clone for macOS, while still feeling native to macOS and original in its implementation details.
 
+## Related Projects
+
+- Marketing site: `/Users/alex/Projects/Candoa/CandoaSite`
+- Public app download for the marketing site lives under `/Users/alex/Projects/Candoa/CandoaSite/public/downloads/` and should be linked from the site as `/downloads/<filename>`.
+- Prefer a drag-to-Applications DMG (`Candoa.dmg`) for public downloads. Zip builds are only for quick internal handoff.
+- The app repo workflow `.github/workflows/update-site-download.yml` builds a Release DMG on `main` pushes and commits it to the CandoaSite repo. It expects `CANDOA_SITE_DEPLOY_KEY` as a GitHub Actions secret containing a write-enabled deploy key for the site repo; optionally set `CANDOA_SITE_REPOSITORY` and `CANDOA_SITE_BRANCH` repository variables if the defaults are wrong.
+
 Use Arc as the primary product/interaction benchmark:
 - Sidebar-first browser workflow
 - Spaces, pinned tabs, vertical tabs, and keyboard-first navigation

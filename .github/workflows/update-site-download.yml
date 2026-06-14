@@ -1,0 +1,74 @@
+name: Update CandoaSite Download
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: update-candoa-site-download
+  cancel-in-progress: true
+
+jobs:
+  build-and-update-site:
+    name: Build DMG and update CandoaSite
+    runs-on: macos-latest
+    env:
+      SITE_REPOSITORY: ${{ vars.CANDOA_SITE_REPOSITORY || 'aamancio/candoa-site' }}
+      SITE_BRANCH: ${{ vars.CANDOA_SITE_BRANCH || 'main' }}
+      APP_DMG: ${{ github.workspace }}/artifacts/Candoa.dmg
+
+    steps:
+      - name: Check out Candoa
+        uses: actions/checkout@v4
+
+      - name: Build Release app
+        run: |
+          xcodebuild \
+            -project Candoa.xcodeproj \
+            -scheme Candoa \
+            -configuration Release \
+            -derivedDataPath build/DerivedData \
+            build
+
+      - name: Package DMG
+        run: |
+          mkdir -p artifacts
+          chmod +x Scripts/package_dmg.sh
+          Scripts/package_dmg.sh \
+            build/DerivedData/Build/Products/Release/Candoa.app \
+            "$APP_DMG"
+          shasum -a 256 "$APP_DMG"
+
+      - name: Check out CandoaSite
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.SITE_REPOSITORY }}
+          ref: ${{ env.SITE_BRANCH }}
+          ssh-key: ${{ secrets.CANDOA_SITE_DEPLOY_KEY }}
+          path: CandoaSite
+
+      - name: Update site download
+        run: |
+          mkdir -p CandoaSite/public/downloads
+          cp "$APP_DMG" CandoaSite/public/downloads/Candoa.dmg
+          rm -f CandoaSite/public/downloads/Candoa.zip
+
+      - name: Commit site download
+        working-directory: CandoaSite
+        run: |
+          if [ -z "$(git status --porcelain -- public/downloads/Candoa.dmg public/downloads/Candoa.zip)" ]; then
+            echo "Candoa.dmg is unchanged; nothing to commit."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/downloads/Candoa.dmg
+          git add -u public/downloads/Candoa.zip || true
+          git commit -m "Update Candoa download from ${GITHUB_SHA::7}"
+          git push origin "HEAD:$SITE_BRANCH"
