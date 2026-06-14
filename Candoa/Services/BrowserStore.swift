@@ -1329,19 +1329,28 @@ final class BrowserStore: ObservableObject {
     private func startTabDragSessionWatcher(for tabID: UUID) {
         tabDragSessionWatcher?.invalidate()
         let watcher = Timer(timeInterval: 0.1, repeats: true) { [weak self] timer in
-            guard let self, self.draggedTabID == tabID else {
+            guard let self else {
                 timer.invalidate()
                 return
             }
-            guard NSEvent.pressedMouseButtons & 0x1 == 0 else { return }
-            timer.invalidate()
-            self.tabDragSessionWatcher = nil
-            // The button is up. A drop on a real target delivers performDrop
-            // in this same runloop turn; wait a beat so that path consumes
-            // the ID first, then clear it if no drop target did.
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { [weak self] in
-                guard let self, self.draggedTabID == tabID else { return }
-                self.draggedTabID = nil
+            MainActor.assumeIsolated {
+                guard self.draggedTabID == tabID else {
+                    self.tabDragSessionWatcher?.invalidate()
+                    self.tabDragSessionWatcher = nil
+                    return
+                }
+                guard NSEvent.pressedMouseButtons & 0x1 == 0 else { return }
+                self.tabDragSessionWatcher?.invalidate()
+                self.tabDragSessionWatcher = nil
+                // The button is up. A drop on a real target delivers performDrop
+                // in this same runloop turn; wait a beat so that path consumes
+                // the ID first, then clear it if no drop target did.
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { [weak self] in
+                    MainActor.assumeIsolated {
+                        guard let self, self.draggedTabID == tabID else { return }
+                        self.draggedTabID = nil
+                    }
+                }
             }
         }
         tabDragSessionWatcher = watcher
