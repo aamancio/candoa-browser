@@ -105,38 +105,13 @@ The public marketing site and download live in the separate
 [`aamancio/candoa-site`](https://github.com/aamancio/candoa-site) repository.
 The production site is deployed on Vercel at [candoa.app](https://candoa.app).
 
-Pushing to `main` in this repository runs the **Update CandoaSite Download**
-GitHub Actions workflow. That workflow:
-
-1. Builds the `Candoa` Xcode scheme in Release.
-2. Signs the app with a Developer ID Application certificate.
-3. Packages `Candoa.app` into a drag-to-Applications `Candoa.dmg`.
-4. Signs, notarizes, staples, and Gatekeeper-assesses the DMG.
-5. Reads the app version from `CFBundleShortVersionString`.
-6. Commits the latest DMG, a versioned archive, `public/downloads/latest.json`,
-   and Sparkle's signed `public/downloads/appcast.xml` to
-   `aamancio/candoa-site`.
-7. Lets Vercel deploy the updated site so
-   `https://candoa.app/downloads/Candoa.dmg` serves the user-facing
-   installer.
+Pushing to `main` in this repository publishes a signed, notarized,
+drag-to-Applications DMG to the marketing site.
 
 The stable download URL is `https://candoa.app/downloads/Candoa.dmg`. The
 versioned archive remains available for internal handoff, and `latest.json`
 still provides the displayed app version and suggested download filename, such
 as `Candoa 0.1.0.dmg`.
-
-The workflow requires these GitHub Actions secrets:
-
-- `APPLE_TEAM_ID`: Apple Developer team ID.
-- `DEVELOPER_ID_CERTIFICATE_BASE64`: Base64-encoded `.p12` export containing
-  the Developer ID Application certificate and private key.
-- `DEVELOPER_ID_CERTIFICATE_PASSWORD`: Password for that `.p12`.
-- `APPLE_NOTARY_KEY_BASE64`: Base64-encoded App Store Connect API private key
-  file, usually named `AuthKey_<KEY_ID>.p8`.
-- `APPLE_NOTARY_KEY_ID`: App Store Connect API key ID.
-- `APPLE_NOTARY_ISSUER_ID`: App Store Connect issuer ID.
-- `CANDOA_SITE_DEPLOY_KEY`: Write-enabled deploy key for the site repository.
-- `SPARKLE_PRIVATE_KEY`: Sparkle EdDSA private key used to sign appcasts.
 
 ## Updates
 
@@ -145,9 +120,7 @@ Candoa uses Sparkle for automatic updates. The app reads
 archives with the embedded `SUPublicEDKey`, and can download/install updates
 through Sparkle's standard updater UI.
 
-The GitHub Actions workflow signs Sparkle updates with the
-`SPARKLE_PRIVATE_KEY` repository secret and publishes the appcast alongside the
-site download files. Keep the private key out of source control.
+The release workflow publishes the appcast alongside the site download files.
 
 `https://candoa.app/downloads/latest.json` still exists for the website's
 versioned download filename and lightweight metadata, but Sparkle owns in-app
