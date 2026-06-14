@@ -92,13 +92,15 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         webView.allowsMagnification = true
         webView.isInspectable = WebInspectorConfiguration.isEnabled
         webView.customUserAgent = Self.desktopSafariUserAgent
-        webView.setValue(false, forKey: "drawsBackground")
+        webView.underPageBackgroundColor = .white
 
         // Web content appearance is decoupled from the window chrome (Arc's
         // model): the space theme and the system's dark mode color only the
         // chrome, never the page. Pinning the web view to aqua makes
         // `prefers-color-scheme` report light, so a dark system or a dark/
-        // colored space theme never flips websites into dark mode.
+        // colored space theme never flips websites into dark mode. The page
+        // backing stays explicitly white because some sites leave large
+        // document regions transparent and rely on the browser canvas.
         //
         // This is the fixed-light end of Zen's `content-override` axis. If a
         // user-facing "Website appearance: Auto / Light / Dark" control is
