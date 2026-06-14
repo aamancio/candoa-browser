@@ -109,11 +109,28 @@ Pushing to `main` in this repository runs the **Update CandoaSite Download**
 GitHub Actions workflow. That workflow:
 
 1. Builds the `Candoa` Xcode scheme in Release.
-2. Packages `Candoa.app` into a drag-to-Applications `Candoa.dmg`.
-3. Commits the DMG to `aamancio/candoa-site` at
-   `public/downloads/Candoa.dmg`.
-4. Lets Vercel deploy the updated site so
+2. Reads the app version from `CFBundleShortVersionString`.
+3. Packages `Candoa.app` into a drag-to-Applications `Candoa.dmg`.
+4. Commits the latest DMG, a versioned display filename, and
+   `public/downloads/latest.json` to `aamancio/candoa-site`.
+5. Lets Vercel deploy the updated site so
    `https://candoa.app/downloads/Candoa.dmg` serves the latest build.
+
+The stable download URL remains `https://candoa.app/downloads/Candoa.dmg`, but
+the site asks browsers to save it as a versioned file name such as
+`Candoa 0.1.0.dmg`.
+
+## Updates
+
+Candoa checks `https://candoa.app/downloads/latest.json` for updates. The app
+compares the manifest `version` with its bundled `CFBundleShortVersionString`.
+When the manifest is newer, the app exposes an available update that opens the
+latest DMG download URL.
+
+The current updater is intentionally simple: it is a check-and-download flow,
+not a Sparkle-style background installer. A production-ready public release
+should add Developer ID signing, notarization, release notes, and either a
+signed in-app update framework or a clearly guided manual replace/install flow.
 
 The DMG packaging script can also be run locally:
 

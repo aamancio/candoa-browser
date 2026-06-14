@@ -21,6 +21,7 @@ jobs:
       SITE_REPOSITORY: ${{ vars.CANDOA_SITE_REPOSITORY || 'aamancio/candoa-site' }}
       SITE_BRANCH: ${{ vars.CANDOA_SITE_BRANCH || 'main' }}
       APP_DMG: ${{ github.workspace }}/artifacts/Candoa.dmg
+      APP_BUNDLE: ${{ github.workspace }}/build/DerivedData/Build/Products/Release/Candoa.app
 
     steps:
       - name: Check out Candoa
@@ -40,9 +41,19 @@ jobs:
           mkdir -p artifacts
           chmod +x Scripts/package_dmg.sh
           Scripts/package_dmg.sh \
-            build/DerivedData/Build/Products/Release/Candoa.app \
+            "$APP_BUNDLE" \
             "$APP_DMG"
           shasum -a 256 "$APP_DMG"
+
+      - name: Read app version
+        run: |
+          APP_VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP_BUNDLE/Contents/Info.plist")"
+          APP_BUILD="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$APP_BUNDLE/Contents/Info.plist")"
+          {
+            echo "APP_VERSION=$APP_VERSION"
+            echo "APP_BUILD=$APP_BUILD"
+            echo "APP_FILE_NAME=Candoa $APP_VERSION.dmg"
+          } >> "$GITHUB_ENV"
 
       - name: Check out CandoaSite
         uses: actions/checkout@v4
@@ -56,19 +67,38 @@ jobs:
         run: |
           mkdir -p CandoaSite/public/downloads
           cp "$APP_DMG" CandoaSite/public/downloads/Candoa.dmg
+          find CandoaSite/public/downloads -maxdepth 1 -type f -name 'Candoa *.dmg' -delete
+          cp "$APP_DMG" "CandoaSite/public/downloads/$APP_FILE_NAME"
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          manifest = {
+              "version": os.environ["APP_VERSION"],
+              "build": os.environ["APP_BUILD"],
+              "fileName": os.environ["APP_FILE_NAME"],
+              "downloadURL": "https://candoa.app/downloads/Candoa.dmg",
+              "releaseNotesURL": "https://github.com/aamancio/candoa/releases",
+          }
+
+          Path("CandoaSite/public/downloads/latest.json").write_text(
+              json.dumps(manifest, indent=2) + "\n",
+              encoding="utf-8",
+          )
+          PY
           rm -f CandoaSite/public/downloads/Candoa.zip
 
       - name: Commit site download
         working-directory: CandoaSite
         run: |
-          if [ -z "$(git status --porcelain -- public/downloads/Candoa.dmg public/downloads/Candoa.zip)" ]; then
-            echo "Candoa.dmg is unchanged; nothing to commit."
+          if [ -z "$(git status --porcelain -- public/downloads)" ]; then
+            echo "Candoa download is unchanged; nothing to commit."
             exit 0
           fi
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add public/downloads/Candoa.dmg
-          git add -u public/downloads/Candoa.zip || true
-          git commit -m "Update Candoa download from ${GITHUB_SHA::7}"
+          git add public/downloads
+          git commit -m "Update Candoa $APP_VERSION download from ${GITHUB_SHA::7}"
           git push origin "HEAD:$SITE_BRANCH"
