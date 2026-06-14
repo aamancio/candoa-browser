@@ -23,19 +23,84 @@ jobs:
       APP_DMG: ${{ github.workspace }}/artifacts/Candoa.dmg
       APP_BUNDLE: ${{ github.workspace }}/build/DerivedData/Build/Products/Release/Candoa.app
       SPARKLE_VERSION: 2.9.3
+      SIGNING_KEYCHAIN_PATH: ${{ runner.temp }}/candoa-signing.keychain-db
+      CODE_SIGN_IDENTITY: Developer ID Application
 
     steps:
       - name: Check out Candoa
         uses: actions/checkout@v4
 
+      - name: Validate release signing secrets
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          DEVELOPER_ID_CERTIFICATE_BASE64: ${{ secrets.DEVELOPER_ID_CERTIFICATE_BASE64 }}
+          DEVELOPER_ID_CERTIFICATE_PASSWORD: ${{ secrets.DEVELOPER_ID_CERTIFICATE_PASSWORD }}
+          APPLE_NOTARY_KEY_BASE64: ${{ secrets.APPLE_NOTARY_KEY_BASE64 }}
+          APPLE_NOTARY_KEY_ID: ${{ secrets.APPLE_NOTARY_KEY_ID }}
+          APPLE_NOTARY_ISSUER_ID: ${{ secrets.APPLE_NOTARY_ISSUER_ID }}
+        run: |
+          missing=0
+          for name in \
+            APPLE_TEAM_ID \
+            DEVELOPER_ID_CERTIFICATE_BASE64 \
+            DEVELOPER_ID_CERTIFICATE_PASSWORD \
+            APPLE_NOTARY_KEY_BASE64 \
+            APPLE_NOTARY_KEY_ID \
+            APPLE_NOTARY_ISSUER_ID
+          do
+            if [ -z "${!name}" ]; then
+              echo "$name secret is required for Developer ID signing and notarization." >&2
+              missing=1
+            fi
+          done
+          exit "$missing"
+
+      - name: Import Developer ID certificate
+        env:
+          DEVELOPER_ID_CERTIFICATE_BASE64: ${{ secrets.DEVELOPER_ID_CERTIFICATE_BASE64 }}
+          DEVELOPER_ID_CERTIFICATE_PASSWORD: ${{ secrets.DEVELOPER_ID_CERTIFICATE_PASSWORD }}
+        run: |
+          CERTIFICATE_PATH="$RUNNER_TEMP/developer-id-certificate.p12"
+          KEYCHAIN_PASSWORD="$(uuidgen)"
+
+          printf '%s' "$DEVELOPER_ID_CERTIFICATE_BASE64" | base64 --decode > "$CERTIFICATE_PATH"
+
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$SIGNING_KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$SIGNING_KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$SIGNING_KEYCHAIN_PATH"
+          security import "$CERTIFICATE_PATH" \
+            -P "$DEVELOPER_ID_CERTIFICATE_PASSWORD" \
+            -A \
+            -t cert \
+            -f pkcs12 \
+            -k "$SIGNING_KEYCHAIN_PATH"
+          security set-key-partition-list \
+            -S apple-tool:,apple:,codesign: \
+            -s \
+            -k "$KEYCHAIN_PASSWORD" \
+            "$SIGNING_KEYCHAIN_PATH"
+          security list-keychains -d user -s "$SIGNING_KEYCHAIN_PATH"
+          security find-identity -v -p codesigning "$SIGNING_KEYCHAIN_PATH"
+
       - name: Build Release app
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
           xcodebuild \
             -project Candoa.xcodeproj \
             -scheme Candoa \
             -configuration Release \
             -derivedDataPath build/DerivedData \
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY="$CODE_SIGN_IDENTITY" \
+            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
+            OTHER_CODE_SIGN_FLAGS="--timestamp" \
             build
+
+      - name: Verify app signature
+        run: |
+          codesign --verify --deep --strict --verbose=2 "$APP_BUNDLE"
+          codesign --display --verbose=4 "$APP_BUNDLE"
 
       - name: Package DMG
         run: |
@@ -45,6 +110,27 @@ jobs:
             "$APP_BUNDLE" \
             "$APP_DMG"
           shasum -a 256 "$APP_DMG"
+
+      - name: Sign, notarize, and staple DMG
+        env:
+          APPLE_NOTARY_KEY_BASE64: ${{ secrets.APPLE_NOTARY_KEY_BASE64 }}
+          APPLE_NOTARY_KEY_ID: ${{ secrets.APPLE_NOTARY_KEY_ID }}
+          APPLE_NOTARY_ISSUER_ID: ${{ secrets.APPLE_NOTARY_ISSUER_ID }}
+        run: |
+          NOTARY_KEY_PATH="$RUNNER_TEMP/AuthKey_$APPLE_NOTARY_KEY_ID.p8"
+          printf '%s' "$APPLE_NOTARY_KEY_BASE64" | base64 --decode > "$NOTARY_KEY_PATH"
+
+          codesign --sign "$CODE_SIGN_IDENTITY" --timestamp "$APP_DMG"
+          codesign --verify --verbose=2 "$APP_DMG"
+
+          xcrun notarytool submit "$APP_DMG" \
+            --key "$NOTARY_KEY_PATH" \
+            --key-id "$APPLE_NOTARY_KEY_ID" \
+            --issuer "$APPLE_NOTARY_ISSUER_ID" \
+            --wait
+          xcrun stapler staple "$APP_DMG"
+          xcrun stapler validate "$APP_DMG"
+          spctl --assess --type open --context context:primary-signature --verbose=4 "$APP_DMG"
 
       - name: Read app version
         run: |
