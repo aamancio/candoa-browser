@@ -99,6 +99,34 @@ xcodebuild -project "Candoa.xcodeproj" -scheme "Candoa" -configuration Debug -de
 open "build/DerivedData/Build/Products/Debug/Candoa.app"
 ```
 
+## Release Builds and Downloads
+
+The public marketing site and download live in the separate
+[`aamancio/candoa-site`](https://github.com/aamancio/candoa-site) repository.
+The production site is deployed on Vercel at [candoa.app](https://candoa.app).
+
+Pushing to `main` in this repository runs the **Update CandoaSite Download**
+GitHub Actions workflow. That workflow:
+
+1. Builds the `Candoa` Xcode scheme in Release.
+2. Packages `Candoa.app` into a drag-to-Applications `Candoa.dmg`.
+3. Commits the DMG to `aamancio/candoa-site` at
+   `public/downloads/Candoa.dmg`.
+4. Lets Vercel deploy the updated site so
+   `https://candoa.app/downloads/Candoa.dmg` serves the latest build.
+
+The DMG packaging script can also be run locally:
+
+```sh
+xcodebuild -project "Candoa.xcodeproj" -scheme "Candoa" -configuration Release -derivedDataPath build/DerivedData build
+Scripts/package_dmg.sh \
+  build/DerivedData/Build/Products/Release/Candoa.app \
+  artifacts/Candoa.dmg
+```
+
+Current automated builds are ad-hoc signed for local distribution. A public
+release should be Developer ID signed and notarized before broad distribution.
+
 ## iCloud Sync
 
 Candoa is local-only by default. The Browser > iCloud Sync menu can opt the app into syncing workspace state through the user's private iCloud database. History has a separate opt-in toggle and stays local-only unless explicitly enabled.
