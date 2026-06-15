@@ -23,12 +23,14 @@ jobs:
       APP_DMG: ${{ github.workspace }}/artifacts/Candoa.dmg
       APP_BUNDLE: ${{ github.workspace }}/build/DerivedData/Build/Products/Release/Candoa.app
       SPARKLE_VERSION: 2.9.3
-      SIGNING_KEYCHAIN_PATH: ${{ runner.temp }}/candoa-signing.keychain-db
       CODE_SIGN_IDENTITY: Developer ID Application
 
     steps:
       - name: Check out Candoa
         uses: actions/checkout@v4
+
+      - name: Prepare signing keychain path
+        run: echo "SIGNING_KEYCHAIN_PATH=$RUNNER_TEMP/candoa-signing.keychain-db" >> "$GITHUB_ENV"
 
       - name: Validate release signing secrets
         env:
