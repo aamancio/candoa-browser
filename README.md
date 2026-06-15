@@ -2,9 +2,9 @@
 
 A lightweight browser workspace for macOS.
 
-Candoa is an open-source Mac browser for people who like Arc-style sidebars,
-Spaces, pinned tabs, and keyboard-first navigation, but want the app to stay
-native, quiet, and battery-conscious.
+Candoa is an open-source Mac browser for people who like sidebar-first
+browsing, Spaces, pinned tabs, and keyboard-first navigation, but want the app
+to stay native, quiet, and battery-conscious.
 
 [Website](https://candoa.app)
 
