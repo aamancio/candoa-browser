@@ -2,9 +2,9 @@
 
 A lightweight browser workspace for macOS.
 
-Candoa is an open-source Mac browser for people who like sidebar-first
-browsing, Spaces, pinned tabs, and keyboard-first navigation, but want the app
-to stay native, quiet, and battery-conscious.
+Candoa is an open-source Mac browser workspace for people who live in tabs, move
+between projects, and want browsing to stay native, quiet, and
+battery-conscious.
 
 [Website](https://candoa.app)
 
@@ -25,9 +25,7 @@ That means Candoa can focus on the workflow:
 - Optional iCloud sync for workspace state
 - Automatic updates through Sparkle
 
-Candoa is inspired by the workflow ideas in Arc and the open-source spirit of
-Zen Browser. It is not a clone of either product's branding, assets, icons, or
-exact visual identity.
+Candoa is built independently with native Apple technologies and WebKit.
 
 ## Status
 
@@ -71,14 +69,14 @@ open "build/DerivedData/Build/Products/Debug/Candoa.app"
 
 - Keep the app native to macOS.
 - Use WebKit, not Chromium, Electron, CEF, or Firefox.
-- Preserve Arc-compatible shortcuts for Arc-like features.
+- Preserve familiar browser shortcuts for comparable features.
 - Prefer native SwiftUI and AppKit controls over custom lookalikes.
 - Keep background tabs cheap so idle browsing stays efficient.
 - Avoid copying another browser's visual identity.
 
 ## Keyboard Shortcuts
 
-Candoa reserves Arc's macOS shortcut model for comparable features.
+Candoa reserves familiar macOS browser shortcuts for comparable features.
 
 - `Cmd+T`: New tab / command surface
 - `Cmd+W`: Close current tab
@@ -128,7 +126,7 @@ keyboard-first browsing, WebKit lifecycle, and battery efficiency.
 
 Please keep changes aligned with the project principles above. In particular,
 do not introduce another browser engine, do not add idle polling, and do not
-copy Arc or Zen branding, icons, assets, or exact UI.
+copy another browser's branding, icons, assets, or exact UI.
 
 ## Releases
 
