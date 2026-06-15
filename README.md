@@ -61,7 +61,7 @@ Open `Candoa.xcodeproj`, select the `Candoa` scheme, then build and run.
 From Terminal:
 
 ```sh
-cd ~/Projects/Candoa/candoa-browser
+cd ~/Projects/Candoa/CandoaBrowser
 xcodebuild -project "Candoa.xcodeproj" -scheme "Candoa" -configuration Debug -derivedDataPath build/DerivedData build
 open "build/DerivedData/Build/Products/Debug/Candoa.app"
 ```
