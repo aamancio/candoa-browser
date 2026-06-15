@@ -45,6 +45,11 @@ Get the latest public build from the website:
 
 [candoa.app](https://candoa.app)
 
+## Related
+
+- Website: [candoa.app](https://candoa.app)
+- Marketing site source: [aamancio/candoa-site](https://github.com/aamancio/candoa-site)
+
 ## Build From Source
 
 Requirements:
