@@ -151,3 +151,5 @@ Candoa is open source under the Mozilla Public License 2.0. See `LICENSE`.
 
 The Candoa name, icon, and app identity are not covered by the source-code
 license. Forks and modified builds should use a different name and identity.
+
+See `TRADEMARKS.md` for the project trademark policy.
