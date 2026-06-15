@@ -6,7 +6,7 @@ Candoa is an open-source Mac browser for people who like Arc-style sidebars,
 Spaces, pinned tabs, and keyboard-first navigation, but want the app to stay
 native, quiet, and battery-conscious.
 
-[Download](https://candoa.app/downloads/Candoa.dmg) - [Website](https://candoa.app) - [Updates](https://candoa.app/downloads/appcast.xml)
+[Website](https://candoa.app)
 
 ## Why Candoa
 
@@ -41,17 +41,9 @@ not implementation details.
 
 ## Download
 
-The latest public build is available here:
+Get the latest public build from the website:
 
-```text
-https://candoa.app/downloads/Candoa.dmg
-```
-
-Installed builds check for updates using Sparkle and the public appcast at:
-
-```text
-https://candoa.app/downloads/appcast.xml
-```
+[candoa.app](https://candoa.app)
 
 ## Build From Source
 
