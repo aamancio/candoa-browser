@@ -229,7 +229,7 @@ jobs:
               "stableDownloadURL": "https://candoa.app/downloads/Candoa.dmg",
               "archiveURL": f"https://candoa.app/downloads/{os.environ['APP_ARCHIVE_NAME']}",
               "appcastURL": "https://candoa.app/downloads/appcast.xml",
-              "releaseNotesURL": "https://github.com/aamancio/candoa/releases",
+              "releaseNotesURL": "https://github.com/aamancio/candoa-browser/releases",
           }
 
           Path("CandoaSite/public/downloads/latest.json").write_text(

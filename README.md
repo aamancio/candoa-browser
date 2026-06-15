@@ -46,6 +46,7 @@ Get the latest public build from the website:
 ## Related
 
 - Website: [candoa.app](https://candoa.app)
+- App source: [aamancio/candoa-browser](https://github.com/aamancio/candoa-browser)
 - Marketing site source: [aamancio/candoa-site](https://github.com/aamancio/candoa-site)
 
 ## Build From Source
@@ -60,7 +61,7 @@ Open `Candoa.xcodeproj`, select the `Candoa` scheme, then build and run.
 From Terminal:
 
 ```sh
-cd ~/Projects/Candoa/Candoa
+cd ~/Projects/Candoa/candoa-browser
 xcodebuild -project "Candoa.xcodeproj" -scheme "Candoa" -configuration Debug -derivedDataPath build/DerivedData build
 open "build/DerivedData/Build/Products/Debug/Candoa.app"
 ```
