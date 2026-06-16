@@ -1,5 +1,5 @@
 import Foundation
-import WebKit
+import AppKit
 
 @MainActor
 final class FaviconService {
@@ -20,7 +20,10 @@ final class FaviconService {
     }
 
     func faviconData(for pageURL: URL?, candidateURL: URL?) async -> Data? {
-        let candidates = faviconCandidates(pageURL: pageURL, candidateURL: candidateURL)
+        var candidates = faviconCandidates(pageURL: pageURL, candidateURL: candidateURL)
+        if candidateURL == nil, let pageURL {
+            candidates.append(contentsOf: await discoverIconCandidates(from: pageURL))
+        }
 
         for url in candidates {
             if let cachedData = cache.object(forKey: url as NSURL) {
@@ -33,6 +36,77 @@ final class FaviconService {
         }
 
         return nil
+    }
+
+    private func discoverIconCandidates(from pageURL: URL) async -> [URL] {
+        guard pageURL.scheme?.hasPrefix("http") == true else { return [] }
+
+        do {
+            var request = URLRequest(url: pageURL)
+            request.timeoutInterval = 8
+            request.setValue("text/html,application/xhtml+xml", forHTTPHeaderField: "Accept")
+
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard
+                let httpResponse = response as? HTTPURLResponse,
+                (200..<300).contains(httpResponse.statusCode),
+                let contentType = httpResponse.value(forHTTPHeaderField: "Content-Type")?.lowercased(),
+                contentType.contains("html"),
+                let html = String(data: data, encoding: .utf8) ?? String(data: data, encoding: .ascii)
+            else {
+                return []
+            }
+
+            return iconCandidates(in: html, relativeTo: pageURL)
+        } catch {
+            return []
+        }
+    }
+
+    private func iconCandidates(in html: String, relativeTo pageURL: URL) -> [URL] {
+        guard let regex = try? NSRegularExpression(
+            pattern: #"<link\b[^>]*>"#,
+            options: [.caseInsensitive]
+        ) else {
+            return []
+        }
+
+        let range = NSRange(html.startIndex..<html.endIndex, in: html)
+        let urls = regex.matches(in: html, range: range).compactMap { match -> URL? in
+            guard
+                let tagRange = Range(match.range, in: html),
+                let rel = attributeValue(named: "rel", in: String(html[tagRange]))?.lowercased(),
+                rel.contains("icon"),
+                let href = attributeValue(named: "href", in: String(html[tagRange]))
+            else {
+                return nil
+            }
+
+            return URL(string: href, relativeTo: pageURL)?.absoluteURL
+        }
+
+        return Array(NSOrderedSet(array: urls)) as? [URL] ?? urls
+    }
+
+    private func attributeValue(named name: String, in tag: String) -> String? {
+        let escapedName = NSRegularExpression.escapedPattern(for: name)
+        guard let regex = try? NSRegularExpression(
+            pattern: #"\b\#(escapedName)\s*=\s*(["'])(.*?)\1"#,
+            options: [.caseInsensitive]
+        ) else {
+            return nil
+        }
+
+        let range = NSRange(tag.startIndex..<tag.endIndex, in: tag)
+        guard
+            let match = regex.firstMatch(in: tag, range: range),
+            match.numberOfRanges > 2,
+            let valueRange = Range(match.range(at: 2), in: tag)
+        else {
+            return nil
+        }
+
+        return String(tag[valueRange])
     }
 
     private func faviconCandidates(pageURL: URL?, candidateURL: URL?) -> [URL] {
@@ -65,7 +139,8 @@ final class FaviconService {
             guard
                 let httpResponse = response as? HTTPURLResponse,
                 (200..<300).contains(httpResponse.statusCode),
-                data.count > 0
+                data.count > 0,
+                NSImage(data: data) != nil
             else {
                 return nil
             }

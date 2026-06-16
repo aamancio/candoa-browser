@@ -59,6 +59,7 @@ final class BrowserStore: ObservableObject {
     @Published var commandPaletteResumeQuery = ""
     @Published var commandPaletteSessionID = UUID()
     @Published private(set) var commandPalettePrefersCurrentTabNavigation = false
+    @Published private(set) var commandPaletteWasOpenedFromSidebarAddress = false
     @Published private(set) var commandPaletteOpensNewTab = false
     @Published var isCreateSpacePresented = false
     @Published var editingSpaceID: UUID?
@@ -305,6 +306,26 @@ final class BrowserStore: ObservableObject {
         commandPaletteResumeQuery = activeURL.flatMap(navigationService.searchQuery(from:)) ?? ""
         commandPaletteSessionID = UUID()
         commandPalettePrefersCurrentTabNavigation = true
+        commandPaletteWasOpenedFromSidebarAddress = false
+        commandPaletteOpensNewTab = false
+        presentCommandPalette()
+        addressFocusRequestID = UUID()
+    }
+
+    func focusSidebarAddressBar() {
+        guard !isInitialSpaceSetupPresented else { return }
+
+        if isCommandPalettePresented {
+            dismissCommandPalette()
+            return
+        }
+
+        let activeURL = activeTab?.url
+        commandPaletteInitialText = activeURL?.absoluteString ?? ""
+        commandPaletteResumeQuery = activeURL.flatMap(navigationService.searchQuery(from:)) ?? ""
+        commandPaletteSessionID = UUID()
+        commandPalettePrefersCurrentTabNavigation = true
+        commandPaletteWasOpenedFromSidebarAddress = true
         commandPaletteOpensNewTab = false
         presentCommandPalette()
         addressFocusRequestID = UUID()
@@ -317,6 +338,7 @@ final class BrowserStore: ObservableObject {
         commandPaletteResumeQuery = ""
         commandPaletteSessionID = UUID()
         commandPalettePrefersCurrentTabNavigation = false
+        commandPaletteWasOpenedFromSidebarAddress = false
         commandPaletteOpensNewTab = false
         presentCommandPalette()
     }
@@ -328,6 +350,7 @@ final class BrowserStore: ObservableObject {
         commandPaletteResumeQuery = ""
         commandPaletteSessionID = UUID()
         commandPalettePrefersCurrentTabNavigation = false
+        commandPaletteWasOpenedFromSidebarAddress = false
         commandPaletteOpensNewTab = true
         presentCommandPalette()
     }
@@ -348,6 +371,7 @@ final class BrowserStore: ObservableObject {
     func dismissCommandPalette() {
         isCommandPalettePresented = false
         commandPalettePrefersCurrentTabNavigation = false
+        commandPaletteWasOpenedFromSidebarAddress = false
         commandPaletteOpensNewTab = false
 
         // The palette's TextField unmounts while the window's field editor is

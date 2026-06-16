@@ -119,6 +119,7 @@ struct CommandPaletteView: View {
                     isSelected: false,
                     size: 24,
                     faviconData: headerFaviconData,
+                    usesCircularFavicon: usesCircularHeaderFavicon,
                     provider: headerIconSearchProvider
                 )
 
@@ -131,7 +132,7 @@ struct CommandPaletteView: View {
                 searchField
                     .layoutPriority(1)
 
-                if let headerSearchProvider, !isAddressEditingPalette {
+                if let headerSearchProvider, !isSidebarAddressPalette {
                     Spacer(minLength: 12)
 
                     HStack(spacing: 8) {
@@ -152,7 +153,7 @@ struct CommandPaletteView: View {
                     .layoutPriority(2)
                 }
             }
-            .padding(.horizontal, isAddressEditingPalette ? 18 : 16)
+            .padding(.horizontal, isSidebarAddressPalette ? 18 : 16)
             .padding(.vertical, paletteHeaderVerticalPadding)
 
             Rectangle()
@@ -162,7 +163,7 @@ struct CommandPaletteView: View {
             if isAskMode {
                 askConversationView
             } else {
-                ScrollView {
+                ScrollView(.vertical, showsIndicators: false) {
                     LazyVStack(spacing: 7) {
                         ForEach(Array(visibleCommands.enumerated()), id: \.element.id) { index, command in
                             Button {
@@ -204,8 +205,12 @@ struct CommandPaletteView: View {
         store.commandPalettePrefersCurrentTabNavigation
     }
 
+    private var isSidebarAddressPalette: Bool {
+        store.commandPaletteWasOpenedFromSidebarAddress
+    }
+
     private func paletteWidth(for windowWidth: CGFloat) -> CGFloat {
-        if isAddressEditingPalette {
+        if isSidebarAddressPalette {
             return min(max(0, windowWidth - Self.addressPaletteLeadingInset * 2), Self.addressPaletteMaxWidth)
         }
 
@@ -215,7 +220,7 @@ struct CommandPaletteView: View {
     }
 
     private func palettePosition(in windowSize: CGSize, width: CGFloat) -> CGPoint {
-        if isAddressEditingPalette {
+        if isSidebarAddressPalette {
             return CGPoint(
                 x: Self.addressPaletteLeadingInset + width / 2,
                 y: Self.addressPaletteTopInset + anchoredPaletteHeight / 2
@@ -233,6 +238,10 @@ struct CommandPaletteView: View {
         isAddressEditingPalette ? store.activeTab?.faviconData : nil
     }
 
+    private var usesCircularHeaderFavicon: Bool {
+        isAddressEditingPalette && !isSidebarAddressPalette
+    }
+
     /// Exact height of the visible rows (46pt rows, 7pt spacing, 11pt
     /// vertical padding), so the results area hugs its content.
     private var resultsHeight: CGFloat {
@@ -242,7 +251,7 @@ struct CommandPaletteView: View {
     /// The palette itself shrinks with its result count, but it sits inside
     /// this fixed-height anchor so typing does not recenter the surface.
     private var anchoredPaletteHeight: CGFloat {
-        if isAddressEditingPalette {
+        if isSidebarAddressPalette {
             return Self.addressPaletteHeight
         }
 
@@ -250,7 +259,7 @@ struct CommandPaletteView: View {
     }
 
     private var paletteHeaderHeight: CGFloat {
-        isAddressEditingPalette ? Self.addressHeaderHeight : Self.normalHeaderHeight
+        isSidebarAddressPalette ? Self.addressHeaderHeight : Self.normalHeaderHeight
     }
 
     private var paletteHeaderVerticalPadding: CGFloat {
@@ -258,7 +267,7 @@ struct CommandPaletteView: View {
     }
 
     private var resultsAreaHeight: CGFloat {
-        if isAddressEditingPalette {
+        if isSidebarAddressPalette {
             return max(0, anchoredPaletteHeight - paletteHeaderHeight - Self.dividerHeight)
         }
 
@@ -877,7 +886,8 @@ struct CommandPaletteView: View {
         return PaletteCommand(
             title: visit.title,
             detail: hostDisplayText(for: visit.url),
-            symbolName: "clock.arrow.circlepath",
+            symbolName: FaviconService.shared.placeholderSymbol(for: visit.url),
+            faviconPageURL: visit.url,
             searchText: "\(visit.title) \(visit.url.absoluteString)",
             style: .history,
             action: .navigate(visit.url.absoluteString)
@@ -1748,11 +1758,16 @@ private struct PaletteCommandRow: View {
     let command: PaletteCommand
     let isSelected: Bool
     let selectedTint: Color
+    @State private var isHovering = false
 
     // Arc keeps the selection highlight one constant accent everywhere;
     // provider brand colors belong on the chip, never on the selected row.
     private var backgroundColor: Color {
-        isSelected ? selectedTint : Color.clear
+        if isSelected {
+            return selectedTint
+        }
+
+        return isHovering ? Color.primary.opacity(0.10) : Color.clear
     }
 
     var body: some View {
@@ -1762,6 +1777,7 @@ private struct PaletteCommandRow: View {
                 isSelected: isSelected,
                 size: 24,
                 faviconData: command.faviconData,
+                faviconPageURL: command.faviconPageURL,
                 provider: command.provider
             )
 
@@ -1797,6 +1813,7 @@ private struct PaletteCommandRow: View {
         .contentShape(Rectangle())
         .background(backgroundColor)
         .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+        .onHover { isHovering = $0 }
     }
 }
 
@@ -1882,7 +1899,10 @@ private struct PaletteIconView: View {
     let isSelected: Bool
     let size: CGFloat
     var faviconData: Data? = nil
+    var faviconPageURL: URL? = nil
+    var usesCircularFavicon = false
     var provider: SearchProvider? = nil
+    @State private var loadedFaviconData: Data?
 
     var body: some View {
         Group {
@@ -1899,28 +1919,50 @@ private struct PaletteIconView: View {
                     .frame(width: size, height: size)
             }
         }
+        .task(id: faviconPageURL) {
+            guard faviconData == nil,
+                  loadedFaviconData == nil,
+                  let faviconPageURL
+            else {
+                return
+            }
+
+            loadedFaviconData = await FaviconService.shared.faviconData(for: faviconPageURL, candidateURL: nil)
+        }
     }
 
     private var faviconImage: NSImage? {
-        faviconData.flatMap(NSImage.init(data:))
+        (faviconData ?? loadedFaviconData).flatMap(NSImage.init(data:))
     }
 
+    @ViewBuilder
     private func faviconImageView(_ image: NSImage) -> some View {
-        Image(nsImage: image)
+        let icon = Image(nsImage: image)
             .resizable()
             .scaledToFit()
             .padding(isSelected ? size * 0.14 : 0)
             .frame(width: size, height: size)
-            .background(isSelected ? Color.white : Color.clear)
-            .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
+            .background(isSelected || usesCircularFavicon ? Color.white : Color.clear)
+
+        if usesCircularFavicon {
+            icon.clipShape(Circle())
+        } else {
+            icon.clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
+        }
     }
 
+    @ViewBuilder
     private var googleIcon: some View {
-        GoogleGMark()
+        let icon = GoogleGMark()
             .frame(width: size * 0.72, height: size * 0.72)
             .frame(width: size, height: size)
             .background(Color.white)
-            .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
+
+        if usesCircularFavicon {
+            icon.clipShape(Circle())
+        } else {
+            icon.clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
+        }
     }
 
     @ViewBuilder
@@ -2346,6 +2388,7 @@ private struct PaletteCommand: Identifiable {
     var detail: String?
     let symbolName: String
     var faviconData: Data? = nil
+    var faviconPageURL: URL? = nil
     var searchText = ""
     var style: PaletteCommandStyle = .generic
     var shortcutHint: String?

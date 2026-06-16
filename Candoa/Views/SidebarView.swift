@@ -11,6 +11,7 @@ struct SidebarView: View {
     let onToggleSidebar: () -> Void
 
     @State private var isHoveringNewTab = false
+    @State private var isHoveringAddressPill = false
 
     private let leadingInset: CGFloat = 9
     private let trailingInset: CGFloat = 9
@@ -120,6 +121,21 @@ struct SidebarView: View {
 
             Spacer(minLength: 8)
 
+            navigationControls
+                .opacity(hidesNavigationChromeForAddressPalette ? 0 : 1)
+                .allowsHitTesting(!hidesNavigationChromeForAddressPalette)
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(sidebarIconColor)
+        .frame(height: 34)
+    }
+
+    private var hidesNavigationChromeForAddressPalette: Bool {
+        store.isCommandPalettePresented && store.commandPaletteWasOpenedFromSidebarAddress
+    }
+
+    private var navigationControls: some View {
+        HStack(spacing: 6) {
             Button(action: store.goBack) {
                 Image(systemName: "arrow.left")
             }
@@ -148,14 +164,11 @@ struct SidebarView: View {
                 .help("Reload")
             }
         }
-        .buttonStyle(.plain)
-        .foregroundStyle(sidebarIconColor)
-        .frame(height: 34)
     }
 
     private var addressPill: some View {
         Button {
-            store.focusAddressBar()
+            store.focusSidebarAddressBar()
         } label: {
             HStack(spacing: 10) {
                 Image(systemName: isLocalDevelopmentURL ? "info.circle" : "magnifyingglass")
@@ -178,9 +191,14 @@ struct SidebarView: View {
             .padding(.horizontal, 11)
             .frame(height: 40)
             .background(CandoaChromeStyle.sidebarControlFill)
+            .overlay {
+                RoundedRectangle(cornerRadius: 11, style: .continuous)
+                    .fill(Color.primary.opacity(isHoveringAddressPill ? 0.07 : 0))
+            }
             .clipShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
         }
         .buttonStyle(.plain)
+        .onHover { isHoveringAddressPill = $0 }
         .help(isLocalDevelopmentURL ? "Local development server" : BrowserDefaults.addressPlaceholder)
     }
 
