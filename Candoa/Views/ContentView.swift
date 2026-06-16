@@ -63,10 +63,7 @@ struct ContentView: View {
                     // the committed command's web view swap, which interrupts
                     // the transition and strands an invisible palette that
                     // swallows every click in the window.
-                    .transition(.asymmetric(
-                        insertion: .scale(scale: 0.98).combined(with: .opacity),
-                        removal: .identity
-                    ))
+                    .transition(.identity)
                     .zIndex(10)
             }
 

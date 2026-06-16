@@ -22,8 +22,13 @@ struct CommandPaletteView: View {
     private static let commandRowHeight: CGFloat = 46
     private static let commandRowSpacing: CGFloat = 7
     private static let resultsVerticalPadding: CGFloat = 22
-    private static let headerHeight: CGFloat = 70
+    private static let normalHeaderHeight: CGFloat = 70
+    private static let addressHeaderHeight: CGFloat = 62
     private static let dividerHeight: CGFloat = 1
+    private static let addressPaletteLeadingInset: CGFloat = 5
+    private static let addressPaletteTopInset: CGFloat = 44
+    private static let addressPaletteHeight: CGFloat = 333
+    private static let addressPaletteMaxWidth: CGFloat = 440
 
     private var activeTint: Color {
         if isAskMode {
@@ -46,7 +51,7 @@ struct CommandPaletteView: View {
     }
 
     var body: some View {
-        ZStack {
+        ZStack(alignment: .topLeading) {
             Color(nsColor: .shadowColor)
                 .opacity(colorScheme == .dark ? 0.12 : 0.06)
                 .ignoresSafeArea()
@@ -54,92 +59,14 @@ struct CommandPaletteView: View {
                     dismissPalette()
                 }
 
-            VStack(spacing: 0) {
-                HStack(spacing: 10) {
-                    PaletteIconView(
-                        symbolName: leadingSymbolName,
-                        isSelected: false,
-                        size: 24,
-                        provider: headerSearchProvider
-                    )
+            GeometryReader { proxy in
+                let width = paletteWidth(for: proxy.size.width)
 
-                    if let selectedSearchProvider {
-                        PaletteChip(text: selectedSearchProvider.name, color: selectedSearchProvider.paletteColor)
-                    } else if isAskMode {
-                        PaletteChip(text: "Ask", color: Self.askTint)
-                    }
-
-                    searchField
-                        .layoutPriority(1)
-
-                    if let headerSearchProvider {
-                        Spacer(minLength: 12)
-
-                        HStack(spacing: 8) {
-                            Text("Search \(headerSearchProvider.name)")
-                                .font(.system(size: 14, weight: .semibold))
-                                .foregroundStyle(.secondary)
-                                .lineLimit(1)
-
-                            Text("Tab")
-                                .font(.system(size: 14, weight: .bold))
-                                .foregroundStyle(.secondary)
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 5)
-                                .background(Color.primary.opacity(0.08))
-                                .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
-                        }
-                        .fixedSize(horizontal: true, vertical: false)
-                        .layoutPriority(2)
-                    }
-                }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 20)
-
-                Rectangle()
-                    .fill(CandoaChromeStyle.popoverBorder)
-                    .frame(height: 1)
-
-                if isAskMode {
-                    askConversationView
-                } else {
-                    ScrollView {
-                        LazyVStack(spacing: 7) {
-                            ForEach(Array(visibleCommands.enumerated()), id: \.element.id) { index, command in
-                                Button {
-                                    run(command)
-                                } label: {
-                                    PaletteCommandRow(
-                                        command: command,
-                                        isSelected: index == selectedCommandIndex,
-                                        selectedTint: activeTint
-                                    )
-                                }
-                                .buttonStyle(.plain)
-                            }
-                        }
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 11)
-                    }
-                    // ScrollView always claims its max height; with few rows
-                    // that left a dead slab under the results. Size it to the
-                    // rows instead (Arc's bar hugs its content).
-                    .frame(height: resultsHeight)
-                }
+                paletteSurface
+                    .frame(width: width, height: anchoredPaletteHeight, alignment: .top)
+                    .position(palettePosition(in: proxy.size, width: width))
             }
-            // Zen's floating urlbar width: min(window width / 1.5, 750)
-            // (ZenUIManager.updateTabsToolbar's --zen-urlbar-width).
-            .containerRelativeFrame(.horizontal) { length, _ in
-                min(length / 1.5, 750)
-            }
-            .background(PaletteBackground())
-            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-            .overlay {
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .strokeBorder(CandoaChromeStyle.popoverBorder, lineWidth: 1)
-            }
-            .shadow(color: Color(nsColor: .shadowColor).opacity(0.24), radius: 46, y: 24)
-            .frame(height: anchoredPaletteHeight, alignment: .top)
+            .ignoresSafeArea(.container, edges: .top)
         }
         .background(
             CommandPaletteKeyMonitor(
@@ -184,8 +111,126 @@ struct CommandPaletteView: View {
         }
     }
 
+    private var paletteSurface: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 10) {
+                PaletteIconView(
+                    symbolName: leadingSymbolName,
+                    isSelected: false,
+                    size: 24,
+                    faviconData: headerFaviconData,
+                    provider: headerIconSearchProvider
+                )
+
+                if let selectedSearchProvider {
+                    PaletteChip(text: selectedSearchProvider.name, color: selectedSearchProvider.paletteColor)
+                } else if isAskMode {
+                    PaletteChip(text: "Ask", color: Self.askTint)
+                }
+
+                searchField
+                    .layoutPriority(1)
+
+                if let headerSearchProvider, !isAddressEditingPalette {
+                    Spacer(minLength: 12)
+
+                    HStack(spacing: 8) {
+                        Text("Search \(headerSearchProvider.name)")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+
+                        Text("Tab")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 5)
+                            .background(Color.primary.opacity(0.08))
+                            .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
+                    }
+                    .fixedSize(horizontal: true, vertical: false)
+                    .layoutPriority(2)
+                }
+            }
+            .padding(.horizontal, isAddressEditingPalette ? 18 : 16)
+            .padding(.vertical, paletteHeaderVerticalPadding)
+
+            Rectangle()
+                .fill(CandoaChromeStyle.popoverBorder)
+                .frame(height: 1)
+
+            if isAskMode {
+                askConversationView
+            } else {
+                ScrollView {
+                    LazyVStack(spacing: 7) {
+                        ForEach(Array(visibleCommands.enumerated()), id: \.element.id) { index, command in
+                            Button {
+                                run(command)
+                            } label: {
+                                PaletteCommandRow(
+                                    command: command,
+                                    isSelected: index == selectedCommandIndex,
+                                    selectedTint: activeTint
+                                )
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 11)
+                }
+                // ScrollView always claims its max height; with few rows
+                // that left a dead slab under the results. Size it to the
+                // rows instead (Arc's bar hugs its content).
+                .frame(height: resultsAreaHeight)
+            }
+        }
+        .frame(height: anchoredPaletteHeight, alignment: .top)
+        .background(PaletteBackground())
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .strokeBorder(CandoaChromeStyle.popoverBorder, lineWidth: 1)
+        }
+        .shadow(color: Color(nsColor: .shadowColor).opacity(0.24), radius: 46, y: 24)
+    }
+
     private var visibleCommands: [PaletteCommand] {
         Array(dedupedCommands(filteredCommands).prefix(Self.maxVisibleCommandCount))
+    }
+
+    private var isAddressEditingPalette: Bool {
+        store.commandPalettePrefersCurrentTabNavigation
+    }
+
+    private func paletteWidth(for windowWidth: CGFloat) -> CGFloat {
+        if isAddressEditingPalette {
+            return min(max(0, windowWidth - Self.addressPaletteLeadingInset * 2), Self.addressPaletteMaxWidth)
+        }
+
+        // Zen's floating urlbar width: min(window width / 1.5, 750)
+        // (ZenUIManager.updateTabsToolbar's --zen-urlbar-width).
+        return min(windowWidth / 1.5, 750)
+    }
+
+    private func palettePosition(in windowSize: CGSize, width: CGFloat) -> CGPoint {
+        if isAddressEditingPalette {
+            return CGPoint(
+                x: Self.addressPaletteLeadingInset + width / 2,
+                y: Self.addressPaletteTopInset + anchoredPaletteHeight / 2
+            )
+        }
+
+        return CGPoint(x: windowSize.width / 2, y: windowSize.height / 2)
+    }
+
+    private var headerIconSearchProvider: SearchProvider? {
+        isAddressEditingPalette ? provider(for: store.activeTab?.url) : headerSearchProvider
+    }
+
+    private var headerFaviconData: Data? {
+        isAddressEditingPalette ? store.activeTab?.faviconData : nil
     }
 
     /// Exact height of the visible rows (46pt rows, 7pt spacing, 11pt
@@ -197,7 +242,27 @@ struct CommandPaletteView: View {
     /// The palette itself shrinks with its result count, but it sits inside
     /// this fixed-height anchor so typing does not recenter the surface.
     private var anchoredPaletteHeight: CGFloat {
-        return Self.headerHeight + Self.dividerHeight + resultsHeight(for: CGFloat(Self.maxVisibleCommandCount))
+        if isAddressEditingPalette {
+            return Self.addressPaletteHeight
+        }
+
+        return Self.normalHeaderHeight + Self.dividerHeight + resultsHeight(for: CGFloat(Self.maxVisibleCommandCount))
+    }
+
+    private var paletteHeaderHeight: CGFloat {
+        isAddressEditingPalette ? Self.addressHeaderHeight : Self.normalHeaderHeight
+    }
+
+    private var paletteHeaderVerticalPadding: CGFloat {
+        max(0, (paletteHeaderHeight - 30) / 2)
+    }
+
+    private var resultsAreaHeight: CGFloat {
+        if isAddressEditingPalette {
+            return max(0, anchoredPaletteHeight - paletteHeaderHeight - Self.dividerHeight)
+        }
+
+        return resultsHeight
     }
 
     private func resultsHeight(for count: CGFloat) -> CGFloat {
@@ -408,6 +473,10 @@ struct CommandPaletteView: View {
         }
 
         let trimmedQuery = commandQueryText.trimmingCharacters(in: .whitespacesAndNewlines)
+        if isAddressEditingPalette && shouldSelectCurrentURL {
+            return defaultSuggestions
+        }
+
         let commands = commandCandidates(for: trimmedQuery, isResumingSearchURL: isResumingSearchURL)
         guard !trimmedQuery.isEmpty else { return commands }
         let isAskQuery = isAskSupported && askPrompt(from: trimmedQuery) != nil
@@ -666,6 +735,7 @@ struct CommandPaletteView: View {
                         title: tab.title,
                         detail: tab.url?.host(percentEncoded: false),
                         symbolName: tab.faviconSymbol,
+                        faviconData: tab.faviconData,
                         searchText: "\(tab.title) \(tab.url?.absoluteString ?? "")",
                         style: .tab,
                         action: .switchTab(tab.id)
@@ -797,6 +867,7 @@ struct CommandPaletteView: View {
                 title: openTab.title.isEmpty ? visit.title : openTab.title,
                 detail: hostDisplayText(for: visit.url),
                 symbolName: openTab.faviconSymbol,
+                faviconData: openTab.faviconData,
                 searchText: "\(visit.title) \(visit.url.absoluteString)",
                 style: .tab,
                 action: .switchTab(openTab.id)
@@ -828,6 +899,7 @@ struct CommandPaletteView: View {
                     title: $0.title,
                     detail: urlText.isEmpty ? spaceName : hostDisplayText(for: $0.url),
                     symbolName: $0.faviconSymbol,
+                    faviconData: $0.faviconData,
                     searchText: "\($0.title) \(spaceName) \(urlText)",
                     style: .tab,
                     action: .switchTab($0.id)
@@ -1689,6 +1761,7 @@ private struct PaletteCommandRow: View {
                 symbolName: command.symbolName,
                 isSelected: isSelected,
                 size: 24,
+                faviconData: command.faviconData,
                 provider: command.provider
             )
 
@@ -1808,11 +1881,14 @@ private struct PaletteIconView: View {
     let symbolName: String
     let isSelected: Bool
     let size: CGFloat
+    var faviconData: Data? = nil
     var provider: SearchProvider? = nil
 
     var body: some View {
         Group {
-            if let provider {
+            if let faviconImage {
+                faviconImageView(faviconImage)
+            } else if let provider {
                 providerIcon(provider)
             } else if symbolName == "google" {
                 googleIcon
@@ -1823,6 +1899,20 @@ private struct PaletteIconView: View {
                     .frame(width: size, height: size)
             }
         }
+    }
+
+    private var faviconImage: NSImage? {
+        faviconData.flatMap(NSImage.init(data:))
+    }
+
+    private func faviconImageView(_ image: NSImage) -> some View {
+        Image(nsImage: image)
+            .resizable()
+            .scaledToFit()
+            .padding(isSelected ? size * 0.14 : 0)
+            .frame(width: size, height: size)
+            .background(isSelected ? Color.white : Color.clear)
+            .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
     }
 
     private var googleIcon: some View {
@@ -2255,6 +2345,7 @@ private struct PaletteCommand: Identifiable {
     let title: String
     var detail: String?
     let symbolName: String
+    var faviconData: Data? = nil
     var searchText = ""
     var style: PaletteCommandStyle = .generic
     var shortcutHint: String?
