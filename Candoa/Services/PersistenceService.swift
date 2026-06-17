@@ -12,7 +12,7 @@ struct HistoryVisit: Identifiable, Hashable {
 }
 
 struct PersistenceSyncConfiguration: Equatable {
-    static let cloudKitContainerIdentifier = "iCloud.org.candoa.Candoa"
+    static let cloudKitContainerIdentifier = "iCloud.app.candoa.Candoa"
 
     var syncsWorkspaceWithICloud: Bool
     var syncsHistoryWithICloud: Bool

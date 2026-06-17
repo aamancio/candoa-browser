@@ -1517,7 +1517,7 @@ final class BrowserStore: ObservableObject {
 
         if enabled, !CandoaCloudKitEntitlements.hasConfiguredContainer {
             syncRestartMessage = """
-            This build is not signed with the CloudKit entitlement yet. Enable the iCloud capability for iCloud.org.candoa.Candoa in Xcode, then build with your Apple Developer team.
+            This build is not signed with the CloudKit entitlement yet. Enable the iCloud capability for iCloud.app.candoa.Candoa in Xcode, then build with your Apple Developer team.
             """
             return
         }
@@ -1539,7 +1539,7 @@ final class BrowserStore: ObservableObject {
 
         if enabled, !CandoaCloudKitEntitlements.hasConfiguredContainer {
             syncRestartMessage = """
-            This build is not signed with the CloudKit entitlement yet. Enable the iCloud capability for iCloud.org.candoa.Candoa in Xcode before syncing history.
+            This build is not signed with the CloudKit entitlement yet. Enable the iCloud capability for iCloud.app.candoa.Candoa in Xcode before syncing history.
             """
             return
         }
@@ -1948,8 +1948,8 @@ final class BrowserStore: ObservableObject {
 
     private func revertSeededColorIfNeeded() {
         // An earlier build seeded a stock blue onto the default space to avoid
-        // a plain gray window. Neutral is now the intended default (chrome
-        // follows the system, web content is pinned light), so revert that
+        // a plain gray window. Neutral is now the intended default, with chrome
+        // and web content following the resolved appearance, so revert that
         // injected color once — scoped to the single still-untouched
         // auto-seeded space so a deliberate color choice is left alone.
         let defaults = UserDefaults.standard
@@ -1965,9 +1965,9 @@ final class BrowserStore: ObservableObject {
     private static let didNormalizeSeededAppearanceKey = "candoa.didNormalizeSeededAppearance"
 
     private func normalizeSeededAppearanceIfNeeded() {
-        // The first theme seed forced .light chrome to keep pages light. That
-        // job now belongs to the pinned web view appearance, so chrome reverts
-        // to following the system. One-time correction of that earlier seed,
+        // The first theme seed forced .light chrome to keep pages light.
+        // Web content now follows the resolved window appearance, so chrome
+        // reverts to following the system. One-time correction of that earlier seed,
         // scoped to the still-untouched auto-seeded space so a deliberate
         // light choice is left alone.
         let defaults = UserDefaults.standard

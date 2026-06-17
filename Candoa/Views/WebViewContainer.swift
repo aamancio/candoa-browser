@@ -58,6 +58,7 @@ struct WebViewContainer: View {
                             }
 
                             ActiveWebViewHost(tab: tab, store: store)
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
                                 .background(CandoaChromeStyle.surfaceFill.opacity(0.72))
                                 .overlay(alignment: .top) {
                                     PageLoadingPill(
@@ -193,6 +194,7 @@ struct WebViewContainer: View {
 
             WKWebViewRepresentable(tab: tab, store: store)
                 .id(tab.id)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(CandoaChromeStyle.surfaceFill.opacity(0.72))
                 .overlay(alignment: .top) {
                     PageLoadingPill(

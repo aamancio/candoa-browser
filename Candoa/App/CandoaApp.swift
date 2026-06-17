@@ -14,6 +14,10 @@ struct CandoaApp: App {
                 )
         }
         .windowStyle(.hiddenTitleBar)
+        .defaultSize(
+            width: Self.initialWindowSize.width,
+            height: Self.initialWindowSize.height
+        )
         .commands {
             BrowserCommands()
         }
@@ -21,6 +25,17 @@ struct CandoaApp: App {
         Settings {
             ShortcutSettingsView()
         }
+    }
+
+    private static var initialWindowSize: CGSize {
+        guard let visibleFrame = NSScreen.main?.visibleFrame else {
+            return CGSize(
+                width: AppConfiguration.minimumWindowWidth,
+                height: AppConfiguration.minimumWindowHeight
+            )
+        }
+
+        return CGSize(width: visibleFrame.width, height: visibleFrame.height)
     }
 }
 

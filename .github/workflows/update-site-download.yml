@@ -159,9 +159,11 @@ jobs:
         run: |
           APP_VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP_BUNDLE/Contents/Info.plist")"
           APP_BUILD="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$APP_BUNDLE/Contents/Info.plist")"
+          APP_BUNDLE_IDENTIFIER="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP_BUNDLE/Contents/Info.plist")"
           {
             echo "APP_VERSION=$APP_VERSION"
             echo "APP_BUILD=$APP_BUILD"
+            echo "APP_BUNDLE_IDENTIFIER=$APP_BUNDLE_IDENTIFIER"
             echo "APP_FILE_NAME=Candoa $APP_VERSION.dmg"
             echo "APP_ARCHIVE_NAME=Candoa-$APP_VERSION.dmg"
           } >> "$GITHUB_ENV"
@@ -224,6 +226,7 @@ jobs:
           manifest = {
               "version": os.environ["APP_VERSION"],
               "build": os.environ["APP_BUILD"],
+              "bundleIdentifier": os.environ["APP_BUNDLE_IDENTIFIER"],
               "fileName": os.environ["APP_FILE_NAME"],
               "downloadURL": f"https://candoa.app/downloads/{os.environ['APP_ARCHIVE_NAME']}",
               "stableDownloadURL": "https://candoa.app/downloads/Candoa.dmg",

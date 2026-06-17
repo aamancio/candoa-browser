@@ -9,22 +9,31 @@ struct WindowInteractionConfigurator: NSViewRepresentable {
     }
 
     func makeNSView(context: Context) -> NSView {
-        let view = NSView(frame: .zero)
-        DispatchQueue.main.async {
-            context.coordinator.configure(
-                window: view.window,
-                autosaveName: autosaveName
-            )
+        let view = WindowAttachmentView(frame: .zero)
+        view.configureWindow = { [coordinator = context.coordinator] window in
+            coordinator.configure(window: window, autosaveName: autosaveName)
         }
         return view
     }
 
     func updateNSView(_ nsView: NSView, context: Context) {
-        DispatchQueue.main.async {
-            context.coordinator.configure(
-                window: nsView.window,
-                autosaveName: autosaveName
-            )
+        if let view = nsView as? WindowAttachmentView {
+            view.configureWindow = { [coordinator = context.coordinator] window in
+                coordinator.configure(window: window, autosaveName: autosaveName)
+            }
+        }
+        context.coordinator.configure(
+            window: nsView.window,
+            autosaveName: autosaveName
+        )
+    }
+
+    private final class WindowAttachmentView: NSView {
+        var configureWindow: ((NSWindow?) -> Void)?
+
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            configureWindow?(window)
         }
     }
 
@@ -50,7 +59,11 @@ struct WindowInteractionConfigurator: NSViewRepresentable {
             configuredAutosaveName = autosaveName
             let restoredSavedFrame = window.setFrameUsingName(autosaveName)
             if !restoredSavedFrame {
-                window.setFrame(Self.initialWindowFrame(for: window), display: true, animate: false)
+                window.setFrame(
+                    Self.initialWindowFrame(for: window),
+                    display: window.isVisible,
+                    animate: false
+                )
             }
             _ = window.setFrameAutosaveName(autosaveName)
         }

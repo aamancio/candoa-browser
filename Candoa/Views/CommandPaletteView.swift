@@ -434,7 +434,7 @@ struct CommandPaletteView: View {
                     Text(query)
                         .foregroundStyle(.clear)
                     Text(autocompleteSuggestion.suffix)
-                        .foregroundStyle(.tertiary)
+                        .foregroundStyle(autocompleteGhostColor)
                 }
                 .font(.system(size: 17, weight: .medium))
                 .lineLimit(1)
@@ -572,6 +572,10 @@ struct CommandPaletteView: View {
         }
 
         return selectedSearchProvider == nil && !isActionsMode ? "Search or Enter URL..." : "Search..."
+    }
+
+    private var autocompleteGhostColor: Color {
+        Color.primary.opacity(colorScheme == .dark ? 0.32 : 0.22)
     }
 
     private var isResumingSearchURL: Bool {
@@ -947,6 +951,13 @@ struct CommandPaletteView: View {
         }
 
         let trimmedQuery = commandQueryText.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let autocompleteSuggestion,
+           !trimmedQuery.isEmpty,
+           selectedCommandIndex == 0 {
+            run(command(for: autocompleteSuggestion))
+            return
+        }
+
         if let selectedSearchProvider, !trimmedQuery.isEmpty {
             run(
                 PaletteCommand(
@@ -960,6 +971,28 @@ struct CommandPaletteView: View {
 
         guard let command = commands.first else { return }
         run(command)
+    }
+
+    private func command(for suggestion: PaletteAutocompleteSuggestion) -> PaletteCommand {
+        if let provider = suggestion.provider {
+            let openTab = openTab(onSiteOf: provider)
+            return PaletteCommand(
+                title: provider.name,
+                detail: openTab == nil ? "Open Site" : nil,
+                symbolName: provider.id == "google" ? "google" : provider.symbolName,
+                searchText: ([provider.name] + provider.aliases).joined(separator: " "),
+                style: .provider(provider),
+                action: openTab.map { .switchTab($0.id) } ?? .navigate(provider.homeURL.absoluteString)
+            )
+        }
+
+        return PaletteCommand(
+            title: suggestion.text,
+            detail: nil,
+            symbolName: "globe",
+            searchText: suggestion.text,
+            action: .navigate(suggestion.text)
+        )
     }
 
     private func activateSearchProviderFromQuery() {

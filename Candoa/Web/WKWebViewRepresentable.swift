@@ -22,15 +22,55 @@ struct ActiveWebViewHost: NSViewRepresentable {
     @ObservedObject var store: BrowserStore
 
     func makeNSView(context: Context) -> NSView {
-        NSView()
+        WebViewHostContainer()
     }
 
     func updateNSView(_ container: NSView, context: Context) {
         store.webCoordinator.ensureLoaded(tab)
-        store.webCoordinator.hostActiveWebView(
-            for: tab.id,
-            in: container,
-            excludingTabID: store.splitTabID
+        guard let container = container as? WebViewHostContainer else { return }
+        container.configure(
+            tabID: tab.id,
+            excludingTabID: store.splitTabID,
+            coordinator: store.webCoordinator
+        )
+    }
+}
+
+/// The active web view is manually reparented so background media tabs can
+/// stay alive without keeping every background page in the hierarchy. Keep
+/// hosted web views pinned to the SwiftUI-assigned container bounds whenever
+/// the window or surface layout changes.
+private final class WebViewHostContainer: NSView {
+    private var tabID: UUID?
+    private var excludingTabID: UUID?
+    private weak var coordinator: WebViewCoordinator?
+
+    func configure(tabID: UUID, excludingTabID: UUID?, coordinator: WebViewCoordinator) {
+        self.tabID = tabID
+        self.excludingTabID = excludingTabID
+        self.coordinator = coordinator
+        needsLayout = true
+    }
+
+    override func layout() {
+        super.layout()
+        for subview in subviews {
+            subview.frame = bounds
+        }
+
+        guard
+            window != nil,
+            !bounds.isEmpty,
+            let tabID,
+            let coordinator
+        else {
+            return
+        }
+
+        coordinator.hostActiveWebView(
+            for: tabID,
+            in: self,
+            excludingTabID: excludingTabID
         )
     }
 }

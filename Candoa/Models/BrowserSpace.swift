@@ -42,9 +42,8 @@ struct BrowserSpace: Identifiable, Codable, Hashable {
     static let defaultThemeColorHex = "#5661DD"
 
     /// Chrome follows the macOS system appearance by default — the native
-    /// behavior (Safari/Finder track system light/dark). This only themes the
-    /// chrome; web content is pinned light independently in WebViewCoordinator,
-    /// so a dark system never darkens pages.
+    /// behavior (Safari/Finder track system light/dark). Web content inherits
+    /// the resolved window appearance so sites can honor `prefers-color-scheme`.
     static let defaultThemeAppearance = SpaceThemeAppearance.automatic
 
     var id: UUID

@@ -15,6 +15,28 @@ DERIVED_DATA="$PROJECT_DIR/build/DerivedData"
 APP_PATH="$DERIVED_DATA/Build/Products/Debug/Candoa.app"
 RELAUNCH=false
 FSWATCH_BIN="$(command -v fswatch 2>/dev/null || true)"
+CANDOA_PROCESS_NAME="Candoa"
+LOCK_DIR="/tmp/candoa-autobuild.lock"
+
+acquire_lock() {
+    if mkdir "$LOCK_DIR" 2>/dev/null; then
+        echo "$$" > "$LOCK_DIR/pid"
+        trap 'rm -rf "$LOCK_DIR"' EXIT
+        return 0
+    fi
+
+    local existing_pid
+    existing_pid="$(cat "$LOCK_DIR/pid" 2>/dev/null || true)"
+    if [[ -n "$existing_pid" ]] && kill -0 "$existing_pid" 2>/dev/null; then
+        echo "Candoa autobuild is already running (pid $existing_pid)"
+        exit 0
+    fi
+
+    rm -rf "$LOCK_DIR"
+    mkdir "$LOCK_DIR"
+    echo "$$" > "$LOCK_DIR/pid"
+    trap 'rm -rf "$LOCK_DIR"' EXIT
+}
 
 if [[ -z "$FSWATCH_BIN" && -x /opt/homebrew/bin/fswatch ]]; then
     FSWATCH_BIN=/opt/homebrew/bin/fswatch
@@ -25,6 +47,47 @@ fi
 if [[ "${1:-}" == "--run" ]]; then
     RELAUNCH=true
 fi
+
+acquire_lock
+
+is_candoa_running() {
+    pgrep -x "$CANDOA_PROCESS_NAME" >/dev/null 2>&1
+}
+
+quit_candoa() {
+    if ! is_candoa_running; then
+        return 0
+    fi
+
+    osascript -e 'tell application "Candoa" to quit' 2>/dev/null || true
+
+    for _ in {1..40}; do
+        if ! is_candoa_running; then
+            return 0
+        fi
+        sleep 0.25
+    done
+
+    echo "✗ Candoa is still running; skipping relaunch to avoid duplicate app instances"
+    return 1
+}
+
+open_candoa() {
+    for _ in {1..20}; do
+        if open "$APP_PATH" >/dev/null 2>&1; then
+            for _ in {1..20}; do
+                if is_candoa_running; then
+                    return 0
+                fi
+                sleep 0.25
+            done
+        fi
+        sleep 0.25
+    done
+
+    echo "✗ Failed to reopen Candoa after build"
+    return 1
+}
 
 build() {
     echo "▸ Building…"
@@ -42,10 +105,11 @@ build() {
     fi
 
     if $RELAUNCH; then
-        # Quit (not kill -9) so the session flushes, then reopen the new build.
-        osascript -e 'tell application "Candoa" to quit' 2>/dev/null
-        sleep 0.5
-        open "$APP_PATH"
+        # Quit cleanly so the session flushes. If the old app is still
+        # exiting, do not open a second copy of the rebuilt app.
+        if quit_candoa; then
+            open_candoa
+        fi
     fi
 }
 
