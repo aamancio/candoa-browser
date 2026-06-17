@@ -1,0 +1,41 @@
+name: Task
+description: Track implementation, maintenance, release, or polish work
+title: "Task: "
+labels:
+  - type: maintenance
+  - status: needs triage
+body:
+  - type: textarea
+    id: objective
+    attributes:
+      label: Objective
+      description: What needs to be done?
+      placeholder: Describe the concrete outcome.
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope
+      description: What is included and excluded?
+      placeholder: Keep this tight enough for one PR when possible.
+    validations:
+      required: false
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: How do we know this is done?
+      placeholder: |
+        - ...
+        - ...
+    validations:
+      required: true
+  - type: textarea
+    id: verification
+    attributes:
+      label: Verification
+      description: Tests, manual checks, release checks, or energy checks needed.
+      placeholder: Include Activity Monitor or Benchmarks/powermetrics checks for web view lifecycle, timers, or hibernation changes.
+    validations:
+      required: false
