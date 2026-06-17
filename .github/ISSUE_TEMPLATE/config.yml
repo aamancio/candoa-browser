@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Questions and open-ended ideas
+    url: https://github.com/aamancio/candoa-browser/discussions
+    about: Use Discussions for questions, early product ideas, and design debate before opening a scoped issue.
