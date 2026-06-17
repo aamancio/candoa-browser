@@ -1,0 +1,56 @@
+name: Feature request
+description: Propose a user-facing capability or behavior
+title: "Feature: "
+labels:
+  - type: feature
+  - status: needs triage
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this for concrete product capabilities. Open-ended questions should start in Discussions first.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What user problem does this solve?
+      placeholder: Describe the workflow pain or missing capability.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+      description: What should Candoa do?
+      placeholder: Describe the expected interaction and result.
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Primary area
+      options:
+        - Sidebar / Spaces / Tabs
+        - WebKit / Navigation
+        - Keyboard / Command flow
+        - Battery / Hibernation
+        - Release / Packaging
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: native_behavior
+    attributes:
+      label: Native macOS behavior
+      description: Which native control, AppKit/SwiftUI pattern, or Arc-like workflow should guide this?
+      placeholder: Include references only when they clarify behavior.
+    validations:
+      required: false
+  - type: textarea
+    id: efficiency
+    attributes:
+      label: Battery and memory impact
+      description: Note any expected web view lifecycle, timer, observer, cache, or cross-process messaging impact.
+      placeholder: This should not add steady-state work, memory, or hidden active web views.
+    validations:
+      required: false
