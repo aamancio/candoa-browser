@@ -41,14 +41,11 @@ struct PersistenceSyncConfiguration: Equatable {
 enum CandoaSyncPreferences {
     private static let workspaceKey = "Candoa.Sync.WorkspaceWithICloud"
     private static let historyKey = "Candoa.Sync.HistoryWithICloud"
-    private static let legacyWorkspaceKey = "Luma.Sync.WorkspaceWithICloud"
-    private static let legacyHistoryKey = "Luma.Sync.HistoryWithICloud"
 
     static var syncsWorkspaceWithICloud: Bool {
-        get { bool(forKey: workspaceKey, legacyKey: legacyWorkspaceKey) }
+        get { UserDefaults.standard.bool(forKey: workspaceKey) }
         set {
             UserDefaults.standard.set(newValue, forKey: workspaceKey)
-            UserDefaults.standard.removeObject(forKey: legacyWorkspaceKey)
             if !newValue {
                 syncsHistoryWithICloud = false
             }
@@ -56,19 +53,10 @@ enum CandoaSyncPreferences {
     }
 
     static var syncsHistoryWithICloud: Bool {
-        get { bool(forKey: historyKey, legacyKey: legacyHistoryKey) }
+        get { UserDefaults.standard.bool(forKey: historyKey) }
         set {
             UserDefaults.standard.set(newValue, forKey: historyKey)
-            UserDefaults.standard.removeObject(forKey: legacyHistoryKey)
         }
-    }
-
-    private static func bool(forKey key: String, legacyKey: String) -> Bool {
-        if UserDefaults.standard.object(forKey: key) != nil {
-            return UserDefaults.standard.bool(forKey: key)
-        }
-
-        return UserDefaults.standard.bool(forKey: legacyKey)
     }
 }
 
@@ -96,12 +84,10 @@ struct PersistenceService: @unchecked Sendable {
     static let remoteStoreDidChange = Notification.Name("Candoa.PersistenceService.RemoteStoreDidChange")
 
     private static let appName = "Candoa"
-    private static let legacyAppNames = ["Luma", "Luma Browser"]
 
     private let container: NSPersistentContainer
     private let syncConfiguration: PersistenceSyncConfiguration
     private let remoteChangeObserver: NSObjectProtocol?
-    private let loadsLegacyJSONState: Bool
 
     var syncsWorkspaceWithICloud: Bool {
         syncConfiguration.syncsWorkspaceWithICloud
@@ -116,19 +102,12 @@ struct PersistenceService: @unchecked Sendable {
         syncConfiguration: PersistenceSyncConfiguration = .current
     ) {
         self.syncConfiguration = syncConfiguration
-        loadsLegacyJSONState = storeURL == nil
         let model = Self.makeModel()
         let usesCloudKit = syncConfiguration.syncsWorkspaceWithICloud || syncConfiguration.syncsHistoryWithICloud
         let container: NSPersistentContainer = usesCloudKit
             ? NSPersistentCloudKitContainer(name: "Candoa", managedObjectModel: model)
             : NSPersistentContainer(name: "Candoa", managedObjectModel: model)
         let storeURLs = Self.storeURLs(from: storeURL)
-        if storeURL == nil {
-            Self.migrateLegacySplitStoresIfNeeded(to: storeURLs)
-        }
-        let needsLegacyMigration = storeURL == nil
-            && !FileManager.default.fileExists(atPath: storeURLs.session.path)
-            && FileManager.default.fileExists(atPath: Self.legacyCombinedStoreURL.path)
 
         container.persistentStoreDescriptions = [
             Self.storeDescription(
@@ -178,9 +157,6 @@ struct PersistenceService: @unchecked Sendable {
             NotificationCenter.default.post(name: Self.remoteStoreDidChange, object: nil)
         }
 
-        if needsLegacyMigration {
-            migrateLegacyCombinedStore(from: Self.legacyCombinedStoreURL)
-        }
     }
 
     private static func storeURLs(from baseStoreURL: URL?) -> (session: URL, history: URL) {
@@ -223,84 +199,11 @@ struct PersistenceService: @unchecked Sendable {
 
     private static var applicationSupportURL: URL {
         let baseURL = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-        let currentURL = baseURL.appendingPathComponent(appName, isDirectory: true)
-
-        if FileManager.default.fileExists(atPath: currentURL.path) {
-            return currentURL
-        }
-
-        for legacyAppName in legacyAppNames {
-            let legacyURL = baseURL.appendingPathComponent(legacyAppName, isDirectory: true)
-            guard FileManager.default.fileExists(atPath: legacyURL.path) else { continue }
-
-            do {
-                try FileManager.default.moveItem(at: legacyURL, to: currentURL)
-                return currentURL
-            } catch {
-                NSLog("\(appName) failed to move legacy application support folder: \(error.localizedDescription)")
-                return legacyURL
-            }
-        }
-
-        return currentURL
-    }
-
-    private static var legacyCombinedStoreURL: URL {
-        let lumaStoreURL = applicationSupportURL.appendingPathComponent("Luma.sqlite")
-        if FileManager.default.fileExists(atPath: lumaStoreURL.path) {
-            return lumaStoreURL
-        }
-
-        return applicationSupportURL.appendingPathComponent("Candoa.sqlite")
-    }
-
-    private static var legacyStateURL: URL {
-        applicationSupportURL.appendingPathComponent("session.json")
-    }
-
-    private static func migrateLegacySplitStoresIfNeeded(to storeURLs: (session: URL, history: URL)) {
-        let directory = storeURLs.session.deletingLastPathComponent()
-        migrateSQLiteStoreIfNeeded(
-            from: directory.appendingPathComponent("LumaSession.sqlite"),
-            to: storeURLs.session
-        )
-        migrateSQLiteStoreIfNeeded(
-            from: directory.appendingPathComponent("LumaHistory.sqlite"),
-            to: storeURLs.history
-        )
-    }
-
-    private static func migrateSQLiteStoreIfNeeded(from sourceURL: URL, to destinationURL: URL) {
-        guard !FileManager.default.fileExists(atPath: destinationURL.path),
-              FileManager.default.fileExists(atPath: sourceURL.path)
-        else {
-            return
-        }
-
-        for suffix in ["", "-shm", "-wal"] {
-            let source = URL(fileURLWithPath: sourceURL.path + suffix)
-            let destination = URL(fileURLWithPath: destinationURL.path + suffix)
-            guard FileManager.default.fileExists(atPath: source.path) else { continue }
-
-            do {
-                try FileManager.default.moveItem(at: source, to: destination)
-            } catch {
-                NSLog("\(appName) failed to move legacy store \(source.lastPathComponent): \(error.localizedDescription)")
-            }
-        }
+        return baseURL.appendingPathComponent(appName, isDirectory: true)
     }
 
     func loadState() -> BrowserWindowState? {
-        if let state = loadCoreDataState() {
-            return state
-        }
-
-        guard loadsLegacyJSONState, let legacyState = loadLegacyJSONState() else {
-            return nil
-        }
-
-        saveState(legacyState)
-        return legacyState
+        loadCoreDataState()
     }
 
     func saveState(_ state: BrowserWindowState) {
@@ -407,21 +310,12 @@ struct PersistenceService: @unchecked Sendable {
         return Self.loadCoreDataState(in: context)
     }
 
-    private func loadLegacyJSONState() -> BrowserWindowState? {
-        do {
-            let data = try Data(contentsOf: Self.legacyStateURL)
-            return try JSONDecoder.candoa.decode(BrowserWindowState.self, from: data)
-        } catch {
-            return nil
-        }
-    }
-
     private func upsert(_ state: BrowserWindowState, in context: NSManagedObjectContext) throws {
         let session = try fetchSession(in: context)
         session.setValue("main", forKey: Key.id)
         session.setValue(state.activeSpaceID, forKey: Key.activeSpaceID)
         session.setValue(state.activeTabID, forKey: Key.activeTabID)
-        session.setValue(state.splitTabID, forKey: Key.splitTabID)
+        session.setValue(Self.encodeUUIDList(state.splitTabIDs), forKey: Key.splitTabIDs)
         session.setValue(state.isSplitViewEnabled, forKey: Key.isSplitViewEnabled)
 
         let existingSpaces = try fetchObjects(entityName: Entity.space, in: context)
@@ -529,59 +423,6 @@ struct PersistenceService: @unchecked Sendable {
         return try context.fetch(request)
     }
 
-    private func migrateLegacyCombinedStore(from legacyURL: URL) {
-        let snapshot = Self.loadLegacyCombinedStore(from: legacyURL)
-
-        if let state = snapshot.state {
-            saveState(state)
-        }
-
-        guard !snapshot.historyVisits.isEmpty else { return }
-        let context = container.newBackgroundContext()
-
-        context.performAndWait {
-            do {
-                for visit in snapshot.historyVisits {
-                    Self.insert(visit, in: context)
-                }
-                try context.save()
-            } catch {
-                context.rollback()
-                NSLog("\(Self.appName) failed to migrate local history: \(error.localizedDescription)")
-            }
-        }
-    }
-
-    private static func loadLegacyCombinedStore(from legacyURL: URL) -> (
-        state: BrowserWindowState?,
-        historyVisits: [HistoryVisit]
-    ) {
-        let legacyContainer = NSPersistentContainer(
-            name: "CandoaLegacy",
-            managedObjectModel: makeModel(configuresStoreConfigurations: false)
-        )
-        let description = NSPersistentStoreDescription(url: legacyURL)
-        description.shouldAddStoreAsynchronously = false
-        description.shouldMigrateStoreAutomatically = true
-        description.shouldInferMappingModelAutomatically = true
-        legacyContainer.persistentStoreDescriptions = [description]
-
-        var loadError: Error?
-        legacyContainer.loadPersistentStores { _, error in
-            loadError = error
-        }
-
-        if let loadError {
-            NSLog("\(appName) failed to load legacy persistence store: \(loadError.localizedDescription)")
-            return (nil, [])
-        }
-
-        let context = legacyContainer.viewContext
-        let state = loadCoreDataState(in: context)
-        let visits = loadHistoryVisits(in: context)
-        return (state, visits)
-    }
-
     private static func loadCoreDataState(in context: NSManagedObjectContext) -> BrowserWindowState? {
         context.performAndWait {
             do {
@@ -614,7 +455,7 @@ struct PersistenceService: @unchecked Sendable {
                     tabs: tabs,
                     activeSpaceID: activeSpaceID,
                     activeTabID: session.uuid(for: Key.activeTabID),
-                    splitTabID: session.uuid(for: Key.splitTabID),
+                    splitTabIDs: Self.decodeUUIDList(session.string(for: Key.splitTabIDs)),
                     isSplitViewEnabled: session.bool(for: Key.isSplitViewEnabled)
                 )
             } catch {
@@ -631,7 +472,7 @@ struct PersistenceService: @unchecked Sendable {
                 request.sortDescriptors = [NSSortDescriptor(key: Key.visitedAt, ascending: true)]
                 return try context.fetch(request).compactMap(historyVisit(from:))
             } catch {
-                NSLog("\(appName) failed to load legacy history: \(error.localizedDescription)")
+                NSLog("\(appName) failed to load history: \(error.localizedDescription)")
                 return []
             }
         }
@@ -759,10 +600,21 @@ struct PersistenceService: @unchecked Sendable {
                 attribute(Key.id, .stringAttributeType, optional: false),
                 attribute(Key.activeSpaceID, .UUIDAttributeType, optional: false),
                 attribute(Key.activeTabID, .UUIDAttributeType),
-                attribute(Key.splitTabID, .UUIDAttributeType),
+                attribute(Key.splitTabIDs, .stringAttributeType),
                 attribute(Key.isSplitViewEnabled, .booleanAttributeType, optional: false)
             ]
         )
+    }
+
+    private static func encodeUUIDList(_ ids: [UUID]) -> String {
+        ids.map(\.uuidString).joined(separator: ",")
+    }
+
+    private static func decodeUUIDList(_ value: String?) -> [UUID] {
+        value?
+            .split(separator: ",")
+            .compactMap { UUID(uuidString: String($0)) }
+        ?? []
     }
 
     private static func makeSpaceEntity() -> NSEntityDescription {
@@ -892,7 +744,7 @@ private enum Key {
     static let id = "id"
     static let activeSpaceID = "activeSpaceID"
     static let activeTabID = "activeTabID"
-    static let splitTabID = "splitTabID"
+    static let splitTabIDs = "splitTabIDs"
     static let isSplitViewEnabled = "isSplitViewEnabled"
     static let name = "name"
     static let symbolName = "symbolName"

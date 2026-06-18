@@ -18,6 +18,8 @@ struct SidebarView: View {
     private let leadingInset: CGFloat = 9
     private let trailingInset: CGFloat = 9
     private let windowControlsWidth: CGFloat = 70
+    private let spaceLabelToPinnedGap: CGFloat = 3
+    private let pinnedSectionSpacing: CGFloat = 10
 
     /// Zen-style Essentials collapse unused grid tracks, so one or two tiles
     /// still consume the full row instead of leaving empty reserved slots.
@@ -65,8 +67,7 @@ struct SidebarView: View {
                 ScrollView(.vertical, showsIndicators: false) {
                     VStack(alignment: .leading, spacing: 12) {
                         favoritesSection
-                        spaceLabel
-                        pinnedAndFoldersSection
+                        spaceAndPinnedSection
 
                         VStack(alignment: .leading, spacing: 2) {
                             newTabButton
@@ -295,15 +296,23 @@ struct SidebarView: View {
 
     // MARK: - Pinned Items
 
+    private var spaceAndPinnedSection: some View {
+        VStack(alignment: .leading, spacing: spaceLabelToPinnedGap) {
+            spaceLabel
+            pinnedAndFoldersSection
+        }
+    }
+
     @ViewBuilder
     private var pinnedAndFoldersSection: some View {
-        let pinned = store.pinnedTabsForActiveSpace
+        let splitTabIDs = store.activeSplitGroupTabIDs
+        let pinned = store.pinnedTabsForActiveSpace.filter { !splitTabIDs.contains($0.id) }
         let folders = store.foldersForActiveSpace
 
         if !pinned.isEmpty || !folders.isEmpty || store.draggedTabID != nil {
             let showsPinnedAreaDivider = !pinned.isEmpty || !folders.isEmpty
 
-            VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: pinnedSectionSpacing) {
                 if !pinned.isEmpty {
                     VStack(spacing: 2) {
                         ForEach(pinned) { tab in
@@ -375,7 +384,7 @@ struct SidebarView: View {
         TabRowView(
             tab: tab,
             isActive: tab.id == store.activeTabID && !store.isNewTabPaletteActive,
-            isSplit: tab.id == store.splitTabID,
+            isSplit: store.activeSplitGroupTabIDs.contains(tab.id),
             accentColor: activeSpaceTint,
             mediaState: store.mediaStates[tab.id],
             onSelect: { store.switchTab(to: tab.id) },
@@ -394,6 +403,11 @@ struct SidebarView: View {
                 placement: .pinned,
                 targetTabID: tab.id,
                 edge: .before
+            ),
+            showsSplit: store.sidebarDropIndicator == SidebarTabDropIndicator(
+                placement: .pinned,
+                targetTabID: tab.id,
+                edge: .split
             ),
             showsBottom: store.sidebarDropIndicator == SidebarTabDropIndicator(
                 placement: .pinned,
@@ -476,10 +490,12 @@ struct SidebarView: View {
 
     @ViewBuilder
     private var tabsSection: some View {
-        let tabs = store.regularTabsForActiveSpace
+        let splitTabs = store.activeSplitGroupTabs
+        let splitTabIDs = Set(splitTabs.map(\.id))
+        let tabs = store.regularTabsForActiveSpace.filter { !splitTabIDs.contains($0.id) }
 
         VStack(alignment: .leading, spacing: 2) {
-            if tabs.isEmpty {
+            if tabs.isEmpty && splitTabs.isEmpty {
                 Text("No tabs")
                     .font(.system(size: 11))
                     .foregroundStyle(.tertiary)
@@ -498,11 +514,19 @@ struct SidebarView: View {
                 }
             } else {
                 VStack(spacing: 2) {
+                    if splitTabs.count >= 2 {
+                        SidebarSplitGroupView(
+                            store: store,
+                            tabs: splitTabs,
+                            accentColor: activeSpaceTint
+                        )
+                    }
+
                     ForEach(tabs) { tab in
                         TabRowView(
                             tab: tab,
                             isActive: tab.id == store.activeTabID && !store.isNewTabPaletteActive,
-                            isSplit: tab.id == store.splitTabID,
+                            isSplit: store.activeSplitGroupTabIDs.contains(tab.id),
                             accentColor: activeSpaceTint,
                             mediaState: store.mediaStates[tab.id],
                             onSelect: { store.switchTab(to: tab.id) },
@@ -522,6 +546,11 @@ struct SidebarView: View {
                                 placement: .regular,
                                 targetTabID: tab.id,
                                 edge: .before
+                            ),
+                            showsSplit: store.sidebarDropIndicator == SidebarTabDropIndicator(
+                                placement: .regular,
+                                targetTabID: tab.id,
+                                edge: .split
                             ),
                             showsBottom: store.sidebarDropIndicator == SidebarTabDropIndicator(
                                 placement: .regular,
@@ -2617,6 +2646,147 @@ private struct EssentialTileView: View {
     }
 }
 
+private struct SidebarSplitGroupView: View {
+    @ObservedObject var store: BrowserStore
+    let tabs: [BrowserTab]
+    let accentColor: Color
+
+    @State private var isHovering = false
+
+    var body: some View {
+        HStack(spacing: 2) {
+            ForEach(tabs) { tab in
+                SidebarSplitGroupChip(
+                    tab: tab,
+                    isActive: store.activeSplitGroupTabIDs.contains(tab.id),
+                    showsCloseButton: isHovering,
+                    accentColor: accentColor,
+                    onSelect: { select(tab) },
+                    onClose: { store.closeTab(tab.id) },
+                    onDuplicate: { store.duplicateTab(tab.id) },
+                    onOpenInSplit: { store.openSplitView(with: tab.id) },
+                    onToggleFavorite: { store.toggleFavorite(tab.id) },
+                    onTogglePin: { store.togglePin(tab.id) }
+                )
+                .opacity(store.shouldHideSidebarTab(tab.id, placement: .regular) ? 0 : 1)
+                .onDrag {
+                    store.beginTabDrag(tab.id)
+                }
+            }
+        }
+        .padding(4)
+        .frame(minHeight: 36)
+        .background(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(isHovering ? CandoaChromeStyle.sidebarControlFillHover : CandoaChromeStyle.sidebarControlFill)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .strokeBorder(
+                    isHovering ? CandoaChromeStyle.sidebarControlStroke : Color.clear,
+                    lineWidth: 1
+                )
+        }
+        .onHover { isHovering = $0 }
+        .contextMenu {
+            Button(BrowserCommandTitles.closeSplitView, action: store.closeSplitView)
+        }
+        .animation(.easeOut(duration: 0.10), value: isHovering)
+    }
+
+    private func select(_ tab: BrowserTab) {
+        if store.activeSplitGroupTabIDs.contains(tab.id) {
+            store.focusSplitTab(tab.id)
+        } else {
+            store.switchTab(to: tab.id)
+        }
+    }
+}
+
+private struct SidebarSplitGroupChip: View {
+    let tab: BrowserTab
+    let isActive: Bool
+    let showsCloseButton: Bool
+    let accentColor: Color
+    let onSelect: () -> Void
+    let onClose: () -> Void
+    let onDuplicate: () -> Void
+    let onOpenInSplit: () -> Void
+    let onToggleFavorite: () -> Void
+    let onTogglePin: () -> Void
+
+    @State private var isHovering = false
+    @State private var isHoveringCloseButton = false
+
+    var body: some View {
+        HStack(spacing: 6) {
+            faviconImage
+                .frame(width: 16, height: 16)
+
+            Spacer(minLength: 2)
+
+            Button(action: onClose) {
+                Image(systemName: "xmark")
+                    .font(.system(size: 10, weight: .semibold))
+                    .frame(width: 16, height: 16)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(CandoaChromeStyle.sidebarIcon)
+            .background(
+                Circle()
+                    .fill(isHoveringCloseButton ? CandoaChromeStyle.sidebarControlFillHover : Color.clear)
+            )
+            .opacity(showsCloseButton ? 1 : 0)
+            .accessibilityHidden(!showsCloseButton)
+            .help("Close Tab")
+            .onHover { isHoveringCloseButton = $0 }
+        }
+        .padding(.horizontal, 8)
+        .frame(maxWidth: .infinity, minHeight: 28)
+        .contentShape(Rectangle())
+        .background(chipBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .onTapGesture(perform: onSelect)
+        .onHover { isHovering = $0 }
+        .help(tab.title)
+        .contextMenu {
+            Button(tab.isFavorite ? "Remove from Favorites" : "Add to Favorites", action: onToggleFavorite)
+            Button(tab.isPinned ? "Unpin Tab" : "Pin Tab", action: onTogglePin)
+            Button(BrowserCommandTitles.duplicateTab, action: onDuplicate)
+            Button("Open in Split View", action: onOpenInSplit)
+            Button("Close Tab", action: onClose)
+        }
+        .animation(.easeOut(duration: 0.10), value: showsCloseButton)
+        .animation(.easeOut(duration: 0.10), value: isHovering)
+        .animation(.easeOut(duration: 0.10), value: isHoveringCloseButton)
+    }
+
+    private var chipBackground: Color {
+        if isHovering {
+            return CandoaChromeStyle.sidebarControlFillHover
+        }
+        if isActive {
+            return accentColor.opacity(0.12)
+        }
+        return Color.clear
+    }
+
+    @ViewBuilder
+    private var faviconImage: some View {
+        if let data = tab.faviconData, let nsImage = NSImage(data: data) {
+            Image(nsImage: nsImage)
+                .resizable()
+                .scaledToFit()
+        } else {
+            Image(systemName: tab.faviconSymbol)
+                .font(.system(size: 14.5, weight: .medium))
+                .foregroundStyle(isActive ? CandoaChromeStyle.sidebarText : CandoaChromeStyle.sidebarIcon)
+        }
+    }
+}
+
 private struct FavoriteDropZone: View {
     let onDismiss: () -> Void
 
@@ -2684,7 +2854,8 @@ private struct FolderSectionView: View {
     @FocusState private var isNameFocused: Bool
 
     private var tabs: [BrowserTab] {
-        store.tabsInFolder(folder.id)
+        let splitTabIDs = store.activeSplitGroupTabIDs
+        return store.tabsInFolder(folder.id).filter { !splitTabIDs.contains($0.id) }
     }
 
     private var isEditing: Bool {
@@ -2700,7 +2871,7 @@ private struct FolderSectionView: View {
                     TabRowView(
                         tab: tab,
                         isActive: tab.id == store.activeTabID && !store.isNewTabPaletteActive,
-                        isSplit: tab.id == store.splitTabID,
+                        isSplit: store.activeSplitGroupTabIDs.contains(tab.id),
                         accentColor: accentColor,
                         mediaState: store.mediaStates[tab.id],
                         onSelect: { store.switchTab(to: tab.id) },
@@ -2718,6 +2889,11 @@ private struct FolderSectionView: View {
                             placement: .folder(folder.id),
                             targetTabID: tab.id,
                             edge: .before
+                        ),
+                        showsSplit: store.sidebarDropIndicator == SidebarTabDropIndicator(
+                            placement: .folder(folder.id),
+                            targetTabID: tab.id,
+                            edge: .split
                         ),
                         showsBottom: store.sidebarDropIndicator == SidebarTabDropIndicator(
                             placement: .folder(folder.id),
@@ -3342,6 +3518,7 @@ private struct SidebarVerticalDropLine: View {
 private extension View {
     func sidebarRowDropIndicator(
         showsTop: Bool,
+        showsSplit: Bool = false,
         showsBottom: Bool,
         tint: Color
     ) -> some View {
@@ -3350,6 +3527,17 @@ private extension View {
                 SidebarHorizontalDropLine(tint: tint)
                     .padding(.horizontal, 8)
                     .offset(y: -2)
+            }
+        }
+        .overlay {
+            if showsSplit {
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(CandoaChromeStyle.sidebarControlFillDropTarget)
+                    .allowsHitTesting(false)
+
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .stroke(tint.opacity(0.62), lineWidth: 1)
+                    .allowsHitTesting(false)
             }
         }
         .overlay(alignment: .bottom) {
@@ -3466,6 +3654,12 @@ private struct TabReorderDropDelegate: DropDelegate {
         let edge = store.sidebarDropIndicator?.targetTabID == targetTab.id
             ? store.sidebarDropIndicator?.edge ?? dropEdge(for: info, axis: dropAxis)
             : dropEdge(for: info, axis: dropAxis)
+        if edge == .split {
+            store.splitTab(draggedID, onto: targetTab.id)
+            store.finishTabDrop(draggedID, from: sourcePlacement, to: sourcePlacement ?? placement)
+            return true
+        }
+
         let beforeID = insertionBeforeID(
             targetTabID: targetTab.id,
             edge: edge,
@@ -3535,6 +3729,11 @@ private struct FolderTabDropDelegate: DropDelegate {
             let edge = store.sidebarDropIndicator?.targetTabID == targetTab.id
                 ? store.sidebarDropIndicator?.edge ?? dropEdge(for: info)
                 : dropEdge(for: info)
+            if edge == .split {
+                store.splitTab(draggedID, onto: targetTab.id)
+                store.finishTabDrop(draggedID, from: sourcePlacement, to: sourcePlacement ?? .folder(folder.id))
+                return true
+            }
             beforeID = insertionBeforeID(
                 targetTabID: targetTab.id,
                 edge: edge,
@@ -3606,6 +3805,11 @@ private struct RegularTabSectionDropDelegate: DropDelegate {
             let targetTab = store.regularTabsForActiveSpace.first(where: { $0.id == targetID })
         {
             let edge = indicator?.edge ?? .after
+            if edge == .split {
+                store.splitTab(draggedID, onto: targetTab.id)
+                store.finishTabDrop(draggedID, from: sourcePlacement, to: sourcePlacement ?? .regular)
+                return true
+            }
             beforeID = insertionBeforeID(
                 targetTabID: targetTab.id,
                 edge: edge,
@@ -3671,6 +3875,11 @@ private struct PinnedTabSectionDropDelegate: DropDelegate {
             let targetTab = store.pinnedTabsForActiveSpace.first(where: { $0.id == targetID })
         {
             let edge = indicator?.edge ?? .after
+            if edge == .split {
+                store.splitTab(draggedID, onto: targetTab.id)
+                store.finishTabDrop(draggedID, from: sourcePlacement, to: sourcePlacement ?? .pinned)
+                return true
+            }
             beforeID = insertionBeforeID(
                 targetTabID: targetTab.id,
                 edge: edge,
@@ -3783,7 +3992,9 @@ private enum SidebarDropAxis {
 private func dropEdge(for info: DropInfo, axis: SidebarDropAxis = .vertical) -> SidebarTabDropEdge {
     switch axis {
     case .vertical:
-        return info.location.y < 16 ? .before : .after
+        if info.location.y < 9 { return .before }
+        if info.location.y > 23 { return .after }
+        return .split
     case .horizontal:
         return info.location.x < 44 ? .before : .after
     }
@@ -3795,6 +4006,7 @@ private func insertionBeforeID(
     tabs: [BrowserTab],
     draggedID: UUID
 ) -> UUID? {
+    guard edge != .split else { return nil }
     guard edge == .after else {
         return targetTabID
     }

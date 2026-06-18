@@ -30,7 +30,7 @@ struct ActiveWebViewHost: NSViewRepresentable {
         guard let container = container as? WebViewHostContainer else { return }
         container.configure(
             tabID: tab.id,
-            excludingTabID: store.splitTabID,
+            excludingTabIDs: store.activeSplitGroupTabIDs,
             coordinator: store.webCoordinator
         )
     }
@@ -42,12 +42,12 @@ struct ActiveWebViewHost: NSViewRepresentable {
 /// the window or surface layout changes.
 private final class WebViewHostContainer: NSView {
     private var tabID: UUID?
-    private var excludingTabID: UUID?
+    private var excludingTabIDs = Set<UUID>()
     private weak var coordinator: WebViewCoordinator?
 
-    func configure(tabID: UUID, excludingTabID: UUID?, coordinator: WebViewCoordinator) {
+    func configure(tabID: UUID, excludingTabIDs: Set<UUID>, coordinator: WebViewCoordinator) {
         self.tabID = tabID
-        self.excludingTabID = excludingTabID
+        self.excludingTabIDs = excludingTabIDs
         self.coordinator = coordinator
         needsLayout = true
     }
@@ -70,7 +70,7 @@ private final class WebViewHostContainer: NSView {
         coordinator.hostActiveWebView(
             for: tabID,
             in: self,
-            excludingTabID: excludingTabID
+            excludingTabIDs: excludingTabIDs
         )
     }
 }

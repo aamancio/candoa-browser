@@ -45,7 +45,7 @@ struct BrowserWindowState: Codable, Equatable {
     var tabs: [BrowserTab]
     var activeSpaceID: UUID
     var activeTabID: UUID?
-    var splitTabID: UUID?
+    var splitTabIDs: [UUID]
     var isSplitViewEnabled: Bool
 
     init(
@@ -54,7 +54,7 @@ struct BrowserWindowState: Codable, Equatable {
         tabs: [BrowserTab],
         activeSpaceID: UUID,
         activeTabID: UUID?,
-        splitTabID: UUID? = nil,
+        splitTabIDs: [UUID] = [],
         isSplitViewEnabled: Bool = false
     ) {
         self.spaces = spaces
@@ -62,7 +62,7 @@ struct BrowserWindowState: Codable, Equatable {
         self.tabs = tabs
         self.activeSpaceID = activeSpaceID
         self.activeTabID = activeTabID
-        self.splitTabID = splitTabID
+        self.splitTabIDs = splitTabIDs
         self.isSplitViewEnabled = isSplitViewEnabled
     }
 
@@ -72,7 +72,7 @@ struct BrowserWindowState: Codable, Equatable {
         case tabs
         case activeSpaceID
         case activeTabID
-        case splitTabID
+        case splitTabIDs
         case isSplitViewEnabled
     }
 
@@ -83,7 +83,7 @@ struct BrowserWindowState: Codable, Equatable {
         tabs = try container.decodeIfPresent([BrowserTab].self, forKey: .tabs) ?? []
         activeSpaceID = try container.decodeIfPresent(UUID.self, forKey: .activeSpaceID) ?? spaces.first?.id ?? UUID()
         activeTabID = try container.decodeIfPresent(UUID.self, forKey: .activeTabID)
-        splitTabID = try container.decodeIfPresent(UUID.self, forKey: .splitTabID)
+        splitTabIDs = try container.decodeIfPresent([UUID].self, forKey: .splitTabIDs) ?? []
         isSplitViewEnabled = try container.decodeIfPresent(Bool.self, forKey: .isSplitViewEnabled) ?? false
     }
 }

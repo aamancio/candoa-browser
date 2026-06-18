@@ -185,6 +185,7 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
     }
 
     private func removeWebView(for tabID: UUID, keepingHibernationData: Bool) {
+        store?.setLoading(false, for: tabID)
         if !keepingHibernationData {
             hibernatedInteractionStates[tabID] = nil
             wakeSnapshots[tabID] = nil
@@ -305,14 +306,14 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
     /// keeping background tabs' web views parented (hidden) underneath it.
     /// Unparenting a web view tears down media presentation and throttles
     /// playback, so the floating mini player explicitly rehosts its tab.
-    func hostActiveWebView(for tabID: UUID, in container: NSView, excludingTabID: UUID?) {
+    func hostActiveWebView(for tabID: UUID, in container: NSView, excludingTabIDs: Set<UUID>) {
         guard let activeWebView = webViews[tabID] else { return }
         if miniPlayerHostedTabID == tabID {
             restoreMiniPlayerPresentation(tabID: tabID)
             miniPlayerHostedTabID = nil
         }
 
-        for (id, webView) in webViews where id != tabID && id != excludingTabID && id != miniPlayerHostedTabID {
+        for (id, webView) in webViews where id != tabID && !excludingTabIDs.contains(id) && id != miniPlayerHostedTabID {
             if keepsBackgroundWebViewParented(id) {
                 guard webView.superview !== container else { continue }
                 webView.frame = container.bounds
@@ -468,7 +469,7 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
     private func isHibernatable(_ tab: BrowserTab, idleBefore cutoff: Date) -> Bool {
         guard let store else { return false }
         return tab.id != store.activeTabID
-            && tab.id != store.splitTabID
+            && !store.activeSplitGroupTabIDs.contains(tab.id)
             && tab.id != miniPlayerHostedTabID
             && tab.id != store.mediaControllerTabID
             && !tab.isPinned
@@ -1252,6 +1253,10 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         updateStore(from: webView, isLoading: false)
     }
 
+    func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
+        updateStore(from: webView, isLoading: false)
+    }
+
     func webView(
         _ webView: WKWebView,
         decidePolicyFor navigationAction: WKNavigationAction
@@ -1448,12 +1453,15 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
             popupTabIDsAwaitingFirstLoad.remove(tabID)
         }
 
+        let progress = webView.estimatedProgress
+        let resolvedIsLoading = isLoading && progress < 0.999
+
         store?.updateTabFromWebView(
             tabID: tabID,
             title: webView.title,
             url: webView.url,
-            isLoading: isLoading,
-            loadingProgress: isLoading ? webView.estimatedProgress : 1,
+            isLoading: resolvedIsLoading,
+            loadingProgress: resolvedIsLoading ? progress : 1,
             canGoBack: webView.canGoBack,
             canGoForward: webView.canGoForward
         )

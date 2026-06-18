@@ -31,14 +31,16 @@ struct WebViewContainer: View {
                 .padding(.bottom, surfacePadding)
                 .transition(.opacity)
             } else if let tab = store.activeTab {
-                if let splitTab = store.activeSplitTab {
+                let splitTabs = store.activeSplitGroupTabs
+                if splitTabs.count >= 2 {
                     HSplitView {
-                        browserSurface {
-                            webPane(for: tab, title: "Primary")
-                        }
-
-                        browserSurface {
-                            webPane(for: splitTab, title: "Split")
+                        ForEach(splitTabs) { splitTab in
+                            browserSurface {
+                                webPane(
+                                    for: splitTab,
+                                    title: splitTab.id == tab.id ? "Primary" : "Split"
+                                )
+                            }
                         }
                     }
                     .padding(surfacePadding)

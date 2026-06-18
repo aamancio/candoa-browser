@@ -42,6 +42,7 @@ enum SidebarTabDropPlacement: Equatable {
 
 enum SidebarTabDropEdge: Equatable {
     case before
+    case split
     case after
 }
 
@@ -66,6 +67,8 @@ final class BrowserStore: ObservableObject {
     }
 
     static let spaceNameCharacterLimit = 24
+    static let splitViewMaxTabs = 4
+    private static let sidebarDropSettleDelayNanoseconds: UInt64 = 480_000_000
 
     @Published private(set) var spaces: [BrowserSpace]
     @Published private(set) var folders: [BrowserFolder]
@@ -77,7 +80,7 @@ final class BrowserStore: ObservableObject {
             handleActiveTabChange(from: oldValue)
         }
     }
-    @Published var splitTabID: UUID?
+    @Published var splitTabIDs: [UUID] = []
     @Published var isSplitViewEnabled = false
     @Published var isCommandPalettePresented = false
     @Published var commandPaletteInitialText = ""
@@ -104,6 +107,7 @@ final class BrowserStore: ObservableObject {
     @Published private(set) var canGoForward = false
     @Published var draggedTabID: UUID?
     @Published private(set) var sidebarDropIndicator: SidebarTabDropIndicator?
+    @Published private var settlingDroppedTabID: UUID?
     @Published private var settlingDroppedTabSource: SidebarDroppedTabSource?
     private var tabDragSessionWatcher: Timer?
     private var dropSourceClearTask: Task<Void, Never>?
@@ -241,8 +245,22 @@ final class BrowserStore: ObservableObject {
     }
 
     var activeSplitTab: BrowserTab? {
-        guard isSplitViewEnabled, let splitTabID else { return nil }
-        return tabs.first { $0.id == splitTabID && $0.spaceID == activeSpaceID }
+        activeSplitTabs.first
+    }
+
+    var activeSplitTabs: [BrowserTab] {
+        let activeID = activeTabID
+        return splitGroupTabIDs()
+            .filter { $0 != activeID }
+            .compactMap(tab)
+    }
+
+    var activeSplitGroupTabs: [BrowserTab] {
+        splitGroupTabIDs().compactMap(tab)
+    }
+
+    var activeSplitGroupTabIDs: Set<UUID> {
+        Set(splitGroupTabIDs())
     }
 
     var visibleTabsForActiveSpace: [BrowserTab] {
@@ -310,10 +328,10 @@ final class BrowserStore: ObservableObject {
             activeTabID = restoredState.tabs.contains(where: { $0.id == restoredState.activeTabID })
                 ? restoredState.activeTabID
                 : restoredState.tabs.first(where: { $0.spaceID == activeSpaceID })?.id
-            splitTabID = restoredState.tabs.contains(where: { $0.id == restoredState.splitTabID })
-                ? restoredState.splitTabID
-                : nil
-            isSplitViewEnabled = restoredState.isSplitViewEnabled && splitTabID != nil && splitTabID != activeTabID
+            splitTabIDs = restoredState.splitTabIDs.filter { id in
+                id != activeTabID && restoredState.tabs.contains { $0.id == id && $0.spaceID == activeSpaceID }
+            }
+            isSplitViewEnabled = restoredState.isSplitViewEnabled && !splitTabIDs.isEmpty
         } else {
             // Neutral by default: no theme color, chrome follows the system.
             // The window reads as plain native gray (light or dark per the
@@ -328,15 +346,12 @@ final class BrowserStore: ObservableObject {
             tabs = []
             activeSpaceID = defaultSpace.id
             activeTabID = nil
-            splitTabID = nil
+            splitTabIDs = []
             isSplitViewEnabled = false
             shouldPresentInitialSpaceSetup = restoredState?.spaces.isEmpty ?? true
         }
 
         self.webCoordinator.attach(store: self)
-        clearLegacyDefaultSpaceName()
-        normalizeSeededAppearanceIfNeeded()
-        revertSeededColorIfNeeded()
         repairSessionState()
         shouldPresentInitialSpaceSetup = shouldPresentInitialSpaceSetup || needsInitialSpaceSetup()
         isInitialSpaceSetupPresented = shouldPresentInitialSpaceSetup
@@ -694,8 +709,8 @@ final class BrowserStore: ObservableObject {
             activeTabID = visibleTabsForActiveSpace.first?.id
         }
 
-        if let splitTabID, removedTabIDs.contains(splitTabID) {
-            self.splitTabID = nil
+        if !activeSplitGroupTabIDs.isDisjoint(with: removedTabIDs) {
+            splitTabIDs = []
             isSplitViewEnabled = false
         }
         if let editingFolderID, !folders.contains(where: { $0.id == editingFolderID }) {
@@ -746,9 +761,9 @@ final class BrowserStore: ObservableObject {
             if let movedTab = tabs.first(where: { $0.id == tabID }) {
                 webCoordinator.ensureLoaded(movedTab)
             }
-        } else if splitTabID == tabID {
-            splitTabID = nil
-            isSplitViewEnabled = false
+        } else if activeSplitGroupTabIDs.contains(tabID) {
+            splitTabIDs.removeAll { $0 == tabID }
+            isSplitViewEnabled = !splitTabIDs.isEmpty
             updateNavigationState()
         }
 
@@ -808,6 +823,9 @@ final class BrowserStore: ObservableObject {
 
     func closeTab(_ id: UUID) {
         guard let index = tabs.firstIndex(where: { $0.id == id }) else { return }
+        let previousSplitGroupIDs = splitGroupTabIDs()
+        let wasSplitGroupTab = previousSplitGroupIDs.contains(id)
+        let wasActiveTab = activeTabID == id
         let closingTab = tabs[index]
         rememberClosedTab(closingTab)
         tabs.remove(at: index)
@@ -817,12 +835,20 @@ final class BrowserStore: ObservableObject {
             mediaControllerTabID = nil
         }
 
-        if splitTabID == id {
-            splitTabID = replacementSplitTab(excluding: id)?.id
-            isSplitViewEnabled = splitTabID != nil
-        }
-
-        if activeTabID == id {
+        if wasSplitGroupTab {
+            let remainingGroupIDs = previousSplitGroupIDs.filter { $0 != id }
+            let nextActiveID = wasActiveTab
+                ? remainingGroupIDs.first
+                : activeTabID
+            applySplitGroup(remainingGroupIDs, activeID: nextActiveID)
+            if activeTabID == nil {
+                activeTabID = tabs
+                    .filter { $0.spaceID == activeSpaceID }
+                    .sorted { $0.lastAccessedAt > $1.lastAccessedAt }
+                    .first?.id
+            }
+            updateNavigationState()
+        } else if activeTabID == id {
             let nextTab = tabs
                 .filter { $0.spaceID == activeSpaceID }
                 .sorted { $0.lastAccessedAt > $1.lastAccessedAt }
@@ -1196,10 +1222,13 @@ final class BrowserStore: ObservableObject {
         if updatesAccessTime {
             tabs[index].lastAccessedAt = Date()
         }
+        let existingSplitGroupIDs = splitGroupTabIDs()
         activeSpaceID = tabs[index].spaceID
         activeTabID = id
-        if splitTabID == id {
-            splitTabID = replacementSplitTab(excluding: id)?.id
+        if existingSplitGroupIDs.contains(id) {
+            applySplitGroup(existingSplitGroupIDs, activeID: id)
+        } else if isSplitViewEnabled {
+            closeSplitView()
         }
         updateNavigationState()
     }
@@ -1218,7 +1247,7 @@ final class BrowserStore: ObservableObject {
 
     var backgroundMediaControllerTab: BrowserTab? {
         guard let tab = mediaControllerTab, tab.id != activeTabID else { return nil }
-        if isSplitViewEnabled, tab.id == splitTabID { return nil }
+        if activeSplitGroupTabIDs.contains(tab.id) { return nil }
         return tab
     }
 
@@ -1420,7 +1449,7 @@ final class BrowserStore: ObservableObject {
 
         if
             let previousID,
-            previousID != splitTabID,
+            !activeSplitGroupTabIDs.contains(previousID),
             tabs.contains(where: { $0.id == previousID })
         {
             webCoordinator.refreshMediaState(tabID: previousID)
@@ -1444,10 +1473,7 @@ final class BrowserStore: ObservableObject {
             activeTabID = nil
         }
 
-        if let splitTabID, tabs.first(where: { $0.id == splitTabID })?.spaceID != id {
-            self.splitTabID = nil
-            isSplitViewEnabled = false
-        }
+        closeSplitView()
 
         updateNavigationState()
     }
@@ -1522,7 +1548,7 @@ final class BrowserStore: ObservableObject {
     func toggleSplitView() {
         if isSplitViewEnabled {
             isSplitViewEnabled = false
-            splitTabID = nil
+            splitTabIDs = []
             return
         }
 
@@ -1532,22 +1558,65 @@ final class BrowserStore: ObservableObject {
     func openSplitView(with tabID: UUID?) {
         guard let activeTabID else { return }
         let candidateID = tabID == activeTabID ? replacementSplitTab(excluding: activeTabID)?.id : tabID
+        var groupIDs = isSplitViewEnabled ? splitGroupTabIDs() : [activeTabID]
 
         if let candidateID, tabs.contains(where: { $0.id == candidateID && $0.spaceID == activeSpaceID }) {
-            splitTabID = candidateID
+            if !groupIDs.contains(candidateID) {
+                groupIDs.append(candidateID)
+            }
         } else {
             let tab = newInternalBlankTab(in: activeSpaceID)
             self.activeTabID = activeTabID
-            splitTabID = tab.id
+            groupIDs.append(tab.id)
         }
 
-        isSplitViewEnabled = splitTabID != nil && splitTabID != activeTabID
+        if !groupIDs.contains(activeTabID) {
+            groupIDs.insert(activeTabID, at: 0)
+        }
+        applySplitGroup(groupIDs, activeID: activeTabID)
+        updateNavigationState()
+    }
+
+    func splitTab(_ draggedID: UUID, onto targetID: UUID) {
+        guard
+            draggedID != targetID,
+            let draggedTab = tabs.first(where: { $0.id == draggedID }),
+            let targetTab = tabs.first(where: { $0.id == targetID }),
+            draggedTab.spaceID == targetTab.spaceID
+        else {
+            return
+        }
+
+        activeSpaceID = targetTab.spaceID
+        var groupIDs: [UUID]
+        if isSplitViewEnabled, splitGroupTabIDs().contains(targetID) {
+            groupIDs = splitGroupTabIDs()
+            guard groupIDs.contains(draggedID) || groupIDs.count < Self.splitViewMaxTabs else { return }
+            if !groupIDs.contains(draggedID) {
+                groupIDs.append(draggedID)
+            }
+        } else {
+            groupIDs = [draggedID, targetID]
+        }
+
+        applySplitGroup(groupIDs, activeID: draggedID)
+        updateNavigationState()
+    }
+
+    func focusSplitTab(_ id: UUID) {
+        guard isSplitViewEnabled, activeSplitGroupTabIDs.contains(id), let activeTabID, activeTabID != id else {
+            switchTab(to: id)
+            return
+        }
+
+        let groupIDs = splitGroupTabIDs()
+        applySplitGroup(groupIDs, activeID: id)
         updateNavigationState()
     }
 
     func closeSplitView() {
         isSplitViewEnabled = false
-        splitTabID = nil
+        splitTabIDs = []
     }
 
     func reorderTabs(_ orderedIDs: [UUID], isFavorite: Bool, isPinned: Bool, folderID: UUID? = nil) {
@@ -1639,6 +1708,7 @@ final class BrowserStore: ObservableObject {
     func beginTabDrag(_ tabID: UUID) -> NSItemProvider {
         dropSourceClearTask?.cancel()
         dropSourceClearTask = nil
+        settlingDroppedTabID = nil
         settlingDroppedTabSource = nil
         draggedTabID = tabID
         clearSidebarDropIndicator()
@@ -1656,6 +1726,7 @@ final class BrowserStore: ObservableObject {
 
     func shouldHideSidebarTab(_ tabID: UUID, placement: SidebarTabDropPlacement) -> Bool {
         if draggedTabID == tabID { return true }
+        if settlingDroppedTabID == tabID { return true }
         return settlingDroppedTabSource == SidebarDroppedTabSource(tabID: tabID, placement: placement)
     }
 
@@ -1685,6 +1756,7 @@ final class BrowserStore: ObservableObject {
         tabDragSessionWatcher = nil
         dropSourceClearTask?.cancel()
         dropSourceClearTask = nil
+        settlingDroppedTabID = nil
         settlingDroppedTabSource = nil
     }
 
@@ -1701,18 +1773,22 @@ final class BrowserStore: ObservableObject {
         dropSourceClearTask?.cancel()
         dropSourceClearTask = nil
 
-        guard let sourcePlacement, sourcePlacement != destinationPlacement else {
-            settlingDroppedTabSource = nil
-            return
-        }
-
-        let source = SidebarDroppedTabSource(tabID: tabID, placement: sourcePlacement)
+        let settledTabID = tabID
+        let source = sourcePlacement == destinationPlacement
+            ? nil
+            : sourcePlacement.map { SidebarDroppedTabSource(tabID: tabID, placement: $0) }
+        settlingDroppedTabID = settledTabID
         settlingDroppedTabSource = source
         dropSourceClearTask = Task { [weak self] in
-            try? await Task.sleep(nanoseconds: 220_000_000)
+            try? await Task.sleep(nanoseconds: Self.sidebarDropSettleDelayNanoseconds)
             guard !Task.isCancelled else { return }
             await MainActor.run {
-                guard let self, self.settlingDroppedTabSource == source else { return }
+                guard
+                    let self,
+                    self.settlingDroppedTabID == settledTabID,
+                    self.settlingDroppedTabSource == source
+                else { return }
+                self.settlingDroppedTabID = nil
                 self.settlingDroppedTabSource = nil
                 self.dropSourceClearTask = nil
             }
@@ -1741,12 +1817,17 @@ final class BrowserStore: ObservableObject {
                 guard NSEvent.pressedMouseButtons & 0x1 == 0 else { return }
                 self.tabDragSessionWatcher?.invalidate()
                 self.tabDragSessionWatcher = nil
-                // The button is up. A drop on a real target delivers performDrop
-                // in this same runloop turn; wait a beat so that path consumes
-                // the ID first, then clear it if no drop target did.
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { [weak self] in
+                // System drag sessions can report the mouse as no longer
+                // pressed while SwiftUI is still delivering drop target
+                // updates. Keep the source row hidden if a sidebar target is
+                // still active, otherwise clear truly abandoned drags.
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) { [weak self] in
                     MainActor.assumeIsolated {
                         guard let self, self.draggedTabID == tabID else { return }
+                        if self.sidebarDropIndicator != nil {
+                            self.startTabDragSessionWatcher(for: tabID)
+                            return
+                        }
                         self.finishTabDrag()
                     }
                 }
@@ -1825,7 +1906,7 @@ final class BrowserStore: ObservableObject {
         // The internal home page is loaded via loadHTMLString and WebKit
         // reports it as about:blank; keep the tab URL-less instead of
         // surfacing the placeholder in the tab row and address bar.
-        let isInternalHomePage = Self.isLegacyBlankPlaceholderURL(url)
+        let isInternalHomePage = Self.isInternalBlankPlaceholderURL(url)
         let reportedURL = isInternalHomePage ? nil : url
 
         if isInternalHomePage {
@@ -1860,7 +1941,7 @@ final class BrowserStore: ObservableObject {
         guard
             let index = tabs.firstIndex(where: { $0.id == tabID }),
             let url,
-            !Self.isLegacyBlankPlaceholderURL(url)
+            !Self.isInternalBlankPlaceholderURL(url)
         else {
             return
         }
@@ -2011,7 +2092,7 @@ final class BrowserStore: ObservableObject {
             $tabs.map { _ in () }.eraseToAnyPublisher(),
             $activeSpaceID.map { _ in () }.eraseToAnyPublisher(),
             $activeTabID.map { _ in () }.eraseToAnyPublisher(),
-            $splitTabID.map { _ in () }.eraseToAnyPublisher(),
+            $splitTabIDs.map { _ in () }.eraseToAnyPublisher(),
             $isSplitViewEnabled.map { _ in () }.eraseToAnyPublisher()
         )
 
@@ -2053,7 +2134,7 @@ final class BrowserStore: ObservableObject {
             },
             activeSpaceID: activeSpaceID,
             activeTabID: activeTabID,
-            splitTabID: splitTabID,
+            splitTabIDs: splitTabIDs,
             isSplitViewEnabled: isSplitViewEnabled
         )
     }
@@ -2077,9 +2158,8 @@ final class BrowserStore: ObservableObject {
         tabs = remoteState.tabs
         activeSpaceID = remoteState.activeSpaceID
         activeTabID = remoteState.activeTabID
-        splitTabID = remoteState.splitTabID
+        splitTabIDs = remoteState.splitTabIDs
         isSplitViewEnabled = remoteState.isSplitViewEnabled
-        clearLegacyDefaultSpaceName()
         repairSessionState()
         isInitialSpaceSetupPresented = needsInitialSpaceSetup()
         if !isInitialSpaceSetupPresented {
@@ -2323,6 +2403,55 @@ final class BrowserStore: ObservableObject {
         visibleTabsForActiveSpace.first { $0.id != excludedID }
     }
 
+    private func tab(_ id: UUID) -> BrowserTab? {
+        tabs.first { $0.id == id && $0.spaceID == activeSpaceID }
+    }
+
+    private func splitGroupTabIDs() -> [UUID] {
+        guard isSplitViewEnabled, let activeTabID else { return [] }
+
+        var ids: [UUID] = [activeTabID]
+        ids.append(contentsOf: splitTabIDs)
+
+        var seen = Set<UUID>()
+        return ids
+            .filter { id in
+                guard !seen.contains(id), tab(id) != nil else { return false }
+                seen.insert(id)
+                return true
+            }
+            .prefix(Self.splitViewMaxTabs)
+            .map { $0 }
+    }
+
+    private func applySplitGroup(_ ids: [UUID], activeID: UUID?) {
+        var seen = Set<UUID>()
+        let validIDs = ids
+            .filter { id in
+                guard !seen.contains(id), tab(id) != nil else { return false }
+                seen.insert(id)
+                return true
+            }
+            .prefix(Self.splitViewMaxTabs)
+            .map { $0 }
+
+        guard validIDs.count >= 2 else {
+            if let activeID, validIDs.contains(activeID) {
+                activeTabID = activeID
+            } else if let firstID = validIDs.first {
+                activeTabID = firstID
+            }
+            splitTabIDs = []
+            isSplitViewEnabled = false
+            return
+        }
+
+        let resolvedActiveID = activeID.flatMap { validIDs.contains($0) ? $0 : nil } ?? validIDs[0]
+        activeTabID = resolvedActiveID
+        splitTabIDs = validIDs.filter { $0 != resolvedActiveID }
+        isSplitViewEnabled = !splitTabIDs.isEmpty
+    }
+
     private func newInternalBlankTab(in spaceID: UUID) -> BrowserTab {
         let tab = BrowserTab(
             spaceID: spaceID,
@@ -2352,8 +2481,8 @@ final class BrowserStore: ObservableObject {
             webCoordinator.ensureLoaded(activeTab)
         }
 
-        if let activeSplitTab {
-            webCoordinator.ensureLoaded(activeSplitTab)
+        for splitTab in activeSplitTabs {
+            webCoordinator.ensureLoaded(splitTab)
         }
     }
 
@@ -2377,10 +2506,6 @@ final class BrowserStore: ObservableObject {
 
         let folderSpaceByID = Dictionary(uniqueKeysWithValues: folders.map { ($0.id, $0.spaceID) })
         tabs = tabs.filter { spaceIDs.contains($0.spaceID) }
-
-        // Placeholder home tabs (about:blank / legacy Google home) are
-        // transient; spaces restore empty rather than with a stale blank tab.
-        tabs.removeAll(where: Self.isLegacyHomePlaceholder)
 
         for index in tabs.indices {
             if tabs[index].isFavorite {
@@ -2410,59 +2535,10 @@ final class BrowserStore: ObservableObject {
             activeTabID = visibleTabsForActiveSpace.first?.id
         }
 
-        if splitTabID == activeTabID || !tabs.contains(where: { $0.id == splitTabID && $0.spaceID == activeSpaceID }) {
-            splitTabID = nil
-            isSplitViewEnabled = false
+        splitTabIDs = splitTabIDs.filter { id in
+            id != activeTabID && tabs.contains { $0.id == id && $0.spaceID == activeSpaceID }
         }
-    }
-
-    private func clearLegacyDefaultSpaceName() {
-        // Only the untouched legacy default ("Personal" + original symbol,
-        // no theme) goes back through onboarding. A user-created space that
-        // happens to be named "Personal" must keep its name.
-        guard spaces.count == 1,
-              spaces[0].name == "Personal",
-              spaces[0].symbolName == "circle.grid.2x2",
-              spaces[0].themeColorHex == nil
-        else { return }
-        spaces[0].name = ""
-    }
-
-    private static let didRevertSeededColorKey = "candoa.didRevertSeededColor"
-
-    private func revertSeededColorIfNeeded() {
-        // An earlier build seeded a stock blue onto the default space to avoid
-        // a plain gray window. Neutral is now the intended default, with chrome
-        // and web content following the resolved appearance, so revert that
-        // injected color once — scoped to the single still-untouched
-        // auto-seeded space so a deliberate color choice is left alone.
-        let defaults = UserDefaults.standard
-        guard !defaults.bool(forKey: Self.didRevertSeededColorKey) else { return }
-        defaults.set(true, forKey: Self.didRevertSeededColorKey)
-
-        guard spaces.count == 1,
-              spaces[0].themeColorHex == BrowserSpace.defaultThemeColorHex
-        else { return }
-        spaces[0].themeColorHex = nil
-    }
-
-    private static let didNormalizeSeededAppearanceKey = "candoa.didNormalizeSeededAppearance"
-
-    private func normalizeSeededAppearanceIfNeeded() {
-        // The first theme seed forced .light chrome to keep pages light.
-        // Web content now follows the resolved window appearance, so chrome
-        // reverts to following the system. One-time correction of that earlier seed,
-        // scoped to the still-untouched auto-seeded space so a deliberate
-        // light choice is left alone.
-        let defaults = UserDefaults.standard
-        guard !defaults.bool(forKey: Self.didNormalizeSeededAppearanceKey) else { return }
-        defaults.set(true, forKey: Self.didNormalizeSeededAppearanceKey)
-
-        guard spaces.count == 1,
-              spaces[0].themeColorHex == BrowserSpace.defaultThemeColorHex,
-              spaces[0].themeAppearance == .light
-        else { return }
-        spaces[0].themeAppearance = .automatic
+        isSplitViewEnabled = !splitTabIDs.isEmpty
     }
 
     private func needsInitialSpaceSetup() -> Bool {
@@ -2492,20 +2568,9 @@ final class BrowserStore: ObservableObject {
         return "\(normalizedBase) \(folders.count + 1)"
     }
 
-    private static func isLegacyBlankPlaceholderURL(_ url: URL?) -> Bool {
+    private static func isInternalBlankPlaceholderURL(_ url: URL?) -> Bool {
         guard let url else { return false }
         return url.absoluteString == "about:blank"
-    }
-
-    private static func isLegacyHomePlaceholder(_ tab: BrowserTab) -> Bool {
-        if isLegacyBlankPlaceholderURL(tab.url) {
-            return true
-        }
-
-        return tab.url?.absoluteString == BrowserDefaults.googleHomeURL.absoluteString
-            && tab.title == "Google"
-            && tab.faviconSymbol == "magnifyingglass"
-            && tab.faviconData == nil
     }
 
     private func normalizeSortOrder() {
@@ -2560,8 +2625,8 @@ final class BrowserStore: ObservableObject {
             webCoordinator.ensureLoaded(activeTab)
         }
 
-        if let activeSplitTab {
-            webCoordinator.ensureLoaded(activeSplitTab)
+        for splitTab in activeSplitTabs {
+            webCoordinator.ensureLoaded(splitTab)
         }
     }
 }
