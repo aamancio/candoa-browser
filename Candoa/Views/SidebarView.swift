@@ -533,7 +533,7 @@ struct SidebarView: View {
         let splitTabIDs = Set(splitTabs.map(\.id))
         let tabs = store.regularTabsForActiveSpace.filter { !splitTabIDs.contains($0.id) }
 
-        VStack(alignment: .leading, spacing: 2) {
+        VStack(alignment: .leading, spacing: 0) {
             if tabs.isEmpty && splitTabs.isEmpty {
                 Text("No tabs")
                     .font(.system(size: 11))
@@ -3035,10 +3035,10 @@ private struct FolderSectionView: View {
                     .foregroundStyle(CandoaChromeStyle.sidebarText)
             }
 
-            Spacer(minLength: 8)
-
             SidebarDisclosureChevron(isExpanded: folder.isExpanded, isVisible: hasFolderContents)
                 .foregroundStyle(CandoaChromeStyle.sidebarIcon)
+
+            Spacer(minLength: 0)
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 6)
