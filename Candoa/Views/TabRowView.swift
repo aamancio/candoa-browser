@@ -11,6 +11,7 @@ struct TabRowView: View {
     let onClose: () -> Void
     let onDuplicate: () -> Void
     let onOpenInSplit: () -> Void
+    let onToggleFavorite: () -> Void
     let onTogglePin: () -> Void
     let onToggleMute: () -> Void
 
@@ -83,6 +84,7 @@ struct TabRowView: View {
             if mediaState?.hasMedia == true {
                 Button(mediaState?.isMuted == true ? "Unmute Tab" : "Mute Tab", action: onToggleMute)
             }
+            Button(tab.isFavorite ? "Remove from Favorites" : "Add to Favorites", action: onToggleFavorite)
             Button(tab.isPinned ? "Unpin Tab" : "Pin Tab", action: onTogglePin)
             Button(BrowserCommandTitles.duplicateTab, action: onDuplicate)
             Button("Open in Split View", action: onOpenInSplit)

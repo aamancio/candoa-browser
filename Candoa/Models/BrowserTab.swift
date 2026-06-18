@@ -8,7 +8,9 @@ struct BrowserTab: Identifiable, Codable, Hashable {
     var faviconData: Data?
     var isLoading: Bool
     var loadingProgress: Double
+    var isFavorite: Bool
     var isPinned: Bool
+    var folderID: UUID?
     var spaceID: UUID
     var sortOrder: Double
     var lastAccessedAt: Date
@@ -21,7 +23,9 @@ struct BrowserTab: Identifiable, Codable, Hashable {
         faviconData: Data? = nil,
         isLoading: Bool = false,
         loadingProgress: Double = 0,
+        isFavorite: Bool = false,
         isPinned: Bool = false,
+        folderID: UUID? = nil,
         spaceID: UUID,
         sortOrder: Double = 0,
         lastAccessedAt: Date = Date()
@@ -33,7 +37,9 @@ struct BrowserTab: Identifiable, Codable, Hashable {
         self.faviconData = faviconData
         self.isLoading = isLoading
         self.loadingProgress = loadingProgress
+        self.isFavorite = isFavorite
         self.isPinned = isPinned
+        self.folderID = folderID
         self.spaceID = spaceID
         self.sortOrder = sortOrder
         self.lastAccessedAt = lastAccessedAt
@@ -47,7 +53,9 @@ struct BrowserTab: Identifiable, Codable, Hashable {
         case faviconData
         case isLoading
         case loadingProgress
+        case isFavorite
         case isPinned
+        case folderID
         case spaceID
         case sortOrder
         case lastAccessedAt
@@ -62,7 +70,9 @@ struct BrowserTab: Identifiable, Codable, Hashable {
         faviconData = try container.decodeIfPresent(Data.self, forKey: .faviconData)
         isLoading = false
         loadingProgress = try container.decodeIfPresent(Double.self, forKey: .loadingProgress) ?? 0
+        isFavorite = try container.decodeIfPresent(Bool.self, forKey: .isFavorite) ?? false
         isPinned = try container.decodeIfPresent(Bool.self, forKey: .isPinned) ?? false
+        folderID = try container.decodeIfPresent(UUID.self, forKey: .folderID)
         spaceID = try container.decode(UUID.self, forKey: .spaceID)
         sortOrder = try container.decodeIfPresent(Double.self, forKey: .sortOrder) ?? 0
         lastAccessedAt = try container.decodeIfPresent(Date.self, forKey: .lastAccessedAt) ?? Date()

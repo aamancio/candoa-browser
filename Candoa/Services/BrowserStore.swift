@@ -33,18 +33,11 @@ struct MiniPlayerReturnContext {
     let targetFrame: CGRect?
 }
 
-enum OnboardingTourStep: Int, CaseIterable, Identifiable {
-    case sidebar
-    case commandBar
-    case spaces
-
-    var id: Int { rawValue }
-}
-
 @MainActor
 final class BrowserStore: ObservableObject {
     private struct ClosedTabSnapshot {
         let url: URL
+        let isFavorite: Bool
         let isPinned: Bool
         let spaceID: UUID
     }
@@ -52,6 +45,7 @@ final class BrowserStore: ObservableObject {
     static let spaceNameCharacterLimit = 24
 
     @Published private(set) var spaces: [BrowserSpace]
+    @Published private(set) var folders: [BrowserFolder]
     @Published private(set) var tabs: [BrowserTab]
     @Published var activeSpaceID: UUID
     @Published var activeTabID: UUID? {
@@ -71,9 +65,8 @@ final class BrowserStore: ObservableObject {
     @Published private(set) var commandPaletteOpensNewTab = false
     @Published var isCreateSpacePresented = false
     @Published var editingSpaceID: UUID?
+    @Published var editingFolderID: UUID?
     @Published private(set) var isInitialSpaceSetupPresented = false
-    @Published private(set) var isOnboardingPresented = false
-    @Published private(set) var onboardingTourStep: OnboardingTourStep?
     @Published private(set) var spaceThemeAppearancePreview: SpaceThemeAppearance?
     @Published private(set) var isSpaceThemeColorPreviewActive = false
     @Published private(set) var spaceThemeColorHexPreview: String?
@@ -152,9 +145,6 @@ final class BrowserStore: ObservableObject {
         "#D17FB3",
         "#8E9A5B"
     ]
-    private static let completedOnboardingKey = "Candoa.Onboarding.Completed"
-    private static let completedOnboardingTourKey = "Candoa.Onboarding.TourCompleted"
-    private static let starterSpaceName = "Personal"
 
     var activeSpace: BrowserSpace? {
         spaces.first { $0.id == activeSpaceID }
@@ -230,18 +220,42 @@ final class BrowserStore: ObservableObject {
     }
 
     var visibleTabsForActiveSpace: [BrowserTab] {
-        pinnedTabsForActiveSpace + regularTabsForActiveSpace
+        favoriteTabsForActiveSpace + pinnedTabsForActiveSpace + folderedTabsForActiveSpace + regularTabsForActiveSpace
+    }
+
+    var favoriteTabsForActiveSpace: [BrowserTab] {
+        tabs
+            .filter { $0.spaceID == activeSpaceID && $0.isFavorite }
+            .sorted { $0.sortOrder < $1.sortOrder }
     }
 
     var pinnedTabsForActiveSpace: [BrowserTab] {
         tabs
-            .filter { $0.spaceID == activeSpaceID && $0.isPinned }
+            .filter { $0.spaceID == activeSpaceID && $0.folderID == nil && $0.isPinned && !$0.isFavorite }
             .sorted { $0.sortOrder < $1.sortOrder }
+    }
+
+    var foldersForActiveSpace: [BrowserFolder] {
+        folders
+            .filter { $0.spaceID == activeSpaceID }
+            .sorted { $0.sortOrder < $1.sortOrder }
+    }
+
+    var folderedTabsForActiveSpace: [BrowserTab] {
+        foldersForActiveSpace.flatMap { folder in
+            tabsInFolder(folder.id)
+        }
     }
 
     var regularTabsForActiveSpace: [BrowserTab] {
         tabs
-            .filter { $0.spaceID == activeSpaceID && !$0.isPinned }
+            .filter { $0.spaceID == activeSpaceID && $0.folderID == nil && !$0.isFavorite && !$0.isPinned }
+            .sorted { $0.sortOrder < $1.sortOrder }
+    }
+
+    func tabsInFolder(_ folderID: UUID) -> [BrowserTab] {
+        tabs
+            .filter { $0.folderID == folderID }
             .sorted { $0.sortOrder < $1.sortOrder }
     }
 
@@ -258,10 +272,11 @@ final class BrowserStore: ObservableObject {
         self.webCoordinator = webCoordinator
 
         let restoredState = persistenceService.loadState()
-        var shouldPresentOnboarding = false
+        var shouldPresentInitialSpaceSetup = false
 
         if let restoredState, !restoredState.spaces.isEmpty {
             spaces = restoredState.spaces
+            folders = restoredState.folders
             tabs = restoredState.tabs
             activeSpaceID = restoredState.spaces.contains(where: { $0.id == restoredState.activeSpaceID })
                 ? restoredState.activeSpaceID
@@ -278,27 +293,27 @@ final class BrowserStore: ObservableObject {
             // The window reads as plain native gray (light or dark per the
             // system); a space color is something the user opts into.
             let defaultSpace = BrowserSpace(
-                name: Self.starterSpaceName,
+                name: "",
                 symbolName: "circle.grid.2x2",
                 themeAppearance: BrowserSpace.defaultThemeAppearance
             )
             spaces = [defaultSpace]
+            folders = []
             tabs = []
             activeSpaceID = defaultSpace.id
             activeTabID = nil
             splitTabID = nil
             isSplitViewEnabled = false
-            shouldPresentOnboarding = true
+            shouldPresentInitialSpaceSetup = restoredState?.spaces.isEmpty ?? true
         }
 
         self.webCoordinator.attach(store: self)
-        normalizeStarterSpaceNameIfNeeded()
+        clearLegacyDefaultSpaceName()
         normalizeSeededAppearanceIfNeeded()
         revertSeededColorIfNeeded()
         repairSessionState()
-        shouldPresentOnboarding = shouldPresentOnboarding || shouldShowOnboardingForCurrentState()
-        isOnboardingPresented = shouldPresentOnboarding
-        isInitialSpaceSetupPresented = false
+        shouldPresentInitialSpaceSetup = shouldPresentInitialSpaceSetup || needsInitialSpaceSetup()
+        isInitialSpaceSetupPresented = shouldPresentInitialSpaceSetup
         if restoresWebViews {
             restoreVisibleWebViews()
         }
@@ -308,7 +323,7 @@ final class BrowserStore: ObservableObject {
     }
 
     func focusAddressBar() {
-        guard !isInitialSpaceSetupPresented, !isOnboardingPresented else { return }
+        guard !isInitialSpaceSetupPresented else { return }
 
         if isCommandPalettePresented {
             dismissCommandPalette()
@@ -327,7 +342,7 @@ final class BrowserStore: ObservableObject {
     }
 
     func focusSidebarAddressBar() {
-        guard !isInitialSpaceSetupPresented, !isOnboardingPresented else { return }
+        guard !isInitialSpaceSetupPresented else { return }
 
         if isCommandPalettePresented {
             dismissCommandPalette()
@@ -346,7 +361,7 @@ final class BrowserStore: ObservableObject {
     }
 
     func openCommandPalette() {
-        guard !isInitialSpaceSetupPresented, !isOnboardingPresented else { return }
+        guard !isInitialSpaceSetupPresented else { return }
 
         commandPaletteInitialText = ""
         commandPaletteResumeQuery = ""
@@ -358,7 +373,7 @@ final class BrowserStore: ObservableObject {
     }
 
     func openNewTabCommandPalette() {
-        guard !isInitialSpaceSetupPresented, !isOnboardingPresented else { return }
+        guard !isInitialSpaceSetupPresented else { return }
 
         commandPaletteInitialText = ""
         commandPaletteResumeQuery = ""
@@ -411,78 +426,18 @@ final class BrowserStore: ObservableObject {
     }
 
     func beginSpaceCreation() {
-        guard !isInitialSpaceSetupPresented, !isOnboardingPresented else { return }
+        guard !isInitialSpaceSetupPresented else { return }
         dismissCommandPalette()
         editingSpaceID = nil
         isCreateSpacePresented = true
     }
 
     func beginSpaceEditing(_ id: UUID) {
-        guard !isInitialSpaceSetupPresented, !isOnboardingPresented, spaces.contains(where: { $0.id == id }) else { return }
+        guard !isInitialSpaceSetupPresented, spaces.contains(where: { $0.id == id }) else { return }
         dismissCommandPalette()
         isCreateSpacePresented = false
         switchSpace(to: id)
         editingSpaceID = id
-    }
-
-    func completeOnboarding(
-        spaceName: String,
-        symbolName: String,
-        themeAppearance: SpaceThemeAppearance,
-        startsTour: Bool
-    ) {
-        updateStarterSpace(
-            name: spaceName,
-            symbolName: symbolName,
-            themeAppearance: themeAppearance
-        )
-
-        UserDefaults.standard.set(true, forKey: Self.completedOnboardingKey)
-        isOnboardingPresented = false
-        isInitialSpaceSetupPresented = false
-
-        if startsTour && !UserDefaults.standard.bool(forKey: Self.completedOnboardingTourKey) {
-            onboardingTourStep = .sidebar
-        } else {
-            onboardingTourStep = nil
-            UserDefaults.standard.set(true, forKey: Self.completedOnboardingTourKey)
-            openNewTabCommandPalette()
-        }
-
-        flushSession()
-    }
-
-    func skipOnboarding() {
-        completeOnboarding(
-            spaceName: activeSpace?.name ?? Self.starterSpaceName,
-            symbolName: activeSpace?.symbolName ?? "circle.grid.2x2",
-            themeAppearance: activeSpace?.themeAppearance ?? BrowserSpace.defaultThemeAppearance,
-            startsTour: false
-        )
-    }
-
-    func advanceOnboardingTour() {
-        guard let onboardingTourStep else { return }
-        let steps = OnboardingTourStep.allCases
-        guard let currentIndex = steps.firstIndex(of: onboardingTourStep) else {
-            dismissOnboardingTour(opensCommandPalette: true)
-            return
-        }
-
-        let nextIndex = currentIndex + 1
-        if steps.indices.contains(nextIndex) {
-            self.onboardingTourStep = steps[nextIndex]
-        } else {
-            dismissOnboardingTour(opensCommandPalette: true)
-        }
-    }
-
-    func dismissOnboardingTour(opensCommandPalette: Bool = false) {
-        onboardingTourStep = nil
-        UserDefaults.standard.set(true, forKey: Self.completedOnboardingTourKey)
-        if opensCommandPalette {
-            openNewTabCommandPalette()
-        }
     }
 
     @discardableResult
@@ -583,37 +538,6 @@ final class BrowserStore: ObservableObject {
         repairSessionState()
         updateNavigationState()
         flushSession()
-    }
-
-    private func updateStarterSpace(
-        name: String,
-        symbolName: String,
-        themeAppearance: SpaceThemeAppearance
-    ) {
-        let normalizedName = Self.normalizedSpaceName(name)
-        let resolvedName = normalizedName.isEmpty ? Self.starterSpaceName : normalizedName
-        let targetSpaceID = spaces.contains(where: { $0.id == activeSpaceID })
-            ? activeSpaceID
-            : spaces.first?.id
-
-        guard let targetSpaceID, let index = spaces.firstIndex(where: { $0.id == targetSpaceID }) else {
-            let defaultSpace = BrowserSpace(
-                name: resolvedName,
-                symbolName: symbolName,
-                themeAppearance: themeAppearance
-            )
-            spaces = [defaultSpace]
-            activeSpaceID = defaultSpace.id
-            activeTabID = nil
-            return
-        }
-
-        spaces[index].name = resolvedName
-        spaces[index].symbolName = symbolName
-        spaces[index].themeAppearance = themeAppearance
-        activeSpaceID = spaces[index].id
-        repairSessionState()
-        updateNavigationState()
     }
 
     func renameSpace(_ id: UUID, to name: String) {
@@ -731,6 +655,7 @@ final class BrowserStore: ObservableObject {
 
         let removedTabIDs = tabs.filter { $0.spaceID == id }.map(\.id)
         tabs.removeAll { $0.spaceID == id }
+        folders.removeAll { $0.spaceID == id }
         removedTabIDs.forEach { webCoordinator.removeWebView(for: $0) }
 
         spaces.remove(at: deletedSpaceIndex)
@@ -746,6 +671,9 @@ final class BrowserStore: ObservableObject {
         if let splitTabID, removedTabIDs.contains(splitTabID) {
             self.splitTabID = nil
             isSplitViewEnabled = false
+        }
+        if let editingFolderID, !folders.contains(where: { $0.id == editingFolderID }) {
+            self.editingFolderID = nil
         }
 
         repairSessionState()
@@ -775,7 +703,13 @@ final class BrowserStore: ObservableObject {
         let sourceDataStoreID = dataStoreID(for: sourceSpaceID)
         let targetDataStoreID = dataStoreID(for: targetSpaceID)
         tabs[tabIndex].spaceID = targetSpaceID
-        tabs[tabIndex].sortOrder = nextSortOrder(spaceID: targetSpaceID, pinned: tabs[tabIndex].isPinned)
+        tabs[tabIndex].folderID = nil
+        tabs[tabIndex].sortOrder = nextSortOrder(
+            spaceID: targetSpaceID,
+            isFavorite: tabs[tabIndex].isFavorite,
+            isPinned: tabs[tabIndex].isPinned,
+            folderID: nil
+        )
 
         if sourceDataStoreID != targetDataStoreID {
             webCoordinator.removeWebView(for: tabID)
@@ -797,15 +731,32 @@ final class BrowserStore: ObservableObject {
     }
 
     @discardableResult
-    func newTab(url: URL? = nil, pinned: Bool = false, in spaceID: UUID? = nil) -> BrowserTab {
+    func newTab(
+        url: URL? = nil,
+        favorite: Bool = false,
+        pinned: Bool = false,
+        folderID: UUID? = nil,
+        in spaceID: UUID? = nil
+    ) -> BrowserTab {
         let targetSpaceID = spaceID ?? activeSpaceID
+        let targetFolderID = folderID.flatMap { folder in
+            folders.contains(where: { $0.id == folder && $0.spaceID == targetSpaceID }) ? folder : nil
+        }
+        let isPinned = (pinned || targetFolderID != nil) && !favorite
         let tab = BrowserTab(
             title: title(for: url),
             url: url,
             faviconSymbol: faviconService.placeholderSymbol(for: url),
-            isPinned: pinned,
+            isFavorite: favorite,
+            isPinned: isPinned,
+            folderID: favorite ? nil : targetFolderID,
             spaceID: targetSpaceID,
-            sortOrder: nextSortOrder(spaceID: targetSpaceID, pinned: pinned)
+            sortOrder: nextSortOrder(
+                spaceID: targetSpaceID,
+                isFavorite: favorite,
+                isPinned: isPinned,
+                folderID: favorite ? nil : targetFolderID
+            )
         )
 
         tabs.insert(tab, at: 0)
@@ -851,12 +802,24 @@ final class BrowserStore: ObservableObject {
 
     func duplicateCurrentTab() {
         guard let tab = activeTab else { return }
-        _ = newTab(url: tab.url, pinned: tab.isPinned, in: tab.spaceID)
+        _ = newTab(
+            url: tab.url,
+            favorite: tab.isFavorite,
+            pinned: tab.isPinned,
+            folderID: tab.folderID,
+            in: tab.spaceID
+        )
     }
 
     func duplicateTab(_ id: UUID) {
         guard let tab = tabs.first(where: { $0.id == id }) else { return }
-        _ = newTab(url: tab.url, pinned: tab.isPinned, in: tab.spaceID)
+        _ = newTab(
+            url: tab.url,
+            favorite: tab.isFavorite,
+            pinned: tab.isPinned,
+            folderID: tab.folderID,
+            in: tab.spaceID
+        )
     }
 
     @discardableResult
@@ -866,7 +829,7 @@ final class BrowserStore: ObservableObject {
             url: url,
             faviconSymbol: faviconService.placeholderSymbol(for: url),
             spaceID: spaceID,
-            sortOrder: nextSortOrder(spaceID: spaceID, pinned: false)
+            sortOrder: nextSortOrder(spaceID: spaceID, isFavorite: false, isPinned: false, folderID: nil)
         )
 
         tabs.insert(tab, at: 0)
@@ -879,7 +842,7 @@ final class BrowserStore: ObservableObject {
         let targetSpaceID = spaces.contains(where: { $0.id == snapshot.spaceID })
             ? snapshot.spaceID
             : activeSpaceID
-        _ = newTab(url: snapshot.url, pinned: snapshot.isPinned, in: targetSpaceID)
+        _ = newTab(url: snapshot.url, favorite: snapshot.isFavorite, pinned: snapshot.isPinned, in: targetSpaceID)
     }
 
     func clearUnpinnedTabs() {
@@ -894,9 +857,92 @@ final class BrowserStore: ObservableObject {
     func togglePin(_ id: UUID) {
         guard let index = tabs.firstIndex(where: { $0.id == id }) else { return }
         let pinned = !tabs[index].isPinned
+        tabs[index].isFavorite = false
+        tabs[index].folderID = nil
         tabs[index].isPinned = pinned
-        tabs[index].sortOrder = nextSortOrder(spaceID: tabs[index].spaceID, pinned: pinned)
+        tabs[index].sortOrder = nextSortOrder(
+            spaceID: tabs[index].spaceID,
+            isFavorite: false,
+            isPinned: pinned,
+            folderID: nil
+        )
         normalizeSortOrder()
+    }
+
+    func toggleFavorite(_ id: UUID) {
+        guard let index = tabs.firstIndex(where: { $0.id == id }) else { return }
+        let favorite = !tabs[index].isFavorite
+        tabs[index].isFavorite = favorite
+        tabs[index].folderID = nil
+        if favorite {
+            tabs[index].isPinned = false
+        }
+        tabs[index].sortOrder = nextSortOrder(
+            spaceID: tabs[index].spaceID,
+            isFavorite: favorite,
+            isPinned: tabs[index].isPinned,
+            folderID: nil
+        )
+        normalizeSortOrder()
+    }
+
+    func addTabToFavorites(_ id: UUID, before targetID: UUID? = nil) {
+        moveTabToPlacement(id, isFavorite: true, isPinned: false, folderID: nil, before: targetID)
+    }
+
+    @discardableResult
+    func createFolder(named name: String = "New Folder") -> BrowserFolder {
+        let folder = BrowserFolder(
+            name: uniqueFolderName(base: name, in: activeSpaceID),
+            spaceID: activeSpaceID,
+            sortOrder: nextFolderSortOrder(spaceID: activeSpaceID)
+        )
+        folders.append(folder)
+        editingFolderID = folder.id
+        flushSession()
+        return folder
+    }
+
+    func renameFolder(_ id: UUID, to name: String) {
+        let normalizedName = normalizedFolderName(name)
+        guard !normalizedName.isEmpty, let index = folders.firstIndex(where: { $0.id == id }) else { return }
+        folders[index].name = normalizedName
+        editingFolderID = nil
+        flushSession()
+    }
+
+    func toggleFolderExpanded(_ id: UUID) {
+        guard let index = folders.firstIndex(where: { $0.id == id }) else { return }
+        folders[index].isExpanded.toggle()
+        flushSession()
+    }
+
+    func deleteFolder(_ id: UUID) {
+        guard let folderIndex = folders.firstIndex(where: { $0.id == id }) else { return }
+        let folder = folders[folderIndex]
+        folders.remove(at: folderIndex)
+        if editingFolderID == id {
+            editingFolderID = nil
+        }
+
+        for index in tabs.indices where tabs[index].folderID == id {
+            tabs[index].folderID = nil
+            tabs[index].isFavorite = false
+            tabs[index].isPinned = true
+            tabs[index].sortOrder = nextSortOrder(
+                spaceID: folder.spaceID,
+                isFavorite: false,
+                isPinned: true,
+                folderID: nil
+            )
+        }
+
+        normalizeSortOrder()
+        flushSession()
+    }
+
+    func moveTabToFolder(_ tabID: UUID, folderID: UUID, before targetID: UUID? = nil) {
+        moveTabToPlacement(tabID, isFavorite: false, isPinned: true, folderID: folderID, before: targetID)
     }
 
     func switchToTab(at position: Int) {
@@ -1040,7 +1086,12 @@ final class BrowserStore: ObservableObject {
 
     private func rememberClosedTab(_ tab: BrowserTab) {
         guard let url = tab.url else { return }
-        recentlyClosedTabs.append(ClosedTabSnapshot(url: url, isPinned: tab.isPinned, spaceID: tab.spaceID))
+        recentlyClosedTabs.append(ClosedTabSnapshot(
+            url: url,
+            isFavorite: tab.isFavorite,
+            isPinned: tab.isPinned,
+            spaceID: tab.spaceID
+        ))
         if recentlyClosedTabs.count > Self.recentlyClosedTabLimit {
             recentlyClosedTabs.removeFirst(recentlyClosedTabs.count - Self.recentlyClosedTabLimit)
         }
@@ -1435,12 +1486,66 @@ final class BrowserStore: ObservableObject {
         splitTabID = nil
     }
 
-    func reorderTabs(_ orderedIDs: [UUID], pinned: Bool) {
+    func reorderTabs(_ orderedIDs: [UUID], isFavorite: Bool, isPinned: Bool, folderID: UUID? = nil) {
         for (offset, id) in orderedIDs.enumerated() {
             guard let index = tabs.firstIndex(where: { $0.id == id }) else { continue }
-            tabs[index].isPinned = pinned
+            tabs[index].isFavorite = isFavorite
+            tabs[index].isPinned = isPinned && !isFavorite
+            tabs[index].folderID = isFavorite ? nil : folderID
             tabs[index].sortOrder = Double(offset)
         }
+    }
+
+    func moveTabToPlacement(
+        _ tabID: UUID,
+        isFavorite: Bool,
+        isPinned: Bool,
+        folderID: UUID? = nil,
+        before targetID: UUID? = nil
+    ) {
+        guard let index = tabs.firstIndex(where: { $0.id == tabID }) else { return }
+        let spaceID = tabs[index].spaceID
+        let resolvedFolderID = isFavorite ? nil : folderID.flatMap { folderID in
+            folders.contains(where: { $0.id == folderID && $0.spaceID == spaceID }) ? folderID : nil
+        }
+        let resolvedPinned = (isPinned || resolvedFolderID != nil) && !isFavorite
+        tabs[index].isFavorite = isFavorite
+        tabs[index].isPinned = resolvedPinned
+        tabs[index].folderID = resolvedFolderID
+
+        guard let targetID,
+              tabs.contains(where: {
+                  $0.id == targetID &&
+                  $0.spaceID == spaceID &&
+                  $0.isFavorite == isFavorite &&
+                  $0.isPinned == resolvedPinned &&
+                  $0.folderID == resolvedFolderID
+              })
+        else {
+            tabs[index].sortOrder = nextSortOrder(
+                spaceID: spaceID,
+                isFavorite: isFavorite,
+                isPinned: resolvedPinned,
+                folderID: resolvedFolderID
+            )
+            normalizeSortOrder()
+            return
+        }
+
+        var orderedIDs = tabs
+            .filter {
+                $0.spaceID == spaceID &&
+                $0.isFavorite == isFavorite &&
+                $0.isPinned == resolvedPinned &&
+                $0.folderID == resolvedFolderID
+            }
+            .sorted { $0.sortOrder < $1.sortOrder }
+            .map(\.id)
+
+        orderedIDs.removeAll { $0 == tabID }
+        let targetIndex = orderedIDs.firstIndex(of: targetID) ?? orderedIDs.endIndex
+        orderedIDs.insert(tabID, at: targetIndex)
+        reorderTabs(orderedIDs, isFavorite: isFavorite, isPinned: resolvedPinned, folderID: resolvedFolderID)
     }
 
     func beginTabDrag(_ tabID: UUID) -> NSItemProvider {
@@ -1697,6 +1802,7 @@ final class BrowserStore: ObservableObject {
     private func configureAutosave() {
         let changes = Publishers.MergeMany(
             $spaces.map { _ in () }.eraseToAnyPublisher(),
+            $folders.map { _ in () }.eraseToAnyPublisher(),
             $tabs.map { _ in () }.eraseToAnyPublisher(),
             $activeSpaceID.map { _ in () }.eraseToAnyPublisher(),
             $activeTabID.map { _ in () }.eraseToAnyPublisher(),
@@ -1733,6 +1839,7 @@ final class BrowserStore: ObservableObject {
     private func currentSnapshot() -> BrowserWindowState {
         BrowserWindowState(
             spaces: spaces,
+            folders: folders,
             tabs: tabs.map { tab in
                 var persistedTab = tab
                 persistedTab.isLoading = false
@@ -1761,20 +1868,23 @@ final class BrowserStore: ObservableObject {
         defer { isApplyingRemoteState = false }
 
         spaces = remoteState.spaces
+        folders = remoteState.folders
         tabs = remoteState.tabs
         activeSpaceID = remoteState.activeSpaceID
         activeTabID = remoteState.activeTabID
         splitTabID = remoteState.splitTabID
         isSplitViewEnabled = remoteState.isSplitViewEnabled
-        normalizeStarterSpaceNameIfNeeded()
+        clearLegacyDefaultSpaceName()
         repairSessionState()
-        isInitialSpaceSetupPresented = false
-        isCreateSpacePresented = false
-        if shouldShowOnboardingForCurrentState() {
-            isOnboardingPresented = true
+        isInitialSpaceSetupPresented = needsInitialSpaceSetup()
+        if !isInitialSpaceSetupPresented {
+            isCreateSpacePresented = false
         }
         if let editingSpaceID, !spaces.contains(where: { $0.id == editingSpaceID }) {
             self.editingSpaceID = nil
+        }
+        if let editingFolderID, !folders.contains(where: { $0.id == editingFolderID }) {
+            self.editingFolderID = nil
         }
 
         let tabIDs = Set(tabs.map(\.id))
@@ -1961,9 +2071,27 @@ final class BrowserStore: ObservableObject {
         switchSpace(to: spaces[nextIndex].id)
     }
 
-    private func nextSortOrder(spaceID: UUID, pinned: Bool) -> Double {
+    private func nextSortOrder(
+        spaceID: UUID,
+        isFavorite: Bool,
+        isPinned: Bool,
+        folderID: UUID? = nil
+    ) -> Double {
+        let resolvedPinned = isPinned && !isFavorite
         let orders = tabs
-            .filter { $0.spaceID == spaceID && $0.isPinned == pinned }
+            .filter {
+                $0.spaceID == spaceID &&
+                $0.isFavorite == isFavorite &&
+                $0.isPinned == resolvedPinned &&
+                $0.folderID == (isFavorite ? nil : folderID)
+            }
+            .map(\.sortOrder)
+        return (orders.min() ?? 0) - 1
+    }
+
+    private func nextFolderSortOrder(spaceID: UUID) -> Double {
+        let orders = folders
+            .filter { $0.spaceID == spaceID }
             .map(\.sortOrder)
         return (orders.min() ?? 0) - 1
     }
@@ -1975,7 +2103,7 @@ final class BrowserStore: ObservableObject {
     private func newInternalBlankTab(in spaceID: UUID) -> BrowserTab {
         let tab = BrowserTab(
             spaceID: spaceID,
-            sortOrder: nextSortOrder(spaceID: spaceID, pinned: false)
+            sortOrder: nextSortOrder(spaceID: spaceID, isFavorite: false, isPinned: false, folderID: nil)
         )
 
         tabs.insert(tab, at: 0)
@@ -2016,11 +2144,34 @@ final class BrowserStore: ObservableObject {
         }
 
         let spaceIDs = Set(spaces.map(\.id))
+        folders = folders.filter { spaceIDs.contains($0.spaceID) }
+        for index in folders.indices {
+            folders[index].name = normalizedFolderName(folders[index].name)
+            if folders[index].name.isEmpty {
+                folders[index].name = "New Folder"
+            }
+        }
+
+        let folderSpaceByID = Dictionary(uniqueKeysWithValues: folders.map { ($0.id, $0.spaceID) })
         tabs = tabs.filter { spaceIDs.contains($0.spaceID) }
 
         // Placeholder home tabs (about:blank / legacy Google home) are
         // transient; spaces restore empty rather than with a stale blank tab.
         tabs.removeAll(where: Self.isLegacyHomePlaceholder)
+
+        for index in tabs.indices {
+            if tabs[index].isFavorite {
+                tabs[index].folderID = nil
+                continue
+            }
+
+            guard let folderID = tabs[index].folderID else { continue }
+            if folderSpaceByID[folderID] == tabs[index].spaceID {
+                tabs[index].isPinned = true
+            } else {
+                tabs[index].folderID = nil
+            }
+        }
 
         if !spaceIDs.contains(activeSpaceID) {
             activeSpaceID = spaces[0].id
@@ -2038,11 +2189,16 @@ final class BrowserStore: ObservableObject {
         }
     }
 
-    private func normalizeStarterSpaceNameIfNeeded() {
+    private func clearLegacyDefaultSpaceName() {
+        // Only the untouched legacy default ("Personal" + original symbol,
+        // no theme) goes back through onboarding. A user-created space that
+        // happens to be named "Personal" must keep its name.
         guard spaces.count == 1,
-              spaces[0].name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+              spaces[0].name == "Personal",
+              spaces[0].symbolName == "circle.grid.2x2",
+              spaces[0].themeColorHex == nil
         else { return }
-        spaces[0].name = Self.starterSpaceName
+        spaces[0].name = ""
     }
 
     private static let didRevertSeededColorKey = "candoa.didRevertSeededColor"
@@ -2082,12 +2238,31 @@ final class BrowserStore: ObservableObject {
         spaces[0].themeAppearance = .automatic
     }
 
-    private func shouldShowOnboardingForCurrentState() -> Bool {
-        guard !UserDefaults.standard.bool(forKey: Self.completedOnboardingKey) else { return false }
-        guard tabs.isEmpty, spaces.count == 1 else { return false }
+    private func needsInitialSpaceSetup() -> Bool {
+        spaces.count == 1 && spaces[0].name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
 
-        let name = spaces[0].name.trimmingCharacters(in: .whitespacesAndNewlines)
-        return name.isEmpty || name == Self.starterSpaceName
+    private func normalizedFolderName(_ name: String) -> String {
+        String(name.trimmingCharacters(in: .whitespacesAndNewlines).prefix(32))
+    }
+
+    private func uniqueFolderName(base: String, in spaceID: UUID) -> String {
+        let normalizedBase = normalizedFolderName(base).isEmpty ? "New Folder" : normalizedFolderName(base)
+        let existingNames = Set(
+            folders
+                .filter { $0.spaceID == spaceID }
+                .map { $0.name.lowercased() }
+        )
+        guard existingNames.contains(normalizedBase.lowercased()) else { return normalizedBase }
+
+        for index in 2...99 {
+            let candidate = "\(normalizedBase) \(index)"
+            if !existingNames.contains(candidate.lowercased()) {
+                return candidate
+            }
+        }
+
+        return "\(normalizedBase) \(folders.count + 1)"
     }
 
     private static func isLegacyBlankPlaceholderURL(_ url: URL?) -> Bool {
@@ -2108,14 +2283,37 @@ final class BrowserStore: ObservableObject {
 
     private func normalizeSortOrder() {
         for spaceID in spaces.map(\.id) {
-            normalizeSortOrder(spaceID: spaceID, pinned: true)
-            normalizeSortOrder(spaceID: spaceID, pinned: false)
+            normalizeFolderSortOrder(spaceID: spaceID)
+            normalizeSortOrder(spaceID: spaceID, isFavorite: true, isPinned: false, folderID: nil)
+            normalizeSortOrder(spaceID: spaceID, isFavorite: false, isPinned: true, folderID: nil)
+            for folder in folders where folder.spaceID == spaceID {
+                normalizeSortOrder(spaceID: spaceID, isFavorite: false, isPinned: true, folderID: folder.id)
+            }
+            normalizeSortOrder(spaceID: spaceID, isFavorite: false, isPinned: false, folderID: nil)
         }
     }
 
-    private func normalizeSortOrder(spaceID: UUID, pinned: Bool) {
+    private func normalizeFolderSortOrder(spaceID: UUID) {
+        let orderedIDs = folders
+            .filter { $0.spaceID == spaceID }
+            .sorted { $0.sortOrder < $1.sortOrder }
+            .map(\.id)
+
+        for (offset, id) in orderedIDs.enumerated() {
+            guard let index = folders.firstIndex(where: { $0.id == id }) else { continue }
+            folders[index].sortOrder = Double(offset)
+        }
+    }
+
+    private func normalizeSortOrder(spaceID: UUID, isFavorite: Bool, isPinned: Bool, folderID: UUID?) {
+        let resolvedPinned = isPinned && !isFavorite
         let orderedIDs = tabs
-            .filter { $0.spaceID == spaceID && $0.isPinned == pinned }
+            .filter {
+                $0.spaceID == spaceID &&
+                $0.isFavorite == isFavorite &&
+                $0.isPinned == resolvedPinned &&
+                $0.folderID == (isFavorite ? nil : folderID)
+            }
             .sorted {
                 if $0.sortOrder == $1.sortOrder {
                     return $0.lastAccessedAt > $1.lastAccessedAt

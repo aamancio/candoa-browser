@@ -12,6 +12,7 @@ struct SidebarView: View {
 
     @State private var isHoveringNewTab = false
     @State private var isHoveringAddressPill = false
+    @AppStorage("Candoa.FavoritesDropZoneDismissed") private var isFavoritesDropZoneDismissed = false
 
     private let leadingInset: CGFloat = 9
     private let trailingInset: CGFloat = 9
@@ -63,8 +64,9 @@ struct SidebarView: View {
 
                 ScrollView(.vertical, showsIndicators: false) {
                     VStack(alignment: .leading, spacing: 12) {
-                        essentialsSection
+                        favoritesSection
                         spaceLabel
+                        pinnedAndFoldersSection
 
                         Rectangle()
                             .fill(CandoaChromeStyle.sidebarSeparator)
@@ -90,13 +92,6 @@ struct SidebarView: View {
 
             if !store.isInitialSpaceSetupPresented {
                 SpaceSwitcherView(store: store)
-                    .popover(isPresented: tourPresentationBinding(for: .spaces), arrowEdge: .bottom) {
-                        OnboardingTourPopover(
-                            step: .spaces,
-                            onNext: store.advanceOnboardingTour,
-                            onSkip: { store.dismissOnboardingTour(opensCommandPalette: true) }
-                        )
-                    }
             }
         }
         .animation(.easeOut(duration: 0.16), value: availableUpdate)
@@ -135,13 +130,6 @@ struct SidebarView: View {
         .buttonStyle(.plain)
         .foregroundStyle(sidebarIconColor)
         .frame(height: 34)
-        .popover(isPresented: tourPresentationBinding(for: .sidebar), arrowEdge: .leading) {
-            OnboardingTourPopover(
-                step: .sidebar,
-                onNext: store.advanceOnboardingTour,
-                onSkip: { store.dismissOnboardingTour(opensCommandPalette: true) }
-            )
-        }
     }
 
     private var hidesNavigationChromeForAddressPalette: Bool {
@@ -238,23 +226,93 @@ struct SidebarView: View {
         return url.absoluteString
     }
 
-    // MARK: - Essentials (pinned tiles)
+    // MARK: - Favorites
 
     @ViewBuilder
-    private var essentialsSection: some View {
-        let pinned = store.pinnedTabsForActiveSpace
+    private var favoritesSection: some View {
+        let favorites = store.favoriteTabsForActiveSpace
 
-        if !pinned.isEmpty {
-            VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 6) {
+            if favorites.isEmpty && !isFavoritesDropZoneDismissed {
+                FavoriteDropZone {
+                    isFavoritesDropZoneDismissed = true
+                }
+                    .onDrop(
+                        of: [UTType.text],
+                        delegate: FavoriteTabDropDelegate(
+                            targetTab: nil,
+                            favoriteTabs: favorites,
+                            store: store
+                        )
+                    )
+            } else {
+                LazyVGrid(columns: essentialsColumns, spacing: 6) {
+                    ForEach(favorites) { tab in
+                        favoriteTile(for: tab, favorites: favorites)
+                    }
+                }
+            }
+        }
+        .animation(.easeOut(duration: 0.18), value: favorites.map(\.id))
+        .id(store.activeSpaceID)
+    }
+
+    private func favoriteTile(for tab: BrowserTab, favorites: [BrowserTab]) -> some View {
+        EssentialTileView(
+            tab: tab,
+            isActive: tab.id == store.activeTabID && !store.isNewTabPaletteActive,
+            accentColor: activeSpaceTint,
+            placement: .favorite,
+            onSelect: { store.switchTab(to: tab.id) },
+            onClose: { store.closeTab(tab.id) },
+            onDuplicate: { store.duplicateTab(tab.id) },
+            onOpenInSplit: { store.openSplitView(with: tab.id) },
+            onToggleFavorite: { store.toggleFavorite(tab.id) },
+            onTogglePin: { store.togglePin(tab.id) }
+        )
+        .opacity(store.draggedTabID == tab.id ? 0 : 1)
+        .onDrag {
+            store.beginTabDrag(tab.id)
+        }
+        .onDrop(
+            of: [UTType.text],
+            delegate: FavoriteTabDropDelegate(
+                targetTab: tab,
+                favoriteTabs: favorites,
+                store: store
+            )
+        )
+    }
+
+    // MARK: - Pinned Items
+
+    @ViewBuilder
+    private var pinnedAndFoldersSection: some View {
+        let pinned = store.pinnedTabsForActiveSpace
+        let folders = store.foldersForActiveSpace
+
+        if !pinned.isEmpty || !folders.isEmpty {
+            VStack(alignment: .leading, spacing: 7) {
                 LazyVGrid(columns: essentialsColumns, spacing: 6) {
                     ForEach(pinned) { tab in
                         essentialTile(for: tab, pinned: pinned)
                     }
                 }
+
+                VStack(alignment: .leading, spacing: 2) {
+                    ForEach(folders) { folder in
+                        FolderSectionView(
+                            store: store,
+                            folder: folder,
+                            editingFolderID: $store.editingFolderID,
+                            accentColor: activeSpaceTint
+                        )
+                    }
+                }
             }
-            // Pin, unpin, and close settle the grid instead of popping; the
+            // Pin, folder, and close settle the section instead of popping; the
             // per-space identity keeps space switches an instant context cut.
-            .animation(.easeOut(duration: 0.18), value: pinned.map(\.id))
+            .animation(.easeOut(duration: 0.18), value: pinned.map(\.id) + folders.map(\.id))
             .id(store.activeSpaceID)
         }
     }
@@ -264,10 +322,12 @@ struct SidebarView: View {
             tab: tab,
             isActive: tab.id == store.activeTabID && !store.isNewTabPaletteActive,
             accentColor: activeSpaceTint,
+            placement: .pinned,
             onSelect: { store.switchTab(to: tab.id) },
             onClose: { store.closeTab(tab.id) },
             onDuplicate: { store.duplicateTab(tab.id) },
             onOpenInSplit: { store.openSplitView(with: tab.id) },
+            onToggleFavorite: { store.toggleFavorite(tab.id) },
             onTogglePin: { store.togglePin(tab.id) }
         )
         // The system drag image is the only visible copy while dragging; the
@@ -278,12 +338,14 @@ struct SidebarView: View {
         }
         .onDrop(
             of: [UTType.text],
-            delegate: TabReorderDropDelegate(
-                targetTab: tab,
-                tabs: pinned,
-                pinned: true,
-                store: store
-            )
+                delegate: TabReorderDropDelegate(
+                    targetTab: tab,
+                    tabs: pinned,
+                    isFavorite: false,
+                    pinned: true,
+                    folderID: nil,
+                    store: store
+                )
         )
     }
 
@@ -325,6 +387,7 @@ struct SidebarView: View {
                             onClose: { store.closeTab(tab.id) },
                             onDuplicate: { store.duplicateTab(tab.id) },
                             onOpenInSplit: { store.openSplitView(with: tab.id) },
+                            onToggleFavorite: { store.toggleFavorite(tab.id) },
                             onTogglePin: { store.togglePin(tab.id) },
                             onToggleMute: { store.toggleMediaMute(tabID: tab.id) }
                         )
@@ -340,7 +403,9 @@ struct SidebarView: View {
                             delegate: TabReorderDropDelegate(
                                 targetTab: tab,
                                 tabs: tabs,
+                                isFavorite: false,
                                 pinned: false,
+                                folderID: nil,
                                 store: store
                             )
                         )
@@ -398,13 +463,6 @@ struct SidebarView: View {
         }
         .animation(.easeOut(duration: 0.10), value: isHoveringNewTab)
         .animation(.easeOut(duration: 0.12), value: isArmed)
-        .popover(isPresented: tourPresentationBinding(for: .commandBar), arrowEdge: .leading) {
-            OnboardingTourPopover(
-                step: .commandBar,
-                onNext: store.advanceOnboardingTour,
-                onSkip: { store.dismissOnboardingTour(opensCommandPalette: true) }
-            )
-        }
     }
 
     private func newTabButtonBackground(isArmed: Bool) -> Color {
@@ -415,16 +473,6 @@ struct SidebarView: View {
             return CandoaChromeStyle.sidebarControlFillHover
         }
         return Color.clear
-    }
-
-    private func tourPresentationBinding(for step: OnboardingTourStep) -> Binding<Bool> {
-        Binding {
-            store.onboardingTourStep == step
-        } set: { isPresented in
-            if !isPresented, store.onboardingTourStep == step {
-                store.dismissOnboardingTour()
-            }
-        }
     }
 }
 
@@ -457,80 +505,6 @@ private struct AppUpdateBanner: View {
         .onHover { isHovering = $0 }
         .help("Candoa \(update.version) is available")
         .animation(.easeOut(duration: 0.10), value: isHovering)
-    }
-}
-
-private struct OnboardingTourPopover: View {
-    let step: OnboardingTourStep
-    let onNext: () -> Void
-    let onSkip: () -> Void
-
-    private var title: String {
-        switch step {
-        case .sidebar:
-            return "Your sidebar is home base"
-        case .commandBar:
-            return "Command-T starts browsing"
-        case .spaces:
-            return "Spaces live here"
-        }
-    }
-
-    private var message: String {
-        switch step {
-        case .sidebar:
-            return "Tabs, pinned tabs, navigation, and the address control stay in the left sidebar so web pages get the rest of the window."
-        case .commandBar:
-            return "Use New Tab or Command-T to search, enter a URL, or run browser commands without opening a blank tab first."
-        case .spaces:
-            return "Use the Space switcher for separate browsing contexts like personal, work, or projects."
-        }
-    }
-
-    private var symbolName: String {
-        switch step {
-        case .sidebar:
-            return "sidebar.left"
-        case .commandBar:
-            return "command"
-        case .spaces:
-            return "square.grid.2x2"
-        }
-    }
-
-    private var primaryTitle: String {
-        step == .spaces ? "Done" : "Next"
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(spacing: 10) {
-                Image(systemName: symbolName)
-                    .font(.system(size: 18, weight: .medium))
-                    .symbolRenderingMode(.hierarchical)
-                    .frame(width: 24)
-
-                Text(title)
-                    .font(.system(size: 15, weight: .semibold))
-            }
-
-            Text(message)
-                .font(.system(size: 13))
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-
-            HStack {
-                Button("Skip Tour", action: onSkip)
-
-                Spacer()
-
-                Button(primaryTitle, action: onNext)
-                    .keyboardShortcut(.defaultAction)
-                    .buttonStyle(.borderedProminent)
-            }
-        }
-        .padding(16)
-        .frame(width: 300)
     }
 }
 
@@ -2417,14 +2391,21 @@ private enum SpaceDataMode: String, CaseIterable, Identifiable {
 
 // MARK: - Essential tile
 
+private enum SidebarTilePlacement {
+    case favorite
+    case pinned
+}
+
 private struct EssentialTileView: View {
     let tab: BrowserTab
     let isActive: Bool
     let accentColor: Color
+    let placement: SidebarTilePlacement
     let onSelect: () -> Void
     let onClose: () -> Void
     let onDuplicate: () -> Void
     let onOpenInSplit: () -> Void
+    let onToggleFavorite: () -> Void
     let onTogglePin: () -> Void
 
     @State private var isHovering = false
@@ -2471,7 +2452,14 @@ private struct EssentialTileView: View {
         .animation(.easeOut(duration: 0.12), value: isActive)
         .help(tab.title)
         .contextMenu {
-            Button("Unpin Tab", action: onTogglePin)
+            switch placement {
+            case .favorite:
+                Button("Remove from Favorites", action: onToggleFavorite)
+                Button("Move to Pinned Tabs", action: onTogglePin)
+            case .pinned:
+                Button("Add to Favorites", action: onToggleFavorite)
+                Button("Unpin Tab", action: onTogglePin)
+            }
             Button(BrowserCommandTitles.duplicateTab, action: onDuplicate)
             Button("Open in Split View", action: onOpenInSplit)
             Button("Close Tab", action: onClose)
@@ -2492,6 +2480,223 @@ private struct EssentialTileView: View {
                 .font(.system(size: 18, weight: .medium))
                 .foregroundStyle(isActive ? CandoaChromeStyle.sidebarText : CandoaChromeStyle.sidebarTextSecondary)
         }
+    }
+}
+
+private struct FavoriteDropZone: View {
+    let onDismiss: () -> Void
+
+    @State private var isHoveringCloseButton = false
+
+    var body: some View {
+        VStack(spacing: 7) {
+            Image(systemName: "star.circle.fill")
+                .font(.system(size: 19, weight: .semibold))
+                .symbolRenderingMode(.hierarchical)
+                .foregroundStyle(CandoaChromeStyle.sidebarTextSecondary)
+
+            Text("Drag to add Favorites")
+                .font(.system(size: 13.5, weight: .semibold))
+                .foregroundStyle(CandoaChromeStyle.sidebarText)
+
+            Text("Favorites keep your most used sites and apps close")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(CandoaChromeStyle.sidebarTextSecondary)
+                .multilineTextAlignment(.center)
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 14)
+        .overlay(alignment: .topTrailing) {
+            Button(action: onDismiss) {
+                Image(systemName: "xmark")
+                    .font(.system(size: 10.5, weight: .semibold))
+                    .frame(width: 22, height: 22)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(isHoveringCloseButton ? CandoaChromeStyle.sidebarTextSecondary : CandoaChromeStyle.sidebarIcon)
+            .background(
+                Circle()
+                    .fill(isHoveringCloseButton ? CandoaChromeStyle.sidebarControlFillHover : Color.clear)
+            )
+            .onHover { isHoveringCloseButton = $0 }
+            .help("Dismiss Favorites Hint")
+            .padding(6)
+        }
+        .background(CandoaChromeStyle.sidebarControlFill.opacity(0.56))
+        .clipShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 11, style: .continuous)
+                .strokeBorder(
+                    CandoaChromeStyle.sidebarTextSecondary.opacity(0.26),
+                    style: StrokeStyle(lineWidth: 1, dash: [6, 5])
+                )
+        }
+        .animation(.easeOut(duration: 0.10), value: isHoveringCloseButton)
+    }
+}
+
+private struct FolderSectionView: View {
+    @ObservedObject var store: BrowserStore
+    let folder: BrowserFolder
+    @Binding var editingFolderID: UUID?
+    let accentColor: Color
+
+    @State private var draftName = ""
+    @State private var isHovering = false
+    @FocusState private var isNameFocused: Bool
+
+    private var tabs: [BrowserTab] {
+        store.tabsInFolder(folder.id)
+    }
+
+    private var isEditing: Bool {
+        editingFolderID == folder.id
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            folderHeader
+
+            if folder.isExpanded {
+                ForEach(tabs) { tab in
+                    TabRowView(
+                        tab: tab,
+                        isActive: tab.id == store.activeTabID && !store.isNewTabPaletteActive,
+                        isSplit: tab.id == store.splitTabID,
+                        accentColor: accentColor,
+                        mediaState: store.mediaStates[tab.id],
+                        onSelect: { store.switchTab(to: tab.id) },
+                        onClose: { store.closeTab(tab.id) },
+                        onDuplicate: { store.duplicateTab(tab.id) },
+                        onOpenInSplit: { store.openSplitView(with: tab.id) },
+                        onToggleFavorite: { store.toggleFavorite(tab.id) },
+                        onTogglePin: { store.togglePin(tab.id) },
+                        onToggleMute: { store.toggleMediaMute(tabID: tab.id) }
+                    )
+                    .padding(.leading, 12)
+                    .opacity(store.draggedTabID == tab.id ? 0 : 1)
+                    .onDrag {
+                        store.beginTabDrag(tab.id)
+                    }
+                    .onDrop(
+                        of: [UTType.text],
+                        delegate: FolderTabDropDelegate(
+                            folder: folder,
+                            targetTab: tab,
+                            tabs: tabs,
+                            store: store
+                        )
+                    )
+                }
+            }
+        }
+        .onAppear {
+            draftName = folder.name
+            if isEditing {
+                focusNameField()
+            }
+        }
+        .onChange(of: folder.name) { _, newValue in
+            if !isEditing {
+                draftName = newValue
+            }
+        }
+        .onChange(of: isEditing) { _, newValue in
+            if newValue {
+                draftName = folder.name
+                focusNameField()
+            } else {
+                isNameFocused = false
+            }
+        }
+    }
+
+    private var folderHeader: some View {
+        HStack(spacing: 8) {
+            Image(systemName: folder.isExpanded ? "folder.fill" : "folder")
+                .font(.system(size: 15, weight: .medium))
+                .foregroundStyle(CandoaChromeStyle.sidebarIcon)
+                .frame(width: 18, height: 18)
+
+            if isEditing {
+                TextField("Folder Name", text: $draftName)
+                    .textFieldStyle(.plain)
+                    .font(.system(size: 13.5, weight: .semibold))
+                    .foregroundStyle(CandoaChromeStyle.sidebarText)
+                    .focused($isNameFocused)
+                    .lineLimit(1)
+                    .onSubmit(commitRename)
+                    .onExitCommand {
+                        draftName = folder.name
+                        editingFolderID = nil
+                    }
+            } else {
+                Text(folder.name)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .font(.system(size: 13.5, weight: .semibold))
+                    .foregroundStyle(CandoaChromeStyle.sidebarText)
+            }
+
+            Spacer(minLength: 8)
+
+            if !tabs.isEmpty {
+                Text("\(tabs.count)")
+                    .font(.system(size: 11.5, weight: .semibold))
+                    .foregroundStyle(CandoaChromeStyle.sidebarTextSecondary)
+            }
+
+            Image(systemName: "chevron.right")
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(CandoaChromeStyle.sidebarIcon)
+                .rotationEffect(.degrees(folder.isExpanded ? 90 : 0))
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 6)
+        .frame(minHeight: 32)
+        .contentShape(Rectangle())
+        .background(isHovering ? CandoaChromeStyle.sidebarControlFillHover : Color.clear)
+        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .onHover { isHovering = $0 }
+        .onTapGesture {
+            if !isEditing {
+                store.toggleFolderExpanded(folder.id)
+            }
+        }
+        .onDrop(
+            of: [UTType.text],
+            delegate: FolderTabDropDelegate(
+                folder: folder,
+                targetTab: nil,
+                tabs: tabs,
+                store: store
+            )
+        )
+        .contextMenu {
+            Button("Rename Folder") {
+                editingFolderID = folder.id
+            }
+
+            Button("Delete Folder", role: .destructive) {
+                store.deleteFolder(folder.id)
+            }
+        }
+        .animation(.easeOut(duration: 0.10), value: isHovering)
+        .animation(.easeOut(duration: 0.14), value: folder.isExpanded)
+    }
+
+    private func focusNameField() {
+        DispatchQueue.main.async {
+            isNameFocused = true
+        }
+    }
+
+    private func commitRename() {
+        store.renameFolder(folder.id, to: draftName)
     }
 }
 
@@ -2943,7 +3148,9 @@ private enum SpaceThemePalette {
 private struct TabReorderDropDelegate: DropDelegate {
     let targetTab: BrowserTab
     let tabs: [BrowserTab]
+    let isFavorite: Bool
     let pinned: Bool
+    let folderID: UUID?
     let store: BrowserStore
 
     // Only tab drags reorder the list; text dragged off a web page also
@@ -2965,10 +3172,96 @@ private struct TabReorderDropDelegate: DropDelegate {
         var orderedIDs = tabs.map(\.id)
         let movedID = orderedIDs.remove(at: fromIndex)
         orderedIDs.insert(movedID, at: toIndex)
-        store.reorderTabs(orderedIDs, pinned: pinned)
+        store.reorderTabs(orderedIDs, isFavorite: isFavorite, isPinned: pinned, folderID: folderID)
     }
 
     func performDrop(info: DropInfo) -> Bool {
+        if let draggedID = store.draggedTabID, !tabs.contains(where: { $0.id == draggedID }) {
+            store.moveTabToPlacement(
+                draggedID,
+                isFavorite: isFavorite,
+                isPinned: pinned,
+                folderID: folderID,
+                before: targetTab.id
+            )
+        }
+        store.draggedTabID = nil
+        return true
+    }
+}
+
+private struct FolderTabDropDelegate: DropDelegate {
+    let folder: BrowserFolder
+    let targetTab: BrowserTab?
+    let tabs: [BrowserTab]
+    let store: BrowserStore
+
+    func validateDrop(info: DropInfo) -> Bool {
+        store.draggedTabID != nil
+    }
+
+    func dropEntered(info: DropInfo) {
+        guard
+            let targetTab,
+            let draggedID = store.draggedTabID,
+            draggedID != targetTab.id,
+            let fromIndex = tabs.firstIndex(where: { $0.id == draggedID }),
+            let toIndex = tabs.firstIndex(where: { $0.id == targetTab.id })
+        else {
+            return
+        }
+
+        var orderedIDs = tabs.map(\.id)
+        let movedID = orderedIDs.remove(at: fromIndex)
+        orderedIDs.insert(movedID, at: toIndex)
+        store.reorderTabs(orderedIDs, isFavorite: false, isPinned: true, folderID: folder.id)
+    }
+
+    func performDrop(info: DropInfo) -> Bool {
+        guard let draggedID = store.draggedTabID else { return false }
+
+        if !tabs.contains(where: { $0.id == draggedID }) {
+            store.moveTabToFolder(draggedID, folderID: folder.id, before: targetTab?.id)
+        }
+
+        store.draggedTabID = nil
+        return true
+    }
+}
+
+private struct FavoriteTabDropDelegate: DropDelegate {
+    let targetTab: BrowserTab?
+    let favoriteTabs: [BrowserTab]
+    let store: BrowserStore
+
+    func validateDrop(info: DropInfo) -> Bool {
+        store.draggedTabID != nil
+    }
+
+    func dropEntered(info: DropInfo) {
+        guard
+            let targetTab,
+            let draggedID = store.draggedTabID,
+            draggedID != targetTab.id,
+            let fromIndex = favoriteTabs.firstIndex(where: { $0.id == draggedID }),
+            let toIndex = favoriteTabs.firstIndex(where: { $0.id == targetTab.id })
+        else {
+            return
+        }
+
+        var orderedIDs = favoriteTabs.map(\.id)
+        let movedID = orderedIDs.remove(at: fromIndex)
+        orderedIDs.insert(movedID, at: toIndex)
+        store.reorderTabs(orderedIDs, isFavorite: true, isPinned: false, folderID: nil)
+    }
+
+    func performDrop(info: DropInfo) -> Bool {
+        guard let draggedID = store.draggedTabID else { return false }
+
+        if !favoriteTabs.contains(where: { $0.id == draggedID }) {
+            store.addTabToFavorites(draggedID, before: targetTab?.id)
+        }
+
         store.draggedTabID = nil
         return true
     }

@@ -379,8 +379,9 @@ private struct SpaceActionMenu: View {
                 store.beginSpaceCreation()
             }
 
-            menuButton("Create Folder", systemImage: "folder") {}
-                .disabled(true)
+            menuButton("New Folder", systemImage: "folder") {
+                store.createFolder()
+            }
 
             Divider()
                 .padding(.vertical, 5)

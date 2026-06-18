@@ -451,6 +451,31 @@ struct PersistenceService: @unchecked Sendable {
             context.delete(object)
         }
 
+        let existingFolders = try fetchObjects(entityName: Entity.folder, in: context)
+        var foldersByID = Dictionary(
+            uniqueKeysWithValues: existingFolders.compactMap { object -> (UUID, NSManagedObject)? in
+                guard let id = object.uuid(for: Key.id) else { return nil }
+                return (id, object)
+            }
+        )
+        let spaceIDs = Set(state.spaces.map(\.id))
+
+        for folder in state.folders {
+            guard spaceIDs.contains(folder.spaceID) else { continue }
+            let object = foldersByID[folder.id]
+                ?? NSEntityDescription.insertNewObject(forEntityName: Entity.folder, into: context)
+            object.setValue(folder.id, forKey: Key.id)
+            object.setValue(folder.name, forKey: Key.name)
+            object.setValue(folder.spaceID, forKey: Key.spaceID)
+            object.setValue(folder.sortOrder, forKey: Key.sortOrder)
+            object.setValue(folder.isExpanded, forKey: Key.isExpanded)
+            foldersByID[folder.id] = nil
+        }
+
+        for object in foldersByID.values {
+            context.delete(object)
+        }
+
         let existingTabs = try fetchObjects(entityName: Entity.tab, in: context)
         var tabsByID = Dictionary(
             uniqueKeysWithValues: existingTabs.compactMap { object -> (UUID, NSManagedObject)? in
@@ -458,7 +483,7 @@ struct PersistenceService: @unchecked Sendable {
                 return (id, object)
             }
         )
-        let spaceIDs = Set(state.spaces.map(\.id))
+        let folderIDs = Set(state.folders.map(\.id))
 
         for tab in state.tabs {
             guard spaceIDs.contains(tab.spaceID) else { continue }
@@ -469,7 +494,9 @@ struct PersistenceService: @unchecked Sendable {
             object.setValue(tab.url?.absoluteString, forKey: Key.urlString)
             object.setValue(tab.faviconSymbol, forKey: Key.faviconSymbol)
             object.setValue(tab.faviconData, forKey: Key.faviconData)
+            object.setValue(tab.isFavorite, forKey: Key.isFavorite)
             object.setValue(tab.isPinned, forKey: Key.isPinned)
+            object.setValue(tab.folderID.flatMap { folderIDs.contains($0) ? $0 : nil }, forKey: Key.folderID)
             object.setValue(tab.spaceID, forKey: Key.spaceID)
             object.setValue(tab.sortOrder, forKey: Key.sortOrder)
             object.setValue(tab.lastAccessedAt, forKey: Key.lastAccessedAt)
@@ -567,7 +594,11 @@ struct PersistenceService: @unchecked Sendable {
                 let tabRequest = NSFetchRequest<NSManagedObject>(entityName: Entity.tab)
                 tabRequest.sortDescriptors = [NSSortDescriptor(key: Key.sortOrder, ascending: true)]
 
+                let folderRequest = NSFetchRequest<NSManagedObject>(entityName: Entity.folder)
+                folderRequest.sortDescriptors = [NSSortDescriptor(key: Key.sortOrder, ascending: true)]
+
                 let spaces = try context.fetch(spaceRequest).compactMap(space(from:))
+                let folders = try context.fetch(folderRequest).compactMap(folder(from:))
                 let tabs = try context.fetch(tabRequest).compactMap(tab(from:))
                 guard let activeSpaceID = session.uuid(for: Key.activeSpaceID) ?? spaces.first?.id else {
                     return nil
@@ -575,6 +606,7 @@ struct PersistenceService: @unchecked Sendable {
 
                 return BrowserWindowState(
                     spaces: spaces,
+                    folders: folders,
                     tabs: tabs,
                     activeSpaceID: activeSpaceID,
                     activeTabID: session.uuid(for: Key.activeTabID),
@@ -628,6 +660,23 @@ struct PersistenceService: @unchecked Sendable {
         )
     }
 
+    private static func folder(from object: NSManagedObject) -> BrowserFolder? {
+        guard
+            let id = object.uuid(for: Key.id),
+            let spaceID = object.uuid(for: Key.spaceID)
+        else {
+            return nil
+        }
+
+        return BrowserFolder(
+            id: id,
+            name: object.string(for: Key.name) ?? "New Folder",
+            spaceID: spaceID,
+            sortOrder: object.double(for: Key.sortOrder),
+            isExpanded: object.bool(for: Key.isExpanded)
+        )
+    }
+
     private static func tab(from object: NSManagedObject) -> BrowserTab? {
         guard
             let id = object.uuid(for: Key.id),
@@ -646,7 +695,9 @@ struct PersistenceService: @unchecked Sendable {
             faviconData: object.data(for: Key.faviconData),
             isLoading: false,
             loadingProgress: 0,
+            isFavorite: object.bool(for: Key.isFavorite),
             isPinned: object.bool(for: Key.isPinned),
+            folderID: object.uuid(for: Key.folderID),
             spaceID: spaceID,
             sortOrder: object.double(for: Key.sortOrder),
             lastAccessedAt: object.date(for: Key.lastAccessedAt) ?? Date()
@@ -680,6 +731,7 @@ struct PersistenceService: @unchecked Sendable {
         let sessionEntities = [
             makeSessionEntity(),
             makeSpaceEntity(),
+            makeFolderEntity(),
             makeTabEntity()
         ]
         let historyEntities = [makeHistoryVisitEntity()]
@@ -722,6 +774,19 @@ struct PersistenceService: @unchecked Sendable {
         )
     }
 
+    private static func makeFolderEntity() -> NSEntityDescription {
+        makeEntity(
+            named: Entity.folder,
+            properties: [
+                attribute(Key.id, .UUIDAttributeType, optional: false),
+                attribute(Key.name, .stringAttributeType, optional: false),
+                attribute(Key.spaceID, .UUIDAttributeType, optional: false),
+                attribute(Key.sortOrder, .doubleAttributeType, optional: false),
+                attribute(Key.isExpanded, .booleanAttributeType, optional: false)
+            ]
+        )
+    }
+
     private static func makeTabEntity() -> NSEntityDescription {
         makeEntity(
             named: Entity.tab,
@@ -731,7 +796,9 @@ struct PersistenceService: @unchecked Sendable {
                 attribute(Key.urlString, .stringAttributeType),
                 attribute(Key.faviconSymbol, .stringAttributeType, optional: false),
                 attribute(Key.faviconData, .binaryDataAttributeType),
+                attribute(Key.isFavorite, .booleanAttributeType, optional: false),
                 attribute(Key.isPinned, .booleanAttributeType, optional: false),
+                attribute(Key.folderID, .UUIDAttributeType),
                 attribute(Key.spaceID, .UUIDAttributeType, optional: false),
                 attribute(Key.sortOrder, .doubleAttributeType, optional: false),
                 attribute(Key.lastAccessedAt, .dateAttributeType, optional: false)
@@ -804,6 +871,7 @@ private enum StoreConfiguration {
 private enum Entity {
     static let session = "PersistedSessionState"
     static let space = "PersistedBrowserSpace"
+    static let folder = "PersistedBrowserFolder"
     static let tab = "PersistedBrowserTab"
     static let historyVisit = "PersistedHistoryVisit"
 }
@@ -826,10 +894,13 @@ private enum Key {
     static let urlString = "urlString"
     static let faviconSymbol = "faviconSymbol"
     static let faviconData = "faviconData"
+    static let isFavorite = "isFavorite"
     static let isPinned = "isPinned"
+    static let folderID = "folderID"
     static let tabID = "tabID"
     static let spaceID = "spaceID"
     static let sortOrder = "sortOrder"
+    static let isExpanded = "isExpanded"
     static let lastAccessedAt = "lastAccessedAt"
     static let visitedAt = "visitedAt"
 }
