@@ -33,6 +33,14 @@ struct MiniPlayerReturnContext {
     let targetFrame: CGRect?
 }
 
+enum OnboardingTourStep: Int, CaseIterable, Identifiable {
+    case sidebar
+    case commandBar
+    case spaces
+
+    var id: Int { rawValue }
+}
+
 @MainActor
 final class BrowserStore: ObservableObject {
     private struct ClosedTabSnapshot {
@@ -64,6 +72,8 @@ final class BrowserStore: ObservableObject {
     @Published var isCreateSpacePresented = false
     @Published var editingSpaceID: UUID?
     @Published private(set) var isInitialSpaceSetupPresented = false
+    @Published private(set) var isOnboardingPresented = false
+    @Published private(set) var onboardingTourStep: OnboardingTourStep?
     @Published private(set) var spaceThemeAppearancePreview: SpaceThemeAppearance?
     @Published private(set) var isSpaceThemeColorPreviewActive = false
     @Published private(set) var spaceThemeColorHexPreview: String?
@@ -142,6 +152,9 @@ final class BrowserStore: ObservableObject {
         "#D17FB3",
         "#8E9A5B"
     ]
+    private static let completedOnboardingKey = "Candoa.Onboarding.Completed"
+    private static let completedOnboardingTourKey = "Candoa.Onboarding.TourCompleted"
+    private static let starterSpaceName = "Personal"
 
     var activeSpace: BrowserSpace? {
         spaces.first { $0.id == activeSpaceID }
@@ -245,7 +258,7 @@ final class BrowserStore: ObservableObject {
         self.webCoordinator = webCoordinator
 
         let restoredState = persistenceService.loadState()
-        var shouldPresentInitialSpaceSetup = false
+        var shouldPresentOnboarding = false
 
         if let restoredState, !restoredState.spaces.isEmpty {
             spaces = restoredState.spaces
@@ -265,7 +278,7 @@ final class BrowserStore: ObservableObject {
             // The window reads as plain native gray (light or dark per the
             // system); a space color is something the user opts into.
             let defaultSpace = BrowserSpace(
-                name: "",
+                name: Self.starterSpaceName,
                 symbolName: "circle.grid.2x2",
                 themeAppearance: BrowserSpace.defaultThemeAppearance
             )
@@ -275,16 +288,17 @@ final class BrowserStore: ObservableObject {
             activeTabID = nil
             splitTabID = nil
             isSplitViewEnabled = false
-            shouldPresentInitialSpaceSetup = restoredState?.spaces.isEmpty ?? true
+            shouldPresentOnboarding = true
         }
 
         self.webCoordinator.attach(store: self)
-        clearLegacyDefaultSpaceName()
+        normalizeStarterSpaceNameIfNeeded()
         normalizeSeededAppearanceIfNeeded()
         revertSeededColorIfNeeded()
         repairSessionState()
-        shouldPresentInitialSpaceSetup = shouldPresentInitialSpaceSetup || needsInitialSpaceSetup()
-        isInitialSpaceSetupPresented = shouldPresentInitialSpaceSetup
+        shouldPresentOnboarding = shouldPresentOnboarding || shouldShowOnboardingForCurrentState()
+        isOnboardingPresented = shouldPresentOnboarding
+        isInitialSpaceSetupPresented = false
         if restoresWebViews {
             restoreVisibleWebViews()
         }
@@ -294,7 +308,7 @@ final class BrowserStore: ObservableObject {
     }
 
     func focusAddressBar() {
-        guard !isInitialSpaceSetupPresented else { return }
+        guard !isInitialSpaceSetupPresented, !isOnboardingPresented else { return }
 
         if isCommandPalettePresented {
             dismissCommandPalette()
@@ -313,7 +327,7 @@ final class BrowserStore: ObservableObject {
     }
 
     func focusSidebarAddressBar() {
-        guard !isInitialSpaceSetupPresented else { return }
+        guard !isInitialSpaceSetupPresented, !isOnboardingPresented else { return }
 
         if isCommandPalettePresented {
             dismissCommandPalette()
@@ -332,7 +346,7 @@ final class BrowserStore: ObservableObject {
     }
 
     func openCommandPalette() {
-        guard !isInitialSpaceSetupPresented else { return }
+        guard !isInitialSpaceSetupPresented, !isOnboardingPresented else { return }
 
         commandPaletteInitialText = ""
         commandPaletteResumeQuery = ""
@@ -344,7 +358,7 @@ final class BrowserStore: ObservableObject {
     }
 
     func openNewTabCommandPalette() {
-        guard !isInitialSpaceSetupPresented else { return }
+        guard !isInitialSpaceSetupPresented, !isOnboardingPresented else { return }
 
         commandPaletteInitialText = ""
         commandPaletteResumeQuery = ""
@@ -397,18 +411,78 @@ final class BrowserStore: ObservableObject {
     }
 
     func beginSpaceCreation() {
-        guard !isInitialSpaceSetupPresented else { return }
+        guard !isInitialSpaceSetupPresented, !isOnboardingPresented else { return }
         dismissCommandPalette()
         editingSpaceID = nil
         isCreateSpacePresented = true
     }
 
     func beginSpaceEditing(_ id: UUID) {
-        guard !isInitialSpaceSetupPresented, spaces.contains(where: { $0.id == id }) else { return }
+        guard !isInitialSpaceSetupPresented, !isOnboardingPresented, spaces.contains(where: { $0.id == id }) else { return }
         dismissCommandPalette()
         isCreateSpacePresented = false
         switchSpace(to: id)
         editingSpaceID = id
+    }
+
+    func completeOnboarding(
+        spaceName: String,
+        symbolName: String,
+        themeAppearance: SpaceThemeAppearance,
+        startsTour: Bool
+    ) {
+        updateStarterSpace(
+            name: spaceName,
+            symbolName: symbolName,
+            themeAppearance: themeAppearance
+        )
+
+        UserDefaults.standard.set(true, forKey: Self.completedOnboardingKey)
+        isOnboardingPresented = false
+        isInitialSpaceSetupPresented = false
+
+        if startsTour && !UserDefaults.standard.bool(forKey: Self.completedOnboardingTourKey) {
+            onboardingTourStep = .sidebar
+        } else {
+            onboardingTourStep = nil
+            UserDefaults.standard.set(true, forKey: Self.completedOnboardingTourKey)
+            openNewTabCommandPalette()
+        }
+
+        flushSession()
+    }
+
+    func skipOnboarding() {
+        completeOnboarding(
+            spaceName: activeSpace?.name ?? Self.starterSpaceName,
+            symbolName: activeSpace?.symbolName ?? "circle.grid.2x2",
+            themeAppearance: activeSpace?.themeAppearance ?? BrowserSpace.defaultThemeAppearance,
+            startsTour: false
+        )
+    }
+
+    func advanceOnboardingTour() {
+        guard let onboardingTourStep else { return }
+        let steps = OnboardingTourStep.allCases
+        guard let currentIndex = steps.firstIndex(of: onboardingTourStep) else {
+            dismissOnboardingTour(opensCommandPalette: true)
+            return
+        }
+
+        let nextIndex = currentIndex + 1
+        if steps.indices.contains(nextIndex) {
+            self.onboardingTourStep = steps[nextIndex]
+        } else {
+            dismissOnboardingTour(opensCommandPalette: true)
+        }
+    }
+
+    func dismissOnboardingTour(opensCommandPalette: Bool = false) {
+        onboardingTourStep = nil
+        UserDefaults.standard.set(true, forKey: Self.completedOnboardingTourKey)
+        if opensCommandPalette {
+            openNewTabCommandPalette()
+        }
     }
 
     @discardableResult
@@ -509,6 +583,37 @@ final class BrowserStore: ObservableObject {
         repairSessionState()
         updateNavigationState()
         flushSession()
+    }
+
+    private func updateStarterSpace(
+        name: String,
+        symbolName: String,
+        themeAppearance: SpaceThemeAppearance
+    ) {
+        let normalizedName = Self.normalizedSpaceName(name)
+        let resolvedName = normalizedName.isEmpty ? Self.starterSpaceName : normalizedName
+        let targetSpaceID = spaces.contains(where: { $0.id == activeSpaceID })
+            ? activeSpaceID
+            : spaces.first?.id
+
+        guard let targetSpaceID, let index = spaces.firstIndex(where: { $0.id == targetSpaceID }) else {
+            let defaultSpace = BrowserSpace(
+                name: resolvedName,
+                symbolName: symbolName,
+                themeAppearance: themeAppearance
+            )
+            spaces = [defaultSpace]
+            activeSpaceID = defaultSpace.id
+            activeTabID = nil
+            return
+        }
+
+        spaces[index].name = resolvedName
+        spaces[index].symbolName = symbolName
+        spaces[index].themeAppearance = themeAppearance
+        activeSpaceID = spaces[index].id
+        repairSessionState()
+        updateNavigationState()
     }
 
     func renameSpace(_ id: UUID, to name: String) {
@@ -1661,11 +1766,12 @@ final class BrowserStore: ObservableObject {
         activeTabID = remoteState.activeTabID
         splitTabID = remoteState.splitTabID
         isSplitViewEnabled = remoteState.isSplitViewEnabled
-        clearLegacyDefaultSpaceName()
+        normalizeStarterSpaceNameIfNeeded()
         repairSessionState()
-        isInitialSpaceSetupPresented = needsInitialSpaceSetup()
-        if !isInitialSpaceSetupPresented {
-            isCreateSpacePresented = false
+        isInitialSpaceSetupPresented = false
+        isCreateSpacePresented = false
+        if shouldShowOnboardingForCurrentState() {
+            isOnboardingPresented = true
         }
         if let editingSpaceID, !spaces.contains(where: { $0.id == editingSpaceID }) {
             self.editingSpaceID = nil
@@ -1932,16 +2038,11 @@ final class BrowserStore: ObservableObject {
         }
     }
 
-    private func clearLegacyDefaultSpaceName() {
-        // Only the untouched legacy default ("Personal" + original symbol,
-        // no theme) goes back through onboarding. A user-created space that
-        // happens to be named "Personal" must keep its name.
+    private func normalizeStarterSpaceNameIfNeeded() {
         guard spaces.count == 1,
-              spaces[0].name == "Personal",
-              spaces[0].symbolName == "circle.grid.2x2",
-              spaces[0].themeColorHex == nil
+              spaces[0].name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         else { return }
-        spaces[0].name = ""
+        spaces[0].name = Self.starterSpaceName
     }
 
     private static let didRevertSeededColorKey = "candoa.didRevertSeededColor"
@@ -1981,8 +2082,12 @@ final class BrowserStore: ObservableObject {
         spaces[0].themeAppearance = .automatic
     }
 
-    private func needsInitialSpaceSetup() -> Bool {
-        spaces.count == 1 && spaces[0].name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    private func shouldShowOnboardingForCurrentState() -> Bool {
+        guard !UserDefaults.standard.bool(forKey: Self.completedOnboardingKey) else { return false }
+        guard tabs.isEmpty, spaces.count == 1 else { return false }
+
+        let name = spaces[0].name.trimmingCharacters(in: .whitespacesAndNewlines)
+        return name.isEmpty || name == Self.starterSpaceName
     }
 
     private static func isLegacyBlankPlaceholderURL(_ url: URL?) -> Bool {

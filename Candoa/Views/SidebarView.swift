@@ -90,6 +90,13 @@ struct SidebarView: View {
 
             if !store.isInitialSpaceSetupPresented {
                 SpaceSwitcherView(store: store)
+                    .popover(isPresented: tourPresentationBinding(for: .spaces), arrowEdge: .bottom) {
+                        OnboardingTourPopover(
+                            step: .spaces,
+                            onNext: store.advanceOnboardingTour,
+                            onSkip: { store.dismissOnboardingTour(opensCommandPalette: true) }
+                        )
+                    }
             }
         }
         .animation(.easeOut(duration: 0.16), value: availableUpdate)
@@ -128,6 +135,13 @@ struct SidebarView: View {
         .buttonStyle(.plain)
         .foregroundStyle(sidebarIconColor)
         .frame(height: 34)
+        .popover(isPresented: tourPresentationBinding(for: .sidebar), arrowEdge: .leading) {
+            OnboardingTourPopover(
+                step: .sidebar,
+                onNext: store.advanceOnboardingTour,
+                onSkip: { store.dismissOnboardingTour(opensCommandPalette: true) }
+            )
+        }
     }
 
     private var hidesNavigationChromeForAddressPalette: Bool {
@@ -384,6 +398,13 @@ struct SidebarView: View {
         }
         .animation(.easeOut(duration: 0.10), value: isHoveringNewTab)
         .animation(.easeOut(duration: 0.12), value: isArmed)
+        .popover(isPresented: tourPresentationBinding(for: .commandBar), arrowEdge: .leading) {
+            OnboardingTourPopover(
+                step: .commandBar,
+                onNext: store.advanceOnboardingTour,
+                onSkip: { store.dismissOnboardingTour(opensCommandPalette: true) }
+            )
+        }
     }
 
     private func newTabButtonBackground(isArmed: Bool) -> Color {
@@ -394,6 +415,16 @@ struct SidebarView: View {
             return CandoaChromeStyle.sidebarControlFillHover
         }
         return Color.clear
+    }
+
+    private func tourPresentationBinding(for step: OnboardingTourStep) -> Binding<Bool> {
+        Binding {
+            store.onboardingTourStep == step
+        } set: { isPresented in
+            if !isPresented, store.onboardingTourStep == step {
+                store.dismissOnboardingTour()
+            }
+        }
     }
 }
 
@@ -426,6 +457,80 @@ private struct AppUpdateBanner: View {
         .onHover { isHovering = $0 }
         .help("Candoa \(update.version) is available")
         .animation(.easeOut(duration: 0.10), value: isHovering)
+    }
+}
+
+private struct OnboardingTourPopover: View {
+    let step: OnboardingTourStep
+    let onNext: () -> Void
+    let onSkip: () -> Void
+
+    private var title: String {
+        switch step {
+        case .sidebar:
+            return "Your sidebar is home base"
+        case .commandBar:
+            return "Command-T starts browsing"
+        case .spaces:
+            return "Spaces live here"
+        }
+    }
+
+    private var message: String {
+        switch step {
+        case .sidebar:
+            return "Tabs, pinned tabs, navigation, and the address control stay in the left sidebar so web pages get the rest of the window."
+        case .commandBar:
+            return "Use New Tab or Command-T to search, enter a URL, or run browser commands without opening a blank tab first."
+        case .spaces:
+            return "Use the Space switcher for separate browsing contexts like personal, work, or projects."
+        }
+    }
+
+    private var symbolName: String {
+        switch step {
+        case .sidebar:
+            return "sidebar.left"
+        case .commandBar:
+            return "command"
+        case .spaces:
+            return "square.grid.2x2"
+        }
+    }
+
+    private var primaryTitle: String {
+        step == .spaces ? "Done" : "Next"
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(spacing: 10) {
+                Image(systemName: symbolName)
+                    .font(.system(size: 18, weight: .medium))
+                    .symbolRenderingMode(.hierarchical)
+                    .frame(width: 24)
+
+                Text(title)
+                    .font(.system(size: 15, weight: .semibold))
+            }
+
+            Text(message)
+                .font(.system(size: 13))
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            HStack {
+                Button("Skip Tour", action: onSkip)
+
+                Spacer()
+
+                Button(primaryTitle, action: onNext)
+                    .keyboardShortcut(.defaultAction)
+                    .buttonStyle(.borderedProminent)
+            }
+        }
+        .padding(16)
+        .frame(width: 300)
     }
 }
 
