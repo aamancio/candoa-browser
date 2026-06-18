@@ -332,7 +332,8 @@ struct SidebarView: View {
                                 store: store,
                                 folder: folder,
                                 editingFolderID: $store.editingFolderID,
-                                accentColor: activeSpaceTint
+                                accentColor: activeSpaceTint,
+                                nestingLevel: 0
                             )
                         }
                     }
@@ -2844,18 +2845,33 @@ private struct FavoriteDropZone: View {
 }
 
 private struct FolderSectionView: View {
+    private static let hoverOpenDelay: TimeInterval = 0.45
+    private static let hoverDismissDelay: TimeInterval = 0.18
+
     @ObservedObject var store: BrowserStore
     let folder: BrowserFolder
     @Binding var editingFolderID: UUID?
     let accentColor: Color
+    let nestingLevel: Int
 
     @State private var draftName = ""
     @State private var isHovering = false
+    @State private var isTabsPopoverPresented = false
+    @State private var isTabsPopoverHovering = false
+    @State private var pendingHoverWorkItem: DispatchWorkItem?
     @FocusState private var isNameFocused: Bool
 
     private var tabs: [BrowserTab] {
         let splitTabIDs = store.activeSplitGroupTabIDs
         return store.tabsInFolder(folder.id).filter { !splitTabIDs.contains($0.id) }
+    }
+
+    private var subfolders: [BrowserFolder] {
+        store.subfolders(in: folder.id)
+    }
+
+    private var popoverEntries: [FolderTabsPopoverEntry] {
+        folderPopoverEntries(in: folder.id, nestingLevel: 0)
     }
 
     private var isEditing: Bool {
@@ -2867,6 +2883,16 @@ private struct FolderSectionView: View {
             folderHeader
 
             if folder.isExpanded {
+                ForEach(subfolders) { subfolder in
+                    FolderSectionView(
+                        store: store,
+                        folder: subfolder,
+                        editingFolderID: $editingFolderID,
+                        accentColor: accentColor,
+                        nestingLevel: nestingLevel + 1
+                    )
+                }
+
                 ForEach(tabs) { tab in
                     TabRowView(
                         tab: tab,
@@ -2882,7 +2908,7 @@ private struct FolderSectionView: View {
                         onTogglePin: { store.togglePin(tab.id) },
                         onToggleMute: { store.toggleMediaMute(tabID: tab.id) }
                     )
-                    .padding(.leading, 12)
+                    .padding(.leading, CGFloat(nestingLevel + 1) * 12)
                     .opacity(store.shouldHideSidebarTab(tab.id, placement: .folder(folder.id)) ? 0 : 1)
                     .sidebarRowDropIndicator(
                         showsTop: store.sidebarDropIndicator == SidebarTabDropIndicator(
@@ -2942,11 +2968,28 @@ private struct FolderSectionView: View {
         .onChange(of: isEditing) { _, newValue in
             if newValue {
                 draftName = folder.name
+                cancelTabsPopover()
                 focusNameField()
             } else {
                 isNameFocused = false
             }
         }
+        .onChange(of: folder.isExpanded) { _, isExpanded in
+            if isExpanded {
+                cancelTabsPopover()
+            }
+        }
+        .onChange(of: tabs.map(\.id)) { _, tabIDs in
+            if tabIDs.isEmpty && subfolders.isEmpty {
+                cancelTabsPopover()
+            }
+        }
+        .onChange(of: subfolders.map(\.id)) { _, subfolderIDs in
+            if tabs.isEmpty && subfolderIDs.isEmpty {
+                cancelTabsPopover()
+            }
+        }
+        .onDisappear(perform: cancelTabsPopover)
     }
 
     private var folderHeader: some View {
@@ -2977,27 +3020,21 @@ private struct FolderSectionView: View {
             }
 
             Spacer(minLength: 8)
-
-            if !tabs.isEmpty {
-                Text("\(tabs.count)")
-                    .font(.system(size: 11.5, weight: .semibold))
-                    .foregroundStyle(CandoaChromeStyle.sidebarTextSecondary)
-            }
-
-            Image(systemName: "chevron.right")
-                .font(.system(size: 10, weight: .semibold))
-                .foregroundStyle(CandoaChromeStyle.sidebarIcon)
-                .rotationEffect(.degrees(folder.isExpanded ? 90 : 0))
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 6)
+        .padding(.leading, CGFloat(nestingLevel) * 12)
         .frame(minHeight: 32)
         .contentShape(Rectangle())
         .background(isHovering ? CandoaChromeStyle.sidebarControlFillHover : Color.clear)
         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-        .onHover { isHovering = $0 }
+        .onHover { hovering in
+            isHovering = hovering
+            handleHeaderHover(hovering)
+        }
         .onTapGesture {
             if !isEditing {
+                cancelTabsPopover()
                 store.toggleFolderExpanded(folder.id)
             }
         }
@@ -3012,15 +3049,118 @@ private struct FolderSectionView: View {
         )
         .contextMenu {
             Button("Rename Folder") {
+                cancelTabsPopover()
                 editingFolderID = folder.id
             }
 
+            Button("New Subfolder") {
+                cancelTabsPopover()
+                _ = store.createSubfolder(in: folder.id)
+            }
+
             Button("Delete Folder", role: .destructive) {
+                cancelTabsPopover()
                 store.deleteFolder(folder.id)
             }
         }
+        .popover(isPresented: $isTabsPopoverPresented, arrowEdge: .leading) {
+            FolderTabsPopover(
+                folderName: folder.name,
+                entries: popoverEntries,
+                activeTabID: store.activeTabID,
+                isNewTabPaletteActive: store.isNewTabPaletteActive,
+                accentColor: accentColor,
+                mediaStates: store.mediaStates,
+                onHoverChange: handlePopoverHover,
+                onOpenFolder: { folder in
+                    cancelTabsPopover()
+                    store.revealFolder(folder.id)
+                },
+                onSelect: { tab in
+                    cancelTabsPopover()
+                    store.switchTab(to: tab.id)
+                },
+                onClose: { tab in
+                    store.closeTab(tab.id)
+                },
+                onDuplicate: { tab in
+                    store.duplicateTab(tab.id)
+                },
+                onOpenInSplit: { tab in
+                    cancelTabsPopover()
+                    store.openSplitView(with: tab.id)
+                },
+                onToggleFavorite: { tab in
+                    store.toggleFavorite(tab.id)
+                },
+                onTogglePin: { tab in
+                    store.togglePin(tab.id)
+                },
+                onToggleMute: { tab in
+                    store.toggleMediaMute(tabID: tab.id)
+                }
+            )
+        }
         .animation(.easeOut(duration: 0.10), value: isHovering)
         .animation(.easeOut(duration: 0.14), value: folder.isExpanded)
+    }
+
+    private func handleHeaderHover(_ hovering: Bool) {
+        if hovering {
+            scheduleTabsPopover()
+        } else {
+            scheduleTabsPopoverDismiss()
+        }
+    }
+
+    private func handlePopoverHover(_ hovering: Bool) {
+        isTabsPopoverHovering = hovering
+        if hovering {
+            pendingHoverWorkItem?.cancel()
+            pendingHoverWorkItem = nil
+        } else {
+            scheduleTabsPopoverDismiss()
+        }
+    }
+
+    private func scheduleTabsPopover() {
+        pendingHoverWorkItem?.cancel()
+        guard !isEditing, !popoverEntries.isEmpty else { return }
+
+        let workItem = DispatchWorkItem {
+            guard isHovering, !isEditing, !popoverEntries.isEmpty else { return }
+            isTabsPopoverPresented = true
+        }
+        pendingHoverWorkItem = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.hoverOpenDelay, execute: workItem)
+    }
+
+    private func scheduleTabsPopoverDismiss() {
+        pendingHoverWorkItem?.cancel()
+        guard isTabsPopoverPresented else { return }
+
+        let workItem = DispatchWorkItem {
+            guard !isHovering, !isTabsPopoverHovering else { return }
+            isTabsPopoverPresented = false
+        }
+        pendingHoverWorkItem = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.hoverDismissDelay, execute: workItem)
+    }
+
+    private func cancelTabsPopover() {
+        pendingHoverWorkItem?.cancel()
+        pendingHoverWorkItem = nil
+        isTabsPopoverPresented = false
+        isTabsPopoverHovering = false
+    }
+
+    private func folderPopoverEntries(in folderID: UUID, nestingLevel: Int) -> [FolderTabsPopoverEntry] {
+        let folderEntries = store.subfolders(in: folderID).flatMap { subfolder in
+            [FolderTabsPopoverEntry.folder(subfolder, nestingLevel: nestingLevel)]
+                + folderPopoverEntries(in: subfolder.id, nestingLevel: nestingLevel + 1)
+        }
+        let tabEntries = store.tabsInFolder(folderID).map { FolderTabsPopoverEntry.tab($0, nestingLevel: nestingLevel) }
+        return folderEntries + tabEntries
     }
 
     private func focusNameField() {
@@ -3031,6 +3171,288 @@ private struct FolderSectionView: View {
 
     private func commitRename() {
         store.renameFolder(folder.id, to: draftName)
+    }
+}
+
+private enum FolderTabsPopoverEntry: Identifiable {
+    case folder(BrowserFolder, nestingLevel: Int)
+    case tab(BrowserTab, nestingLevel: Int)
+
+    var id: String {
+        switch self {
+        case .folder(let folder, _):
+            return "folder-\(folder.id.uuidString)"
+        case .tab(let tab, _):
+            return "tab-\(tab.id.uuidString)"
+        }
+    }
+
+    var searchableText: String {
+        switch self {
+        case .folder(let folder, _):
+            return folder.name
+        case .tab(let tab, _):
+            return [tab.title, tab.url?.absoluteString].compactMap(\.self).joined(separator: " ")
+        }
+    }
+}
+
+private struct FolderTabsPopover: View {
+    let folderName: String
+    let entries: [FolderTabsPopoverEntry]
+    let activeTabID: UUID?
+    let isNewTabPaletteActive: Bool
+    let accentColor: Color
+    let mediaStates: [UUID: TabMediaState]
+    let onHoverChange: (Bool) -> Void
+    let onOpenFolder: (BrowserFolder) -> Void
+    let onSelect: (BrowserTab) -> Void
+    let onClose: (BrowserTab) -> Void
+    let onDuplicate: (BrowserTab) -> Void
+    let onOpenInSplit: (BrowserTab) -> Void
+    let onToggleFavorite: (BrowserTab) -> Void
+    let onTogglePin: (BrowserTab) -> Void
+    let onToggleMute: (BrowserTab) -> Void
+
+    @State private var query = ""
+    @FocusState private var isSearchFocused: Bool
+
+    private var filteredEntries: [FolderTabsPopoverEntry] {
+        let trimmedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedQuery.isEmpty else { return entries }
+
+        return entries.filter { entry in
+            entry.searchableText.localizedCaseInsensitiveContains(trimmedQuery)
+        }
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            searchField
+
+            Divider()
+
+            ScrollView(.vertical) {
+                LazyVStack(alignment: .leading, spacing: 3) {
+                    if filteredEntries.isEmpty {
+                        Text("No matching tabs or folders")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, minHeight: 72)
+                    } else {
+                        ForEach(filteredEntries) { entry in
+                            switch entry {
+                            case .folder(let folder, let nestingLevel):
+                                FolderTabsPopoverFolderRow(
+                                    folder: folder,
+                                    nestingLevel: nestingLevel,
+                                    onSelect: { onOpenFolder(folder) }
+                                )
+                            case .tab(let tab, let nestingLevel):
+                                FolderTabsPopoverRow(
+                                    tab: tab,
+                                    nestingLevel: nestingLevel,
+                                    isActive: tab.id == activeTabID && !isNewTabPaletteActive,
+                                    accentColor: accentColor,
+                                    mediaState: mediaStates[tab.id],
+                                    onSelect: { onSelect(tab) },
+                                    onClose: { onClose(tab) },
+                                    onDuplicate: { onDuplicate(tab) },
+                                    onOpenInSplit: { onOpenInSplit(tab) },
+                                    onToggleFavorite: { onToggleFavorite(tab) },
+                                    onTogglePin: { onTogglePin(tab) },
+                                    onToggleMute: { onToggleMute(tab) }
+                                )
+                            }
+                        }
+                    }
+                }
+                .padding(6)
+            }
+            .frame(maxHeight: 292)
+        }
+        .frame(width: 310)
+        .background(.regularMaterial)
+        .onHover(perform: onHoverChange)
+        .onAppear {
+            DispatchQueue.main.async {
+                isSearchFocused = true
+            }
+        }
+    }
+
+    private var searchField: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(.secondary)
+
+            TextField("Search \(folderName)...", text: $query)
+                .textFieldStyle(.plain)
+                .focused($isSearchFocused)
+                .font(.system(size: 14, weight: .semibold))
+        }
+        .padding(.horizontal, 11)
+        .padding(.vertical, 10)
+    }
+}
+
+private struct FolderTabsPopoverFolderRow: View {
+    let folder: BrowserFolder
+    let nestingLevel: Int
+    let onSelect: () -> Void
+
+    @State private var isHovering = false
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: folder.isExpanded ? "folder.fill" : "folder")
+                .font(.system(size: 15, weight: .medium))
+                .foregroundStyle(.secondary)
+                .frame(width: 18, height: 18)
+
+            Text(folder.name)
+                .font(.system(size: 13.5, weight: .semibold))
+                .lineLimit(1)
+                .truncationMode(.tail)
+
+            Spacer(minLength: 8)
+        }
+        .padding(.horizontal, 9)
+        .padding(.vertical, 7)
+        .padding(.leading, CGFloat(nestingLevel) * 14)
+        .frame(minHeight: 40)
+        .contentShape(Rectangle())
+        .foregroundStyle(CandoaChromeStyle.sidebarText)
+        .background(isHovering ? CandoaChromeStyle.sidebarControlFillHover : Color.clear)
+        .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+        .onTapGesture(perform: onSelect)
+        .onHover { isHovering = $0 }
+        .accessibilityAddTraits(.isButton)
+        .animation(.easeOut(duration: 0.10), value: isHovering)
+    }
+}
+
+private struct FolderTabsPopoverRow: View {
+    let tab: BrowserTab
+    let nestingLevel: Int
+    let isActive: Bool
+    let accentColor: Color
+    let mediaState: TabMediaState?
+    let onSelect: () -> Void
+    let onClose: () -> Void
+    let onDuplicate: () -> Void
+    let onOpenInSplit: () -> Void
+    let onToggleFavorite: () -> Void
+    let onTogglePin: () -> Void
+    let onToggleMute: () -> Void
+
+    @State private var isHovering = false
+
+    var body: some View {
+        HStack(spacing: 10) {
+            faviconImage
+                .frame(width: 18, height: 18)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(tab.title)
+                    .font(.system(size: 13.5, weight: .semibold))
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+
+                Text(secondaryLabel)
+                    .font(.system(size: 11.5, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+            }
+
+            Spacer(minLength: 8)
+
+            if let audioIndicatorIcon {
+                Button(action: onToggleMute) {
+                    Image(systemName: audioIndicatorIcon)
+                        .font(.system(size: 11, weight: .semibold))
+                        .frame(width: 18, height: 18)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(.secondary)
+                .help(mediaState?.isMuted == true ? "Unmute Tab" : "Mute Tab")
+            }
+
+            Button(action: onClose) {
+                Image(systemName: "xmark")
+                    .font(.system(size: 10, weight: .semibold))
+                    .frame(width: 18, height: 18)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(.secondary)
+            .help("Close Tab")
+            .opacity(isHovering ? 1 : 0)
+            .accessibilityHidden(!isHovering)
+        }
+        .padding(.horizontal, 9)
+        .padding(.vertical, 7)
+        .padding(.leading, CGFloat(nestingLevel) * 14)
+        .frame(minHeight: 44)
+        .contentShape(Rectangle())
+        .foregroundStyle(CandoaChromeStyle.sidebarText)
+        .background(rowBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+        .onTapGesture(perform: onSelect)
+        .onHover { isHovering = $0 }
+        .accessibilityAddTraits(.isButton)
+        .contextMenu {
+            if mediaState?.hasMedia == true {
+                Button(mediaState?.isMuted == true ? "Unmute Tab" : "Mute Tab", action: onToggleMute)
+            }
+            Button(tab.isFavorite ? "Remove from Favorites" : "Add to Favorites", action: onToggleFavorite)
+            Button(tab.isPinned ? "Unpin Tab" : "Pin Tab", action: onTogglePin)
+            Button(BrowserCommandTitles.duplicateTab, action: onDuplicate)
+            Button("Open in Split View", action: onOpenInSplit)
+            Button("Close Tab", action: onClose)
+        }
+        .animation(.easeOut(duration: 0.10), value: isHovering)
+        .animation(.easeOut(duration: 0.12), value: isActive)
+    }
+
+    private var audioIndicatorIcon: String? {
+        guard let mediaState, mediaState.hasMedia else { return nil }
+        if mediaState.isMuted { return "speaker.slash.fill" }
+        if mediaState.isPlaying { return "speaker.wave.2.fill" }
+        return nil
+    }
+
+    private var rowBackground: Color {
+        if isActive {
+            return accentColor.opacity(0.18)
+        }
+        if isHovering {
+            return CandoaChromeStyle.sidebarControlFillHover
+        }
+        return Color.clear
+    }
+
+    private var secondaryLabel: String {
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .full
+        formatter.dateTimeStyle = .named
+        return formatter.localizedString(for: tab.lastAccessedAt, relativeTo: Date())
+    }
+
+    @ViewBuilder
+    private var faviconImage: some View {
+        if let data = tab.faviconData, let nsImage = NSImage(data: data) {
+            Image(nsImage: nsImage)
+                .resizable()
+                .scaledToFit()
+        } else {
+            Image(systemName: tab.faviconSymbol)
+                .font(.system(size: 15, weight: .medium))
+                .foregroundStyle(.secondary)
+        }
     }
 }
 

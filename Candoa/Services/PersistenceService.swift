@@ -353,6 +353,7 @@ struct PersistenceService: @unchecked Sendable {
             }
         )
         let spaceIDs = Set(state.spaces.map(\.id))
+        let folderIDs = Set(state.folders.map(\.id))
 
         for folder in state.folders {
             guard spaceIDs.contains(folder.spaceID) else { continue }
@@ -361,6 +362,10 @@ struct PersistenceService: @unchecked Sendable {
             object.setValue(folder.id, forKey: Key.id)
             object.setValue(folder.name, forKey: Key.name)
             object.setValue(folder.spaceID, forKey: Key.spaceID)
+            object.setValue(
+                folder.parentFolderID.flatMap { folderIDs.contains($0) ? $0 : nil },
+                forKey: Key.parentFolderID
+            )
             object.setValue(folder.sortOrder, forKey: Key.sortOrder)
             object.setValue(folder.isExpanded, forKey: Key.isExpanded)
             foldersByID[folder.id] = nil
@@ -377,8 +382,6 @@ struct PersistenceService: @unchecked Sendable {
                 return (id, object)
             }
         )
-        let folderIDs = Set(state.folders.map(\.id))
-
         for tab in state.tabs {
             guard spaceIDs.contains(tab.spaceID) else { continue }
             let object = tabsByID[tab.id]
@@ -517,6 +520,7 @@ struct PersistenceService: @unchecked Sendable {
             id: id,
             name: object.string(for: Key.name) ?? "New Folder",
             spaceID: spaceID,
+            parentFolderID: object.uuid(for: Key.parentFolderID),
             sortOrder: object.double(for: Key.sortOrder),
             isExpanded: object.bool(for: Key.isExpanded)
         )
@@ -641,6 +645,7 @@ struct PersistenceService: @unchecked Sendable {
                 attribute(Key.id, .UUIDAttributeType, optional: false),
                 attribute(Key.name, .stringAttributeType, optional: false),
                 attribute(Key.spaceID, .UUIDAttributeType, optional: false),
+                attribute(Key.parentFolderID, .UUIDAttributeType),
                 attribute(Key.sortOrder, .doubleAttributeType, optional: false),
                 attribute(Key.isExpanded, .booleanAttributeType, optional: false)
             ]
@@ -765,6 +770,7 @@ private enum Key {
     static let isFavorite = "isFavorite"
     static let isPinned = "isPinned"
     static let folderID = "folderID"
+    static let parentFolderID = "parentFolderID"
     static let tabID = "tabID"
     static let spaceID = "spaceID"
     static let sortOrder = "sortOrder"

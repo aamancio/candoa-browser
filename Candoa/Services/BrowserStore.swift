@@ -281,14 +281,17 @@ final class BrowserStore: ObservableObject {
 
     var foldersForActiveSpace: [BrowserFolder] {
         folders
-            .filter { $0.spaceID == activeSpaceID }
+            .filter { $0.spaceID == activeSpaceID && $0.parentFolderID == nil }
             .sorted { $0.sortOrder < $1.sortOrder }
     }
 
     var folderedTabsForActiveSpace: [BrowserTab] {
-        foldersForActiveSpace.flatMap { folder in
-            tabsInFolder(folder.id)
-        }
+        folders
+            .filter { $0.spaceID == activeSpaceID }
+            .sorted { $0.sortOrder < $1.sortOrder }
+            .flatMap { folder in
+                tabsInFolder(folder.id)
+            }
     }
 
     var regularTabsForActiveSpace: [BrowserTab] {
@@ -301,6 +304,23 @@ final class BrowserStore: ObservableObject {
         tabs
             .filter { $0.folderID == folderID }
             .sorted { $0.sortOrder < $1.sortOrder }
+    }
+
+    func subfolders(in folderID: UUID) -> [BrowserFolder] {
+        folders
+            .filter { $0.parentFolderID == folderID }
+            .sorted { $0.sortOrder < $1.sortOrder }
+    }
+
+    func tabsInFolderTree(_ folderID: UUID) -> [BrowserTab] {
+        tabsInFolder(folderID) + subfolders(in: folderID).flatMap { tabsInFolderTree($0.id) }
+    }
+
+    private func descendantFolderIDs(of folderID: UUID) -> Set<UUID> {
+        subfolders(in: folderID).reduce(into: Set<UUID>()) { result, folder in
+            result.insert(folder.id)
+            result.formUnion(descendantFolderIDs(of: folder.id))
+        }
     }
 
     init(
@@ -969,16 +989,31 @@ final class BrowserStore: ObservableObject {
     }
 
     @discardableResult
-    func createFolder(named name: String = "New Folder") -> BrowserFolder {
+    func createFolder(named name: String = "New Folder", parentFolderID: UUID? = nil) -> BrowserFolder {
+        let resolvedParentID = parentFolderID.flatMap { parentID in
+            folders.contains { $0.id == parentID && $0.spaceID == activeSpaceID } ? parentID : nil
+        }
         let folder = BrowserFolder(
             name: uniqueFolderName(base: name, in: activeSpaceID),
             spaceID: activeSpaceID,
-            sortOrder: nextFolderSortOrder(spaceID: activeSpaceID)
+            parentFolderID: resolvedParentID,
+            sortOrder: nextFolderSortOrder(spaceID: activeSpaceID, parentFolderID: resolvedParentID)
         )
         folders.append(folder)
+        if let resolvedParentID, let parentIndex = folders.firstIndex(where: { $0.id == resolvedParentID }) {
+            folders[parentIndex].isExpanded = true
+        }
         editingFolderID = folder.id
         flushSession()
         return folder
+    }
+
+    @discardableResult
+    func createSubfolder(in parentFolderID: UUID) -> BrowserFolder? {
+        guard folders.contains(where: { $0.id == parentFolderID && $0.spaceID == activeSpaceID }) else {
+            return nil
+        }
+        return createFolder(named: "New Folder", parentFolderID: parentFolderID)
     }
 
     func renameFolder(_ id: UUID, to name: String) {
@@ -995,15 +1030,40 @@ final class BrowserStore: ObservableObject {
         flushSession()
     }
 
+    func setFolderExpanded(_ id: UUID, _ isExpanded: Bool) {
+        guard let index = folders.firstIndex(where: { $0.id == id }), folders[index].isExpanded != isExpanded else { return }
+        folders[index].isExpanded = isExpanded
+        flushSession()
+    }
+
+    func revealFolder(_ id: UUID) {
+        var changed = false
+        var currentID: UUID? = id
+        var seen = Set<UUID>()
+
+        while let folderID = currentID, seen.insert(folderID).inserted {
+            guard let index = folders.firstIndex(where: { $0.id == folderID }) else { break }
+            if !folders[index].isExpanded {
+                folders[index].isExpanded = true
+                changed = true
+            }
+            currentID = folders[index].parentFolderID
+        }
+
+        if changed {
+            flushSession()
+        }
+    }
+
     func deleteFolder(_ id: UUID) {
-        guard let folderIndex = folders.firstIndex(where: { $0.id == id }) else { return }
-        let folder = folders[folderIndex]
-        folders.remove(at: folderIndex)
-        if editingFolderID == id {
+        guard let folder = folders.first(where: { $0.id == id }) else { return }
+        let deletedFolderIDs = descendantFolderIDs(of: id).union([id])
+        folders.removeAll { deletedFolderIDs.contains($0.id) }
+        if let currentEditingFolderID = editingFolderID, deletedFolderIDs.contains(currentEditingFolderID) {
             editingFolderID = nil
         }
 
-        for index in tabs.indices where tabs[index].folderID == id {
+        for index in tabs.indices where tabs[index].folderID.map(deletedFolderIDs.contains) == true {
             tabs[index].folderID = nil
             tabs[index].isFavorite = false
             tabs[index].isPinned = true
@@ -2392,9 +2452,9 @@ final class BrowserStore: ObservableObject {
         return (orders.max() ?? -1) + 1
     }
 
-    private func nextFolderSortOrder(spaceID: UUID) -> Double {
+    private func nextFolderSortOrder(spaceID: UUID, parentFolderID: UUID? = nil) -> Double {
         let orders = folders
-            .filter { $0.spaceID == spaceID }
+            .filter { $0.spaceID == spaceID && $0.parentFolderID == parentFolderID }
             .map(\.sortOrder)
         return (orders.min() ?? 0) - 1
     }
@@ -2505,6 +2565,12 @@ final class BrowserStore: ObservableObject {
         }
 
         let folderSpaceByID = Dictionary(uniqueKeysWithValues: folders.map { ($0.id, $0.spaceID) })
+        for index in folders.indices {
+            guard let parentID = folders[index].parentFolderID else { continue }
+            if folderSpaceByID[parentID] != folders[index].spaceID || folderHasAncestor(parentID, ancestorID: folders[index].id) {
+                folders[index].parentFolderID = nil
+            }
+        }
         tabs = tabs.filter { spaceIDs.contains($0.spaceID) }
 
         for index in tabs.indices {
@@ -2568,6 +2634,19 @@ final class BrowserStore: ObservableObject {
         return "\(normalizedBase) \(folders.count + 1)"
     }
 
+    private func folderHasAncestor(_ folderID: UUID, ancestorID: UUID) -> Bool {
+        var seen = Set<UUID>()
+        var currentID: UUID? = folderID
+
+        while let id = currentID {
+            if id == ancestorID { return true }
+            guard seen.insert(id).inserted else { return true }
+            currentID = folders.first { $0.id == id }?.parentFolderID
+        }
+
+        return false
+    }
+
     private static func isInternalBlankPlaceholderURL(_ url: URL?) -> Bool {
         guard let url else { return false }
         return url.absoluteString == "about:blank"
@@ -2586,14 +2665,18 @@ final class BrowserStore: ObservableObject {
     }
 
     private func normalizeFolderSortOrder(spaceID: UUID) {
-        let orderedIDs = folders
-            .filter { $0.spaceID == spaceID }
-            .sorted { $0.sortOrder < $1.sortOrder }
-            .map(\.id)
+        let parentIDs = Set(folders.filter { $0.spaceID == spaceID }.map(\.parentFolderID)) as Set<UUID?>
 
-        for (offset, id) in orderedIDs.enumerated() {
-            guard let index = folders.firstIndex(where: { $0.id == id }) else { continue }
-            folders[index].sortOrder = Double(offset)
+        for parentID in parentIDs {
+            let orderedIDs = folders
+                .filter { $0.spaceID == spaceID && $0.parentFolderID == parentID }
+                .sorted { $0.sortOrder < $1.sortOrder }
+                .map(\.id)
+
+            for (offset, id) in orderedIDs.enumerated() {
+                guard let index = folders.firstIndex(where: { $0.id == id }) else { continue }
+                folders[index].sortOrder = Double(offset)
+            }
         }
     }
 

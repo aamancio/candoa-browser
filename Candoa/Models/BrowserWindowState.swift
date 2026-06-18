@@ -4,6 +4,7 @@ struct BrowserFolder: Identifiable, Codable, Hashable {
     var id: UUID
     var name: String
     var spaceID: UUID
+    var parentFolderID: UUID?
     var sortOrder: Double
     var isExpanded: Bool
 
@@ -11,12 +12,14 @@ struct BrowserFolder: Identifiable, Codable, Hashable {
         id: UUID = UUID(),
         name: String = "New Folder",
         spaceID: UUID,
+        parentFolderID: UUID? = nil,
         sortOrder: Double = 0,
         isExpanded: Bool = true
     ) {
         self.id = id
         self.name = name
         self.spaceID = spaceID
+        self.parentFolderID = parentFolderID
         self.sortOrder = sortOrder
         self.isExpanded = isExpanded
     }
@@ -25,6 +28,7 @@ struct BrowserFolder: Identifiable, Codable, Hashable {
         case id
         case name
         case spaceID
+        case parentFolderID
         case sortOrder
         case isExpanded
     }
@@ -34,6 +38,7 @@ struct BrowserFolder: Identifiable, Codable, Hashable {
         id = try container.decodeIfPresent(UUID.self, forKey: .id) ?? UUID()
         name = try container.decodeIfPresent(String.self, forKey: .name) ?? "New Folder"
         spaceID = try container.decode(UUID.self, forKey: .spaceID)
+        parentFolderID = try container.decodeIfPresent(UUID.self, forKey: .parentFolderID)
         sortOrder = try container.decodeIfPresent(Double.self, forKey: .sortOrder) ?? 0
         isExpanded = try container.decodeIfPresent(Bool.self, forKey: .isExpanded) ?? true
     }
