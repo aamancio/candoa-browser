@@ -10,6 +10,7 @@ struct KeyboardShortcutMonitor: NSViewRepresentable {
     let onCaptureFullPage: () -> Void
     let onPinOrUnpinTab: () -> Void
     let onToggleSidebar: () -> Void
+    let onToggleAISidebar: () -> Void
     let onFindInPage: () -> Void
     let onReload: () -> Void
     let onControlTab: () -> Void
@@ -49,6 +50,7 @@ struct KeyboardShortcutMonitor: NSViewRepresentable {
         coordinator.onCaptureFullPage = onCaptureFullPage
         coordinator.onPinOrUnpinTab = onPinOrUnpinTab
         coordinator.onToggleSidebar = onToggleSidebar
+        coordinator.onToggleAISidebar = onToggleAISidebar
         coordinator.onFindInPage = onFindInPage
         coordinator.onReload = onReload
         coordinator.onControlTab = onControlTab
@@ -73,6 +75,7 @@ struct KeyboardShortcutMonitor: NSViewRepresentable {
         var onCaptureFullPage: () -> Void = {}
         var onPinOrUnpinTab: () -> Void = {}
         var onToggleSidebar: () -> Void = {}
+        var onToggleAISidebar: () -> Void = {}
         var onFindInPage: () -> Void = {}
         var onReload: () -> Void = {}
         var onControlTab: () -> Void = {}
@@ -142,6 +145,11 @@ struct KeyboardShortcutMonitor: NSViewRepresentable {
 
                 if Self.matchesConfiguredShortcut(.toggleSidebar, event) {
                     onToggleSidebar()
+                    return nil
+                }
+
+                if Self.matchesConfiguredShortcut(.toggleAISidebar, event) {
+                    onToggleAISidebar()
                     return nil
                 }
 

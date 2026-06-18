@@ -89,7 +89,7 @@ struct CommandPaletteView: View {
             )
         )
         .onAppear {
-            isAskSupported = Self.resolveAskSupport()
+            isAskSupported = false
             query = store.commandPaletteInitialText
             selectedSearchProvider = nil
             isActionsMode = false

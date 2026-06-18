@@ -127,6 +127,12 @@ private struct BrowserCommands: Commands {
             }
             .disabled(actions == nil)
 
+            Button(BrowserCommandTitles.toggleAISidebar) {
+                actions?.toggleAISidebar()
+            }
+            .keyboardShortcut("b", modifiers: [.command, .option])
+            .disabled(actions == nil)
+
             Divider()
 
             Button(BrowserCommandTitles.reloadTab) {
@@ -265,6 +271,7 @@ struct BrowserCommandActions {
     var focusAddressBar: () -> Void
     var openCommandPalette: () -> Void
     var toggleSidebar: () -> Void
+    var toggleAISidebar: () -> Void
     var reloadTab: () -> Void
     var goBack: () -> Void
     var goForward: () -> Void

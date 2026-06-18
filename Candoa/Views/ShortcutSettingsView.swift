@@ -219,6 +219,7 @@ enum CandoaShortcutDefinition: String, CaseIterable, Identifiable {
     case captureFullPage
     case pinOrUnpinTab
     case toggleSidebar
+    case toggleAISidebar
     case addSplitView
     case closeSplitView
     case findInPage
@@ -236,6 +237,7 @@ enum CandoaShortcutDefinition: String, CaseIterable, Identifiable {
         case .captureFullPage: return "Capture Page"
         case .pinOrUnpinTab: return BrowserCommandTitles.pinOrUnpinTab
         case .toggleSidebar: return BrowserCommandTitles.toggleSidebar
+        case .toggleAISidebar: return BrowserCommandTitles.toggleAISidebar
         case .addSplitView: return BrowserCommandTitles.addSplitView
         case .closeSplitView: return BrowserCommandTitles.closeSplitView
         case .findInPage: return BrowserCommandTitles.findInPage
@@ -247,6 +249,8 @@ enum CandoaShortcutDefinition: String, CaseIterable, Identifiable {
         switch self {
         case .captureFullPage:
             return "Capture"
+        case .toggleAISidebar:
+            return "AI"
         case .addSplitView, .closeSplitView:
             return "Split View"
         default:
@@ -262,7 +266,8 @@ enum CandoaShortcutDefinition: String, CaseIterable, Identifiable {
         case .copyURLAsMarkdown: return "Option-Shift-Command-C"
         case .captureFullPage: return "None"
         case .pinOrUnpinTab: return "Command-D"
-        case .toggleSidebar: return "Command-S"
+        case .toggleSidebar: return "Command-B"
+        case .toggleAISidebar: return "Option-Command-B"
         case .addSplitView: return "Control-Shift-="
         case .closeSplitView: return "Control-Shift--"
         case .findInPage: return "Command-F"
@@ -279,6 +284,7 @@ enum CandoaShortcutDefinition: String, CaseIterable, Identifiable {
         case .reloadTab: return "arrow.clockwise"
         case .pinOrUnpinTab: return "pin"
         case .toggleSidebar: return "sidebar.left"
+        case .toggleAISidebar: return "sidebar.right"
         case .focusAddressBar: return "text.cursor"
         case .newTab: return "plus"
         }

@@ -33,10 +33,10 @@ final class CandoaUITests: XCTestCase {
         XCTAssertTrue(waitForState(in: app, containing: "find=true"), currentState(in: app))
         app.typeKey(.escape, modifierFlags: [])
 
-        app.typeKey("s", modifierFlags: .command)
+        app.typeKey("b", modifierFlags: .command)
         XCTAssertTrue(waitForState(in: app, containing: "sidebar=false"), currentState(in: app))
 
-        app.typeKey("s", modifierFlags: .command)
+        app.typeKey("b", modifierFlags: .command)
         XCTAssertTrue(waitForState(in: app, containing: "sidebar=true"), currentState(in: app))
     }
 

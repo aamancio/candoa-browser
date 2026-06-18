@@ -289,7 +289,11 @@ final class BrowserStore: ObservableObject {
     }
 
     func activeAIPageContext() async -> CandoaAIPageContext {
-        let tab = activeTab
+        await aiPageContext(for: activeTabID)
+    }
+
+    func aiPageContext(for tabID: UUID?) async -> CandoaAIPageContext {
+        let tab = tabID.flatMap { id in tabs.first { $0.id == id } }
         let pageText: String?
         if let tabID = tab?.id {
             pageText = await webCoordinator.readablePageText(for: tabID)?

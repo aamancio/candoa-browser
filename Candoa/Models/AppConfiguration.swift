@@ -12,6 +12,7 @@ enum BrowserCommandTitles {
     static let focusAddressBar = "Focus Address Bar"
     static let commandBar = "Command Bar"
     static let toggleSidebar = "Toggle Sidebar"
+    static let toggleAISidebar = "Toggle Ask Sidebar"
     static let reloadTab = "Reload Tab"
     static let back = "Back"
     static let forward = "Forward"

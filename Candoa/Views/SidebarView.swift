@@ -17,12 +17,13 @@ private func candoaAccessibilitySlug(_ value: String) -> String {
 private struct SidebarDisclosureChevron: View {
     let isExpanded: Bool
     let isVisible: Bool
+    let opacity: Double
 
     var body: some View {
         Image(systemName: "chevron.right")
             .font(.system(size: 9, weight: .semibold))
             .rotationEffect(.degrees(isExpanded ? 90 : 0))
-            .opacity(isVisible ? 1 : 0)
+            .opacity(isVisible ? opacity : 0)
             .frame(width: 9, height: 18)
             .animation(.easeOut(duration: 0.14), value: isExpanded)
             .accessibilityHidden(true)
@@ -3035,7 +3036,11 @@ private struct FolderSectionView: View {
                     .foregroundStyle(CandoaChromeStyle.sidebarText)
             }
 
-            SidebarDisclosureChevron(isExpanded: folder.isExpanded, isVisible: hasFolderContents)
+            SidebarDisclosureChevron(
+                isExpanded: folder.isExpanded,
+                isVisible: hasFolderContents,
+                opacity: isHovering || folder.isExpanded ? 0.82 : 0.48
+            )
                 .foregroundStyle(CandoaChromeStyle.sidebarIcon)
 
             Spacer(minLength: 0)
