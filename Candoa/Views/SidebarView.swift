@@ -2,6 +2,18 @@ import AppKit
 import SwiftUI
 import UniformTypeIdentifiers
 
+private func candoaAccessibilitySlug(_ value: String) -> String {
+    let allowed = CharacterSet.alphanumerics
+    let parts = value
+        .lowercased()
+        .unicodeScalars
+        .map { allowed.contains($0) ? Character($0) : "-" }
+    let slug = String(parts)
+        .split(separator: "-")
+        .joined(separator: "-")
+    return slug.isEmpty ? "item" : slug
+}
+
 struct SidebarView: View {
     @ObservedObject var store: BrowserStore
     let availableUpdate: AppUpdate?
@@ -197,6 +209,8 @@ struct SidebarView: View {
         .buttonStyle(.plain)
         .onHover { isHoveringAddressPill = $0 }
         .help(isLocalDevelopmentURL ? "Local development server" : BrowserDefaults.addressPlaceholder)
+        .accessibilityLabel("Address")
+        .accessibilityIdentifier("sidebar-address-button")
     }
 
     // Arc's local-dev treatment: localhost pages get an info icon and the
@@ -634,6 +648,7 @@ struct SidebarView: View {
         .background(newTabButtonBackground(isArmed: isArmed))
         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
         .onHover { isHoveringNewTab = $0 }
+        .accessibilityIdentifier("sidebar-new-tab-button")
         .overlay {
             if isHoveringNewTab && !isArmed && store.draggedTabID == nil {
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
@@ -826,6 +841,7 @@ private struct UpsertSpaceSidebarComposer: View {
             .background(createButtonBackground)
             .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
             .disabled(trimmedName.isEmpty)
+            .accessibilityIdentifier("space-primary-button")
 
             if mode != .initial {
                 Button("Cancel") {
@@ -908,6 +924,7 @@ private struct UpsertSpaceSidebarComposer: View {
                 .lineLimit(1)
                 .focused($isNameFocused)
                 .accessibilityLabel("Space Name")
+                .accessibilityIdentifier("space-name-field")
                 .overlay(alignment: .leading) {
                     if name.isEmpty {
                         // Manual placeholder: the system prompt ignores custom
@@ -2989,6 +3006,16 @@ private struct FolderSectionView: View {
                 cancelTabsPopover()
             }
         }
+        .onChange(of: isTabsPopoverPresented) { _, isPresented in
+            if isPresented {
+                store.setUITestingFolderPopover(
+                    folderName: folder.name,
+                    entries: popoverEntries.map(\.searchableText)
+                )
+            } else {
+                store.clearUITestingFolderPopover(folderName: folder.name)
+            }
+        }
         .onDisappear(perform: cancelTabsPopover)
     }
 
@@ -3101,6 +3128,9 @@ private struct FolderSectionView: View {
                 }
             )
         }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(folder.name)
+        .accessibilityIdentifier("folder-row-\(candoaAccessibilitySlug(folder.name))")
         .animation(.easeOut(duration: 0.10), value: isHovering)
         .animation(.easeOut(duration: 0.14), value: folder.isExpanded)
     }
@@ -3274,6 +3304,7 @@ private struct FolderTabsPopover: View {
         .frame(width: 310)
         .background(.regularMaterial)
         .onHover(perform: onHoverChange)
+        .accessibilityIdentifier("folder-tabs-popover")
         .onAppear {
             DispatchQueue.main.async {
                 isSearchFocused = true
@@ -3291,6 +3322,7 @@ private struct FolderTabsPopover: View {
                 .textFieldStyle(.plain)
                 .focused($isSearchFocused)
                 .font(.system(size: 14, weight: .semibold))
+                .accessibilityIdentifier("folder-popover-search-field")
         }
         .padding(.horizontal, 11)
         .padding(.vertical, 10)
@@ -3328,7 +3360,10 @@ private struct FolderTabsPopoverFolderRow: View {
         .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
         .onTapGesture(perform: onSelect)
         .onHover { isHovering = $0 }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(folder.name)
         .accessibilityAddTraits(.isButton)
+        .accessibilityIdentifier("folder-popover-folder-\(candoaAccessibilitySlug(folder.name))")
         .animation(.easeOut(duration: 0.10), value: isHovering)
     }
 }
@@ -3403,7 +3438,10 @@ private struct FolderTabsPopoverRow: View {
         .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
         .onTapGesture(perform: onSelect)
         .onHover { isHovering = $0 }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(tab.title)
         .accessibilityAddTraits(.isButton)
+        .accessibilityIdentifier("folder-popover-tab-\(candoaAccessibilitySlug(tab.title))")
         .contextMenu {
             if mediaState?.hasMedia == true {
                 Button(mediaState?.isMuted == true ? "Unmute Tab" : "Mute Tab", action: onToggleMute)

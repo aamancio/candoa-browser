@@ -1,6 +1,18 @@
 import AppKit
 import SwiftUI
 
+private func candoaAccessibilitySlug(_ value: String) -> String {
+    let allowed = CharacterSet.alphanumerics
+    let parts = value
+        .lowercased()
+        .unicodeScalars
+        .map { allowed.contains($0) ? Character($0) : "-" }
+    let slug = String(parts)
+        .split(separator: "-")
+        .joined(separator: "-")
+    return slug.isEmpty ? "item" : slug
+}
+
 struct CommandPaletteView: View {
     @ObservedObject var store: BrowserStore
     @State private var query = ""
@@ -96,6 +108,7 @@ struct CommandPaletteView: View {
         }
         .onChange(of: query) { _, _ in
             selectedCommandIndex = 0
+            store.setUITestingCommandPaletteQuery(query)
         }
         .onChange(of: selectedSearchProvider) { _, _ in
             selectedCommandIndex = 0
@@ -447,7 +460,13 @@ struct CommandPaletteView: View {
                 .font(.system(size: 17, weight: .medium))
                 .foregroundStyle(.primary)
                 .focused($isSearchFocused)
+                .accessibilityLabel("Command Palette")
+                .accessibilityIdentifier("command-palette-field")
                 .onSubmit(performSelectedCommand)
+                .onKeyPress(.return) {
+                    performSelectedCommand()
+                    return .handled
+                }
                 .onKeyPress(.tab) {
                     activateSearchProviderFromQuery()
                     return .handled
@@ -1054,6 +1073,8 @@ struct CommandPaletteView: View {
     }
 
     private func run(_ command: PaletteCommand) {
+        store.setUITestingLastCommandDescription(command.title)
+
         if case .startAsk = command.action {
             guard isAskSupported else { return }
             activateAskMode(prompt: askPrompt(from: commandQueryText) ?? "", submitsImmediately: true)
@@ -1847,6 +1868,10 @@ private struct PaletteCommandRow: View {
         .background(backgroundColor)
         .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
         .onHover { isHovering = $0 }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(command.title)
+        .accessibilityAddTraits(.isButton)
+        .accessibilityIdentifier("command-row-\(candoaAccessibilitySlug(command.title))")
     }
 }
 

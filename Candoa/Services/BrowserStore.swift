@@ -123,6 +123,9 @@ final class BrowserStore: ObservableObject {
         CandoaCloudKitEntitlements.hasConfiguredContainer && CandoaSyncPreferences.syncsHistoryWithICloud
     @Published var syncRestartMessage: String?
     @Published private(set) var copiedURLToast: CopiedURLToast?
+    @Published private(set) var uiTestingVisibleFolderPopoverDescription = "none"
+    @Published private(set) var uiTestingCommandPaletteQuery = ""
+    @Published private(set) var uiTestingLastCommandDescription = "none"
 
     /// Deliberately not @Published: it's consumed by the mini player's mount
     /// (which the activeTabID change already triggers), and publishing it
@@ -176,8 +179,61 @@ final class BrowserStore: ObservableObject {
         "#8E9A5B"
     ]
 
+    static var isUITesting: Bool {
+        ProcessInfo.processInfo.environment["CANDOA_UI_TESTING"] == "1"
+    }
+
     var activeSpace: BrowserSpace? {
         spaces.first { $0.id == activeSpaceID }
+    }
+
+    func uiTestingStateDescription(sidebarVisible: Bool) -> String {
+        guard Self.isUITesting else { return "" }
+
+        let activeTitle = activeTab?.title ?? "none"
+        let activeURL = activeTab?.url?.absoluteString ?? "none"
+        let tabTitles = visibleTabsForActiveSpace.map(\.title).joined(separator: "|")
+        let folderNames = folders
+            .filter { $0.spaceID == activeSpaceID }
+            .map(\.name)
+            .joined(separator: "|")
+
+        return [
+            "setup=\(isInitialSpaceSetupPresented)",
+            "palette=\(isCommandPalettePresented)",
+            "newTabPalette=\(isNewTabPaletteActive)",
+            "find=\(isFindBarPresented)",
+            "sidebar=\(sidebarVisible)",
+            "active=\(activeTitle)",
+            "url=\(activeURL)",
+            "tabs=\(tabTitles)",
+            "folders=\(folderNames)",
+            "popover=\(uiTestingVisibleFolderPopoverDescription)",
+            "query=\(uiTestingCommandPaletteQuery)",
+            "command=\(uiTestingLastCommandDescription)"
+        ].joined(separator: ";")
+    }
+
+    func setUITestingCommandPaletteQuery(_ query: String) {
+        guard Self.isUITesting else { return }
+        uiTestingCommandPaletteQuery = query
+    }
+
+    func setUITestingLastCommandDescription(_ description: String) {
+        guard Self.isUITesting else { return }
+        uiTestingLastCommandDescription = description
+    }
+
+    func setUITestingFolderPopover(folderName: String, entries: [String]) {
+        guard Self.isUITesting else { return }
+        uiTestingVisibleFolderPopoverDescription = "\(folderName):\(entries.joined(separator: "|"))"
+    }
+
+    func clearUITestingFolderPopover(folderName: String) {
+        guard Self.isUITesting else { return }
+        if uiTestingVisibleFolderPopoverDescription.hasPrefix("\(folderName):") {
+            uiTestingVisibleFolderPopoverDescription = "none"
+        }
     }
 
     var activeThemeColorHexes: [String] {
@@ -335,7 +391,7 @@ final class BrowserStore: ObservableObject {
         self.faviconService = faviconService
         self.webCoordinator = webCoordinator
 
-        let restoredState = persistenceService.loadState()
+        let restoredState = Self.uiTestingFixtureState() ?? persistenceService.loadState()
         var shouldPresentInitialSpaceSetup = false
 
         if let restoredState, !restoredState.spaces.isEmpty {
@@ -381,6 +437,113 @@ final class BrowserStore: ObservableObject {
         updateNavigationState()
         configureAutosave()
         configureRemoteSyncObservation()
+    }
+
+    private static func uiTestingFixtureState() -> BrowserWindowState? {
+        let environment = ProcessInfo.processInfo.environment
+        guard environment["CANDOA_UI_TESTING"] == "1" else { return nil }
+        guard environment["CANDOA_UI_TESTING_FIXTURE"] == "workspace" else { return nil }
+
+        let personalSpaceID = UUID(uuidString: "11111111-1111-1111-1111-111111111111")!
+        let workSpaceID = UUID(uuidString: "22222222-2222-2222-2222-222222222222")!
+        let workFolderID = UUID(uuidString: "33333333-3333-3333-3333-333333333333")!
+        let secondFolderID = UUID(uuidString: "44444444-4444-4444-4444-444444444444")!
+        let exampleTabID = UUID(uuidString: "55555555-5555-5555-5555-555555555555")!
+        let amazonTabID = UUID(uuidString: "66666666-6666-6666-6666-666666666666")!
+        let granolaTabID = UUID(uuidString: "77777777-7777-7777-7777-777777777777")!
+        let xTabID = UUID(uuidString: "88888888-8888-8888-8888-888888888888")!
+        let stagingTabID = UUID(uuidString: "99999999-9999-9999-9999-999999999999")!
+
+        let personalSpace = BrowserSpace(
+            id: personalSpaceID,
+            name: "Personal",
+            symbolName: "person.crop.circle",
+            themeColorHex: "#6E8BFF",
+            themeAppearance: BrowserSpace.defaultThemeAppearance
+        )
+        let workSpace = BrowserSpace(
+            id: workSpaceID,
+            name: "Work",
+            symbolName: "briefcase",
+            themeColorHex: "#74A8D8",
+            themeAppearance: BrowserSpace.defaultThemeAppearance
+        )
+
+        let folders = [
+            BrowserFolder(
+                id: workFolderID,
+                name: "Work",
+                spaceID: personalSpaceID,
+                sortOrder: 0,
+                isExpanded: false
+            ),
+            BrowserFolder(
+                id: secondFolderID,
+                name: "Second",
+                spaceID: personalSpaceID,
+                parentFolderID: workFolderID,
+                sortOrder: 0,
+                isExpanded: true
+            )
+        ]
+
+        let tabs = [
+            BrowserTab(
+                id: exampleTabID,
+                title: "example.com",
+                url: URL(string: "https://example.com")!,
+                faviconSymbol: "globe",
+                spaceID: personalSpaceID,
+                sortOrder: 0
+            ),
+            BrowserTab(
+                id: amazonTabID,
+                title: "amazon.com",
+                url: URL(string: "https://amazon.com")!,
+                faviconSymbol: "shippingbox.fill",
+                isPinned: true,
+                spaceID: personalSpaceID,
+                sortOrder: 0
+            ),
+            BrowserTab(
+                id: granolaTabID,
+                title: "Granola",
+                url: URL(string: "https://granola.ai")!,
+                faviconSymbol: "g.circle.fill",
+                isPinned: true,
+                folderID: workFolderID,
+                spaceID: personalSpaceID,
+                sortOrder: 0
+            ),
+            BrowserTab(
+                id: xTabID,
+                title: "Home / X",
+                url: URL(string: "https://x.com/home")!,
+                faviconSymbol: "xmark",
+                isPinned: true,
+                folderID: secondFolderID,
+                spaceID: personalSpaceID,
+                sortOrder: 0
+            ),
+            BrowserTab(
+                id: stagingTabID,
+                title: "SideKick Stag",
+                url: URL(string: "https://staging.sidekick.example")!,
+                faviconSymbol: "shield.fill",
+                isPinned: true,
+                folderID: workFolderID,
+                spaceID: personalSpaceID,
+                sortOrder: 1
+            )
+        ]
+
+        return BrowserWindowState(
+            spaces: [personalSpace, workSpace],
+            folders: folders,
+            tabs: tabs,
+            activeSpaceID: personalSpaceID,
+            activeTabID: exampleTabID
+        )
     }
 
     func focusAddressBar() {

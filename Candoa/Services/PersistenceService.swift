@@ -80,7 +80,7 @@ enum CandoaCloudKitEntitlements {
 }
 
 struct PersistenceService: @unchecked Sendable {
-    static let shared = PersistenceService()
+    static let shared = makeSharedService()
     static let remoteStoreDidChange = Notification.Name("Candoa.PersistenceService.RemoteStoreDidChange")
 
     private static let appName = "Candoa"
@@ -95,6 +95,28 @@ struct PersistenceService: @unchecked Sendable {
 
     var syncsHistoryWithICloud: Bool {
         syncConfiguration.syncsHistoryWithICloud
+    }
+
+    private static func makeSharedService() -> PersistenceService {
+        let environment = ProcessInfo.processInfo.environment
+        guard environment["CANDOA_UI_TESTING"] == "1" else {
+            return PersistenceService()
+        }
+
+        let storeID = environment["CANDOA_UI_TESTING_STORE_ID"] ?? UUID().uuidString
+        let safeStoreID = storeID.replacingOccurrences(of: "/", with: "-")
+        let storeURL = FileManager.default
+            .temporaryDirectory
+            .appendingPathComponent("CandoaUITests", isDirectory: true)
+            .appendingPathComponent(safeStoreID, isDirectory: true)
+            .appendingPathComponent("Candoa.sqlite")
+
+        try? FileManager.default.removeItem(at: storeURL.deletingLastPathComponent())
+
+        return PersistenceService(
+            storeURL: storeURL,
+            syncConfiguration: .localOnly
+        )
     }
 
     init(

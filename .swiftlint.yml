@@ -1,0 +1,18 @@
+included:
+  - Candoa
+  - CandoaUITests
+
+only_rules:
+  - colon
+  - comma
+  - duplicate_imports
+  - opening_brace
+  - operator_usage_whitespace
+  - return_arrow_whitespace
+  - statement_position
+  - trailing_whitespace
+  - unused_import
+  - vertical_whitespace
+  - void_return
+
+reporter: "xcode"

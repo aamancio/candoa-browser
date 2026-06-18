@@ -131,6 +131,18 @@ struct ContentView: View {
             }
             .ignoresSafeArea(.container, edges: .top)
         }
+        .overlay(alignment: .bottomTrailing) {
+            if BrowserStore.isUITesting {
+                let stateDescription = store.uiTestingStateDescription(sidebarVisible: isSidebarVisible)
+
+                Text(stateDescription)
+                    .font(.system(size: 1))
+                    .foregroundStyle(.clear)
+                    .frame(width: 1, height: 1)
+                    .accessibilityLabel(stateDescription)
+                    .accessibilityIdentifier("ui-testing-state")
+            }
+        }
         .animation(.spring(duration: 0.5, bounce: 0.2), value: store.copiedURLToast)
         .background {
             CandoaWindowBackdrop(store: store)

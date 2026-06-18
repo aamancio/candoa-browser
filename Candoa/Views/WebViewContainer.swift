@@ -126,6 +126,7 @@ struct WebViewContainer: View {
                     .textFieldStyle(.plain)
                     .frame(width: 190)
                     .focused($isFieldFocused)
+                    .accessibilityIdentifier("find-bar-field")
                     .onSubmit { store.findNext() }
 
                 Button {

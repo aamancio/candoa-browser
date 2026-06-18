@@ -1,6 +1,18 @@
 import SwiftUI
 import AppKit
 
+private func candoaAccessibilitySlug(_ value: String) -> String {
+    let allowed = CharacterSet.alphanumerics
+    let parts = value
+        .lowercased()
+        .unicodeScalars
+        .map { allowed.contains($0) ? Character($0) : "-" }
+    let slug = String(parts)
+        .split(separator: "-")
+        .joined(separator: "-")
+    return slug.isEmpty ? "item" : slug
+}
+
 struct TabRowView: View {
     let tab: BrowserTab
     let isActive: Bool
@@ -80,6 +92,10 @@ struct TabRowView: View {
         .onTapGesture {
             onSelect()
         }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(tab.title)
+        .accessibilityAddTraits(.isButton)
+        .accessibilityIdentifier("tab-row-\(candoaAccessibilitySlug(tab.title))")
         .contextMenu {
             if mediaState?.hasMedia == true {
                 Button(mediaState?.isMuted == true ? "Unmute Tab" : "Mute Tab", action: onToggleMute)
