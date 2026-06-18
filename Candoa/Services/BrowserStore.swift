@@ -46,6 +46,11 @@ enum SidebarTabDropEdge: Equatable {
     case after
 }
 
+enum SplitTabDropSide: Equatable {
+    case leading
+    case trailing
+}
+
 struct SidebarTabDropIndicator: Equatable {
     var placement: SidebarTabDropPlacement
     var targetTabID: UUID?
@@ -404,10 +409,16 @@ final class BrowserStore: ObservableObject {
             activeTabID = restoredState.tabs.contains(where: { $0.id == restoredState.activeTabID })
                 ? restoredState.activeTabID
                 : restoredState.tabs.first(where: { $0.spaceID == activeSpaceID })?.id
-            splitTabIDs = restoredState.splitTabIDs.filter { id in
-                id != activeTabID && restoredState.tabs.contains { $0.id == id && $0.spaceID == activeSpaceID }
-            }
-            isSplitViewEnabled = restoredState.isSplitViewEnabled && !splitTabIDs.isEmpty
+            splitTabIDs = restoredState.isSplitViewEnabled
+                ? Self.validSplitGroupIDs(
+                    restoredState.splitTabIDs,
+                    activeTabID: activeTabID,
+                    activeSpaceID: activeSpaceID,
+                    tabs: restoredState.tabs,
+                    includesActiveTabID: true
+                )
+                : []
+            isSplitViewEnabled = restoredState.isSplitViewEnabled && splitTabIDs.count >= 2
         } else {
             // Neutral by default: no theme color, chrome follows the system.
             // The window reads as plain native gray (light or dark per the
@@ -946,7 +957,10 @@ final class BrowserStore: ObservableObject {
             }
         } else if activeSplitGroupTabIDs.contains(tabID) {
             splitTabIDs.removeAll { $0 == tabID }
-            isSplitViewEnabled = !splitTabIDs.isEmpty
+            isSplitViewEnabled = splitTabIDs.count >= 2
+            if !isSplitViewEnabled {
+                splitTabIDs = []
+            }
             updateNavigationState()
         }
 
@@ -1800,7 +1814,7 @@ final class BrowserStore: ObservableObject {
         updateNavigationState()
     }
 
-    func splitTab(_ draggedID: UUID, onto targetID: UUID) {
+    func splitTab(_ draggedID: UUID, onto targetID: UUID, side: SplitTabDropSide = .leading) {
         guard
             draggedID != targetID,
             let draggedTab = tabs.first(where: { $0.id == draggedID }),
@@ -1813,13 +1827,11 @@ final class BrowserStore: ObservableObject {
         activeSpaceID = targetTab.spaceID
         var groupIDs: [UUID]
         if isSplitViewEnabled, splitGroupTabIDs().contains(targetID) {
-            groupIDs = splitGroupTabIDs()
-            guard groupIDs.contains(draggedID) || groupIDs.count < Self.splitViewMaxTabs else { return }
-            if !groupIDs.contains(draggedID) {
-                groupIDs.append(draggedID)
-            }
+            let existingGroupIDs = splitGroupTabIDs()
+            guard existingGroupIDs.contains(draggedID) || existingGroupIDs.count < Self.splitViewMaxTabs else { return }
+            groupIDs = Self.insertingSplitTab(draggedID, beside: targetID, side: side, in: existingGroupIDs)
         } else {
-            groupIDs = [draggedID, targetID]
+            groupIDs = side == .leading ? [draggedID, targetID] : [targetID, draggedID]
         }
 
         applySplitGroup(groupIDs, activeID: draggedID)
@@ -2633,8 +2645,12 @@ final class BrowserStore: ObservableObject {
     private func splitGroupTabIDs() -> [UUID] {
         guard isSplitViewEnabled, let activeTabID else { return [] }
 
-        var ids: [UUID] = [activeTabID]
-        ids.append(contentsOf: splitTabIDs)
+        var ids = splitTabIDs
+        if !ids.contains(activeTabID) {
+            // Older persisted sessions stored only the non-active split tabs.
+            // Keep those sessions valid without letting focus reorder panes.
+            ids.insert(activeTabID, at: 0)
+        }
 
         var seen = Set<UUID>()
         return ids
@@ -2671,8 +2687,8 @@ final class BrowserStore: ObservableObject {
 
         let resolvedActiveID = activeID.flatMap { validIDs.contains($0) ? $0 : nil } ?? validIDs[0]
         activeTabID = resolvedActiveID
-        splitTabIDs = validIDs.filter { $0 != resolvedActiveID }
-        isSplitViewEnabled = !splitTabIDs.isEmpty
+        splitTabIDs = validIDs
+        isSplitViewEnabled = validIDs.count >= 2
     }
 
     private func newInternalBlankTab(in spaceID: UUID) -> BrowserTab {
@@ -2764,10 +2780,64 @@ final class BrowserStore: ObservableObject {
             activeTabID = visibleTabsForActiveSpace.first?.id
         }
 
-        splitTabIDs = splitTabIDs.filter { id in
-            id != activeTabID && tabs.contains { $0.id == id && $0.spaceID == activeSpaceID }
+        if isSplitViewEnabled {
+            splitTabIDs = Self.validSplitGroupIDs(
+                splitTabIDs,
+                activeTabID: activeTabID,
+                activeSpaceID: activeSpaceID,
+                tabs: tabs,
+                includesActiveTabID: true
+            )
+            isSplitViewEnabled = splitTabIDs.count >= 2
+        } else {
+            splitTabIDs = []
         }
-        isSplitViewEnabled = !splitTabIDs.isEmpty
+    }
+
+    private static func insertingSplitTab(
+        _ draggedID: UUID,
+        beside targetID: UUID,
+        side: SplitTabDropSide,
+        in groupIDs: [UUID]
+    ) -> [UUID] {
+        var orderedIDs = groupIDs.filter { $0 != draggedID }
+        guard let targetIndex = orderedIDs.firstIndex(of: targetID) else {
+            return groupIDs
+        }
+
+        let insertionIndex = side == .leading
+            ? targetIndex
+            : orderedIDs.index(after: targetIndex)
+        orderedIDs.insert(draggedID, at: insertionIndex)
+        return orderedIDs
+    }
+
+    private static func validSplitGroupIDs(
+        _ ids: [UUID],
+        activeTabID: UUID?,
+        activeSpaceID: UUID,
+        tabs: [BrowserTab],
+        includesActiveTabID: Bool
+    ) -> [UUID] {
+        var orderedIDs = ids
+        if
+            includesActiveTabID,
+            let activeTabID,
+            !orderedIDs.contains(activeTabID)
+        {
+            orderedIDs.insert(activeTabID, at: 0)
+        }
+
+        var seen = Set<UUID>()
+        return orderedIDs
+            .filter { id in
+                guard !seen.contains(id) else { return false }
+                guard tabs.contains(where: { $0.id == id && $0.spaceID == activeSpaceID }) else { return false }
+                seen.insert(id)
+                return true
+            }
+            .prefix(Self.splitViewMaxTabs)
+            .map { $0 }
     }
 
     private func needsInitialSpaceSetup() -> Bool {

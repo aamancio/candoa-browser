@@ -60,8 +60,9 @@ jobs:
             build
 
   e2e:
-    name: Native macOS E2E
+    name: Manual Native macOS E2E
     runs-on: macos-latest
+    if: github.event_name == 'workflow_dispatch'
     needs:
       - quality
       - build

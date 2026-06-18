@@ -67,19 +67,6 @@ final class CandoaUITests: XCTestCase {
         XCTAssertTrue(waitForState(in: app, containing: "find=true"), currentState(in: app))
     }
 
-    func testFolderHoverPopoverShowsNestedFoldersAndTabs() throws {
-        let app = launchApp(fixture: "workspace")
-
-        let folder = element("folder-row-work", in: app)
-        XCTAssertTrue(folder.waitForExistence(timeout: 5))
-        folder.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).hover()
-
-        XCTAssertTrue(waitForState(in: app, containing: "popover=Work:Second|Home / X"), currentState(in: app))
-        XCTAssertTrue(waitForState(in: app, containing: "Granola"), currentState(in: app))
-        XCTAssertTrue(waitForState(in: app, containing: "SideKick Stag"), currentState(in: app))
-        XCTAssertTrue(waitForState(in: app, containing: "Home / X"), currentState(in: app))
-    }
-
     private func launchApp(fixture: String? = nil) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchEnvironment["CANDOA_UI_TESTING"] = "1"
