@@ -12,19 +12,19 @@ struct SidebarView: View {
 
     @State private var isHoveringNewTab = false
     @State private var isHoveringAddressPill = false
+    @State private var isSpaceDropTargeted = false
     @AppStorage("Candoa.FavoritesDropZoneDismissed") private var isFavoritesDropZoneDismissed = false
 
     private let leadingInset: CGFloat = 9
     private let trailingInset: CGFloat = 9
     private let windowControlsWidth: CGFloat = 70
 
-    /// Zen-style "Essentials" tiles: square-ish tiles that stretch to fill
-    /// the row, so a few items span the full width like the reference.
-    private let essentialsColumns = [
-        GridItem(.flexible(), spacing: 12),
-        GridItem(.flexible(), spacing: 12),
-        GridItem(.flexible(), spacing: 12)
-    ]
+    /// Zen-style Essentials collapse unused grid tracks, so one or two tiles
+    /// still consume the full row instead of leaving empty reserved slots.
+    private func essentialColumns(for itemCount: Int) -> [GridItem] {
+        let visibleColumns = min(max(itemCount, 1), 4)
+        return Array(repeating: GridItem(.flexible(), spacing: 12), count: visibleColumns)
+    }
 
     private var activeSpaceTint: Color {
         Color(spaceHex: store.activeThemeColorHexes.first ?? "#8A8F98")
@@ -67,12 +67,6 @@ struct SidebarView: View {
                         favoritesSection
                         spaceLabel
                         pinnedAndFoldersSection
-
-                        Rectangle()
-                            .fill(CandoaChromeStyle.sidebarSeparator)
-                            .frame(height: 1)
-                            .padding(.top, 3)
-                            .padding(.bottom, 2)
 
                         VStack(alignment: .leading, spacing: 2) {
                             newTabButton
@@ -246,7 +240,7 @@ struct SidebarView: View {
                         )
                     )
             } else {
-                LazyVGrid(columns: essentialsColumns, spacing: 6) {
+                LazyVGrid(columns: essentialColumns(for: favorites.count), spacing: 6) {
                     ForEach(favorites) { tab in
                         favoriteTile(for: tab, favorites: favorites)
                     }
@@ -260,17 +254,32 @@ struct SidebarView: View {
     private func favoriteTile(for tab: BrowserTab, favorites: [BrowserTab]) -> some View {
         EssentialTileView(
             tab: tab,
-            isActive: tab.id == store.activeTabID && !store.isNewTabPaletteActive,
+            isActive: tab.id == store.activeTabID &&
+                !store.isNewTabPaletteActive &&
+                (tab.favoriteURL == nil || store.activeTab?.url == tab.favoriteURL),
             accentColor: activeSpaceTint,
             placement: .favorite,
-            onSelect: { store.switchTab(to: tab.id) },
+            onSelect: { store.activateFavorite(tab.id) },
             onClose: { store.closeTab(tab.id) },
             onDuplicate: { store.duplicateTab(tab.id) },
             onOpenInSplit: { store.openSplitView(with: tab.id) },
             onToggleFavorite: { store.toggleFavorite(tab.id) },
             onTogglePin: { store.togglePin(tab.id) }
         )
-        .opacity(store.draggedTabID == tab.id ? 0 : 1)
+        .opacity(store.shouldHideSidebarTab(tab.id, placement: .favorites) ? 0 : 1)
+        .sidebarEssentialDropIndicator(
+            showsLeading: store.sidebarDropIndicator == SidebarTabDropIndicator(
+                placement: .favorites,
+                targetTabID: tab.id,
+                edge: .before
+            ),
+            showsTrailing: store.sidebarDropIndicator == SidebarTabDropIndicator(
+                placement: .favorites,
+                targetTabID: tab.id,
+                edge: .after
+            ),
+            tint: activeSpaceTint
+        )
         .onDrag {
             store.beginTabDrag(tab.id)
         }
@@ -291,25 +300,47 @@ struct SidebarView: View {
         let pinned = store.pinnedTabsForActiveSpace
         let folders = store.foldersForActiveSpace
 
-        if !pinned.isEmpty || !folders.isEmpty {
-            VStack(alignment: .leading, spacing: 7) {
-                LazyVGrid(columns: essentialsColumns, spacing: 6) {
-                    ForEach(pinned) { tab in
-                        essentialTile(for: tab, pinned: pinned)
+        if !pinned.isEmpty || !folders.isEmpty || store.draggedTabID != nil {
+            let showsPinnedAreaDivider = !pinned.isEmpty || !folders.isEmpty
+
+            VStack(alignment: .leading, spacing: 10) {
+                if !pinned.isEmpty {
+                    VStack(spacing: 2) {
+                        ForEach(pinned) { tab in
+                            pinnedTabRow(for: tab, pinned: pinned)
+                        }
                     }
                 }
 
-                VStack(alignment: .leading, spacing: 2) {
-                    ForEach(folders) { folder in
-                        FolderSectionView(
-                            store: store,
-                            folder: folder,
-                            editingFolderID: $store.editingFolderID,
-                            accentColor: activeSpaceTint
-                        )
+                if store.draggedTabID != nil {
+                    pinnedAppendDropTarget
+                }
+
+                if !folders.isEmpty {
+                    VStack(alignment: .leading, spacing: 2) {
+                        ForEach(folders) { folder in
+                            FolderSectionView(
+                                store: store,
+                                folder: folder,
+                                editingFolderID: $store.editingFolderID,
+                                accentColor: activeSpaceTint
+                            )
+                        }
                     }
                 }
+
+                if showsPinnedAreaDivider {
+                    Rectangle()
+                        .fill(CandoaChromeStyle.sidebarSeparator)
+                        .frame(height: 1)
+                        .padding(.horizontal, 8)
+                }
             }
+            .contentShape(Rectangle())
+            .onDrop(
+                of: [UTType.text],
+                delegate: PinnedTabSectionDropDelegate(store: store)
+            )
             // Pin, folder, and close settle the section instead of popping; the
             // per-space identity keeps space switches an instant context cut.
             .animation(.easeOut(duration: 0.18), value: pinned.map(\.id) + folders.map(\.id))
@@ -317,35 +348,73 @@ struct SidebarView: View {
         }
     }
 
-    private func essentialTile(for tab: BrowserTab, pinned: [BrowserTab]) -> some View {
-        EssentialTileView(
+    private var pinnedAppendDropTarget: some View {
+        VStack(spacing: 0) {
+            if store.sidebarDropIndicator == SidebarTabDropIndicator(
+                placement: .pinned,
+                targetTabID: nil,
+                edge: .after
+            ) {
+                SidebarHorizontalDropLine(tint: activeSpaceTint)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 2)
+            } else {
+                Color.clear
+                    .frame(height: 10)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .contentShape(Rectangle())
+        .onDrop(
+            of: [UTType.text],
+            delegate: PinnedTabSectionDropDelegate(store: store)
+        )
+    }
+
+    private func pinnedTabRow(for tab: BrowserTab, pinned: [BrowserTab]) -> some View {
+        TabRowView(
             tab: tab,
             isActive: tab.id == store.activeTabID && !store.isNewTabPaletteActive,
+            isSplit: tab.id == store.splitTabID,
             accentColor: activeSpaceTint,
-            placement: .pinned,
+            mediaState: store.mediaStates[tab.id],
             onSelect: { store.switchTab(to: tab.id) },
             onClose: { store.closeTab(tab.id) },
             onDuplicate: { store.duplicateTab(tab.id) },
             onOpenInSplit: { store.openSplitView(with: tab.id) },
             onToggleFavorite: { store.toggleFavorite(tab.id) },
-            onTogglePin: { store.togglePin(tab.id) }
+            onTogglePin: { store.togglePin(tab.id) },
+            onToggleMute: { store.toggleMediaMute(tabID: tab.id) }
         )
         // The system drag image is the only visible copy while dragging; the
-        // source tile leaves a gap that doubles as the insertion indicator.
-        .opacity(store.draggedTabID == tab.id ? 0 : 1)
+        // source row leaves a gap that doubles as the insertion indicator.
+        .opacity(store.shouldHideSidebarTab(tab.id, placement: .pinned) ? 0 : 1)
+        .sidebarRowDropIndicator(
+            showsTop: store.sidebarDropIndicator == SidebarTabDropIndicator(
+                placement: .pinned,
+                targetTabID: tab.id,
+                edge: .before
+            ),
+            showsBottom: store.sidebarDropIndicator == SidebarTabDropIndicator(
+                placement: .pinned,
+                targetTabID: tab.id,
+                edge: .after
+            ),
+            tint: activeSpaceTint
+        )
         .onDrag {
             store.beginTabDrag(tab.id)
         }
         .onDrop(
             of: [UTType.text],
-                delegate: TabReorderDropDelegate(
-                    targetTab: tab,
-                    tabs: pinned,
-                    isFavorite: false,
-                    pinned: true,
-                    folderID: nil,
-                    store: store
-                )
+            delegate: TabReorderDropDelegate(
+                targetTab: tab,
+                tabs: pinned,
+                isFavorite: false,
+                pinned: true,
+                folderID: nil,
+                store: store
+            )
         )
     }
 
@@ -353,13 +422,55 @@ struct SidebarView: View {
 
     @ViewBuilder
     private var spaceLabel: some View {
-        if let name = store.activeSpace?.name.trimmingCharacters(in: .whitespacesAndNewlines), !name.isEmpty {
-            Text(name)
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(CandoaChromeStyle.sidebarTextSecondary)
-                .lineLimit(1)
-                .padding(.horizontal, 4)
-                .padding(.top, 2)
+        if
+            let space = store.activeSpace,
+            !space.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        {
+            HStack(spacing: 8) {
+                if space.symbolName != "square.dashed" {
+                    if let emoji = space.iconEmoji {
+                        Text(emoji)
+                            .font(.system(size: 15))
+                            .frame(width: 18, height: 18)
+                    } else {
+                        Image(systemName: space.symbolName)
+                            .font(.system(size: 15, weight: .medium))
+                            .symbolRenderingMode(.hierarchical)
+                            .frame(width: 18, height: 18)
+                    }
+                }
+
+                Text(space.name)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .font(.system(size: 13.5, weight: .semibold))
+
+                Spacer(minLength: 0)
+            }
+            .foregroundStyle(CandoaChromeStyle.sidebarTextSecondary)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 5)
+            .frame(minHeight: 32)
+            .background(
+                isSpaceDropTargeted
+                    ? CandoaChromeStyle.sidebarControlFillDropTarget
+                    : Color.clear
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .contentShape(Rectangle())
+            .onDrop(
+                of: [UTType.text],
+                delegate: SpaceLabelDropDelegate(
+                    isTargeted: $isSpaceDropTargeted,
+                    store: store
+                )
+            )
+            .onChange(of: store.draggedTabID) { _, newValue in
+                if newValue == nil {
+                    isSpaceDropTargeted = false
+                }
+            }
+            .animation(.easeOut(duration: 0.10), value: isSpaceDropTargeted)
         }
     }
 
@@ -374,6 +485,17 @@ struct SidebarView: View {
                     .foregroundStyle(.tertiary)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                if store.sidebarDropIndicator == SidebarTabDropIndicator(
+                    placement: .regular,
+                    targetTabID: nil,
+                    edge: .after
+                ) {
+                    SidebarHorizontalDropLine(tint: activeSpaceTint)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 2)
+                }
             } else {
                 VStack(spacing: 2) {
                     ForEach(tabs) { tab in
@@ -394,7 +516,20 @@ struct SidebarView: View {
                         // Hide the source row while its drag session is live so
                         // the cursor ghost isn't doubled by the in-list row; the
                         // gap it leaves is the insertion indicator.
-                        .opacity(store.draggedTabID == tab.id ? 0 : 1)
+                        .opacity(store.shouldHideSidebarTab(tab.id, placement: .regular) ? 0 : 1)
+                        .sidebarRowDropIndicator(
+                            showsTop: store.sidebarDropIndicator == SidebarTabDropIndicator(
+                                placement: .regular,
+                                targetTabID: tab.id,
+                                edge: .before
+                            ),
+                            showsBottom: store.sidebarDropIndicator == SidebarTabDropIndicator(
+                                placement: .regular,
+                                targetTabID: tab.id,
+                                edge: .after
+                            ),
+                            tint: activeSpaceTint
+                        )
                         .onDrag {
                             store.beginTabDrag(tab.id)
                         }
@@ -410,6 +545,16 @@ struct SidebarView: View {
                             )
                         )
                     }
+
+                    if store.sidebarDropIndicator == SidebarTabDropIndicator(
+                        placement: .regular,
+                        targetTabID: nil,
+                        edge: .after
+                    ) {
+                        SidebarHorizontalDropLine(tint: activeSpaceTint)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 2)
+                    }
                 }
                 // Closing, opening, and reordering settle the list the way
                 // Safari's sidebar does instead of rows popping in place; the
@@ -418,6 +563,11 @@ struct SidebarView: View {
                 .id(store.activeSpaceID)
             }
         }
+        .contentShape(Rectangle())
+        .onDrop(
+            of: [UTType.text],
+            delegate: RegularTabSectionDropDelegate(store: store)
+        )
     }
 
     private var newTabButton: some View {
@@ -455,7 +605,7 @@ struct SidebarView: View {
         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
         .onHover { isHoveringNewTab = $0 }
         .overlay {
-            if isHoveringNewTab && !isArmed {
+            if isHoveringNewTab && !isArmed && store.draggedTabID == nil {
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
                     .stroke(CandoaChromeStyle.sidebarControlStroke, lineWidth: 1)
                     .allowsHitTesting(false)
@@ -469,7 +619,7 @@ struct SidebarView: View {
         if isArmed {
             return activeSpaceTint.opacity(0.18)
         }
-        if isHoveringNewTab {
+        if isHoveringNewTab && store.draggedTabID == nil {
             return CandoaChromeStyle.sidebarControlFillHover
         }
         return Color.clear
@@ -2407,9 +2557,6 @@ private struct EssentialTileView: View {
     let onOpenInSplit: () -> Void
     let onToggleFavorite: () -> Void
     let onTogglePin: () -> Void
-
-    @State private var isHovering = false
-
     var body: some View {
         Button(action: onSelect) {
             ZStack {
@@ -2423,34 +2570,21 @@ private struct EssentialTileView: View {
                 faviconImage
                     .frame(width: 18, height: 18)
             }
-            .frame(height: 44)
-            .overlay(alignment: .topTrailing) {
-                if isHovering {
-                    Button(action: onClose) {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 12))
-                            .foregroundStyle(CandoaChromeStyle.sidebarTextSecondary)
-                            .background(Circle().fill(CandoaChromeStyle.sidebarBackground))
-                    }
-                    .buttonStyle(.plain)
-                    .help("Close Tab")
-                    .padding(4)
-                }
-            }
+            .frame(maxWidth: .infinity, minHeight: 44, maxHeight: 44)
+            .clipShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: 11, style: .continuous)
-                    .stroke(
+                    .strokeBorder(
                         isActive
                             ? accentColor.opacity(0.34)
-                            : (isHovering ? CandoaChromeStyle.sidebarControlStroke : Color.clear),
+                            : Color.clear,
                         lineWidth: 1
                     )
             }
         }
         .buttonStyle(.plain)
-        .onHover { isHovering = $0 }
         .animation(.easeOut(duration: 0.12), value: isActive)
-        .help(tab.title)
+        .help(placement == .favorite ? tab.favoriteDisplayTitle : tab.title)
         .contextMenu {
             switch placement {
             case .favorite:
@@ -2469,14 +2603,14 @@ private struct EssentialTileView: View {
     @ViewBuilder
     private var faviconImage: some View {
         if
-            let data = tab.faviconData,
+            let data = placement == .favorite ? tab.favoriteDisplayFaviconData : tab.faviconData,
             let nsImage = NSImage(data: data)
         {
             Image(nsImage: nsImage)
                 .resizable()
                 .scaledToFit()
         } else {
-            Image(systemName: tab.faviconSymbol)
+            Image(systemName: placement == .favorite ? tab.favoriteDisplayFaviconSymbol : tab.faviconSymbol)
                 .font(.system(size: 18, weight: .medium))
                 .foregroundStyle(isActive ? CandoaChromeStyle.sidebarText : CandoaChromeStyle.sidebarTextSecondary)
         }
@@ -2578,7 +2712,20 @@ private struct FolderSectionView: View {
                         onToggleMute: { store.toggleMediaMute(tabID: tab.id) }
                     )
                     .padding(.leading, 12)
-                    .opacity(store.draggedTabID == tab.id ? 0 : 1)
+                    .opacity(store.shouldHideSidebarTab(tab.id, placement: .folder(folder.id)) ? 0 : 1)
+                    .sidebarRowDropIndicator(
+                        showsTop: store.sidebarDropIndicator == SidebarTabDropIndicator(
+                            placement: .folder(folder.id),
+                            targetTabID: tab.id,
+                            edge: .before
+                        ),
+                        showsBottom: store.sidebarDropIndicator == SidebarTabDropIndicator(
+                            placement: .folder(folder.id),
+                            targetTabID: tab.id,
+                            edge: .after
+                        ),
+                        tint: accentColor
+                    )
                     .onDrag {
                         store.beginTabDrag(tab.id)
                     }
@@ -2591,6 +2738,17 @@ private struct FolderSectionView: View {
                             store: store
                         )
                     )
+                }
+
+                if store.sidebarDropIndicator == SidebarTabDropIndicator(
+                    placement: .folder(folder.id),
+                    targetTabID: nil,
+                    edge: .after
+                ) {
+                    SidebarHorizontalDropLine(tint: accentColor)
+                        .padding(.leading, 20)
+                        .padding(.trailing, 8)
+                        .padding(.vertical, 2)
                 }
             }
         }
@@ -2909,6 +3067,7 @@ enum CandoaChromeStyle {
     static let sidebarSeparator = Color.primary.opacity(0.08)
     static let sidebarControlFill = Color.primary.opacity(0.055)
     static let sidebarControlFillHover = Color.primary.opacity(0.080)
+    static let sidebarControlFillDropTarget = Color.primary.opacity(0.18)
     static let sidebarControlFillActive = Color.accentColor.opacity(0.16)
     static let sidebarControlStroke = Color.primary.opacity(0.08)
     static let spaceSetupControlFill = Color.primary.opacity(0.060)
@@ -3143,7 +3302,136 @@ private enum SpaceThemePalette {
     }
 }
 
+private struct SidebarHorizontalDropLine: View {
+    let tint: Color
+
+    var body: some View {
+        HStack(spacing: 0) {
+            Circle()
+                .strokeBorder(tint.opacity(0.92), lineWidth: 2)
+                .background(
+                    Circle()
+                        .fill(CandoaChromeStyle.sidebarBackground)
+                )
+                .frame(width: 7, height: 7)
+
+            Capsule(style: .continuous)
+                .fill(tint.opacity(0.82))
+                .frame(maxWidth: .infinity)
+                .frame(height: 2)
+                .offset(x: -1)
+        }
+        .frame(maxWidth: .infinity)
+        .shadow(color: tint.opacity(0.22), radius: 3, y: 1)
+        .allowsHitTesting(false)
+    }
+}
+
+private struct SidebarVerticalDropLine: View {
+    let tint: Color
+
+    var body: some View {
+        Capsule(style: .continuous)
+            .fill(tint.opacity(0.82))
+            .frame(width: 2)
+            .shadow(color: tint.opacity(0.22), radius: 3, x: 1)
+            .allowsHitTesting(false)
+    }
+}
+
+private extension View {
+    func sidebarRowDropIndicator(
+        showsTop: Bool,
+        showsBottom: Bool,
+        tint: Color
+    ) -> some View {
+        overlay(alignment: .top) {
+            if showsTop {
+                SidebarHorizontalDropLine(tint: tint)
+                    .padding(.horizontal, 8)
+                    .offset(y: -2)
+            }
+        }
+        .overlay(alignment: .bottom) {
+            if showsBottom {
+                SidebarHorizontalDropLine(tint: tint)
+                    .padding(.horizontal, 8)
+                    .offset(y: 2)
+            }
+        }
+    }
+
+    func sidebarEssentialDropIndicator(
+        showsLeading: Bool,
+        showsTrailing: Bool,
+        tint: Color
+    ) -> some View {
+        overlay(alignment: .leading) {
+            if showsLeading {
+                SidebarVerticalDropLine(tint: tint)
+                    .padding(.vertical, 7)
+                    .offset(x: -4)
+            }
+        }
+        .overlay(alignment: .trailing) {
+            if showsTrailing {
+                SidebarVerticalDropLine(tint: tint)
+                    .padding(.vertical, 7)
+                    .offset(x: 4)
+            }
+        }
+    }
+}
+
 // MARK: - Drag reordering
+
+private struct SpaceLabelDropDelegate: DropDelegate {
+    @Binding var isTargeted: Bool
+    let store: BrowserStore
+
+    func validateDrop(info: DropInfo) -> Bool {
+        store.draggedTabID != nil
+    }
+
+    func dropEntered(info: DropInfo) {
+        updateIndicator()
+    }
+
+    func dropUpdated(info: DropInfo) -> DropProposal? {
+        updateIndicator()
+        return DropProposal(operation: .move)
+    }
+
+    func dropExited(info: DropInfo) {
+        isTargeted = false
+        store.clearSidebarDropIndicator()
+    }
+
+    func performDrop(info: DropInfo) -> Bool {
+        guard let draggedID = store.draggedTabID else { return false }
+        let sourcePlacement = store.sidebarPlacement(for: draggedID)
+        isTargeted = false
+        store.moveTabToPlacement(
+            draggedID,
+            isFavorite: false,
+            isPinned: true,
+            folderID: nil,
+            before: nil,
+            appendToEnd: true
+        )
+        store.finishTabDrop(draggedID, from: sourcePlacement, to: .pinned)
+        return true
+    }
+
+    private func updateIndicator() {
+        isTargeted = true
+        store.updateSidebarDropIndicator(
+            placement: .pinned,
+            targetTabID: nil,
+            edge: .after
+        )
+    }
+}
 
 private struct TabReorderDropDelegate: DropDelegate {
     let targetTab: BrowserTab
@@ -3160,33 +3448,59 @@ private struct TabReorderDropDelegate: DropDelegate {
     }
 
     func dropEntered(info: DropInfo) {
-        guard
-            let draggedID = store.draggedTabID,
-            draggedID != targetTab.id,
-            let fromIndex = tabs.firstIndex(where: { $0.id == draggedID }),
-            let toIndex = tabs.firstIndex(where: { $0.id == targetTab.id })
-        else {
-            return
-        }
+        updateIndicator(info: info)
+    }
 
-        var orderedIDs = tabs.map(\.id)
-        let movedID = orderedIDs.remove(at: fromIndex)
-        orderedIDs.insert(movedID, at: toIndex)
-        store.reorderTabs(orderedIDs, isFavorite: isFavorite, isPinned: pinned, folderID: folderID)
+    func dropUpdated(info: DropInfo) -> DropProposal? {
+        updateIndicator(info: info)
+        return DropProposal(operation: .move)
+    }
+
+    func dropExited(info: DropInfo) {
+        store.clearSidebarDropIndicator()
     }
 
     func performDrop(info: DropInfo) -> Bool {
-        if let draggedID = store.draggedTabID, !tabs.contains(where: { $0.id == draggedID }) {
-            store.moveTabToPlacement(
-                draggedID,
-                isFavorite: isFavorite,
-                isPinned: pinned,
-                folderID: folderID,
-                before: targetTab.id
-            )
-        }
-        store.draggedTabID = nil
+        guard let draggedID = store.draggedTabID else { return false }
+        let sourcePlacement = store.sidebarPlacement(for: draggedID)
+        let edge = store.sidebarDropIndicator?.targetTabID == targetTab.id
+            ? store.sidebarDropIndicator?.edge ?? dropEdge(for: info, axis: dropAxis)
+            : dropEdge(for: info, axis: dropAxis)
+        let beforeID = insertionBeforeID(
+            targetTabID: targetTab.id,
+            edge: edge,
+            tabs: tabs,
+            draggedID: draggedID
+        )
+        store.moveTabToPlacement(
+            draggedID,
+            isFavorite: isFavorite,
+            isPinned: pinned,
+            folderID: folderID,
+            before: beforeID,
+            appendToEnd: beforeID == nil && edge == .after
+        )
+        store.finishTabDrop(draggedID, from: sourcePlacement, to: placement)
         return true
+    }
+
+    private func updateIndicator(info: DropInfo) {
+        guard let draggedID = store.draggedTabID, draggedID != targetTab.id else { return }
+        store.updateSidebarDropIndicator(
+            placement: placement,
+            targetTabID: targetTab.id,
+            edge: dropEdge(for: info, axis: dropAxis)
+        )
+    }
+
+    private var placement: SidebarTabDropPlacement {
+        if isFavorite { return .favorites }
+        if let folderID { return .folder(folderID) }
+        return pinned ? .pinned : .regular
+    }
+
+    private var dropAxis: SidebarDropAxis {
+        isFavorite ? .horizontal : .vertical
     }
 }
 
@@ -3201,31 +3515,192 @@ private struct FolderTabDropDelegate: DropDelegate {
     }
 
     func dropEntered(info: DropInfo) {
-        guard
-            let targetTab,
-            let draggedID = store.draggedTabID,
-            draggedID != targetTab.id,
-            let fromIndex = tabs.firstIndex(where: { $0.id == draggedID }),
-            let toIndex = tabs.firstIndex(where: { $0.id == targetTab.id })
-        else {
-            return
-        }
+        updateIndicator(info: info)
+    }
 
-        var orderedIDs = tabs.map(\.id)
-        let movedID = orderedIDs.remove(at: fromIndex)
-        orderedIDs.insert(movedID, at: toIndex)
-        store.reorderTabs(orderedIDs, isFavorite: false, isPinned: true, folderID: folder.id)
+    func dropUpdated(info: DropInfo) -> DropProposal? {
+        updateIndicator(info: info)
+        return DropProposal(operation: .move)
+    }
+
+    func dropExited(info: DropInfo) {
+        store.clearSidebarDropIndicator()
     }
 
     func performDrop(info: DropInfo) -> Bool {
         guard let draggedID = store.draggedTabID else { return false }
-
-        if !tabs.contains(where: { $0.id == draggedID }) {
-            store.moveTabToFolder(draggedID, folderID: folder.id, before: targetTab?.id)
+        let sourcePlacement = store.sidebarPlacement(for: draggedID)
+        let beforeID: UUID?
+        if let targetTab {
+            let edge = store.sidebarDropIndicator?.targetTabID == targetTab.id
+                ? store.sidebarDropIndicator?.edge ?? dropEdge(for: info)
+                : dropEdge(for: info)
+            beforeID = insertionBeforeID(
+                targetTabID: targetTab.id,
+                edge: edge,
+                tabs: tabs,
+                draggedID: draggedID
+            )
+        } else {
+            beforeID = nil
         }
 
-        store.draggedTabID = nil
+        store.moveTabToFolder(
+            draggedID,
+            folderID: folder.id,
+            before: beforeID,
+            appendToEnd: targetTab == nil || beforeID == nil
+        )
+        store.finishTabDrop(draggedID, from: sourcePlacement, to: .folder(folder.id))
         return true
+    }
+
+    private func updateIndicator(info: DropInfo) {
+        guard let draggedID = store.draggedTabID else { return }
+        if let targetTab {
+            guard draggedID != targetTab.id else { return }
+            store.updateSidebarDropIndicator(
+                placement: .folder(folder.id),
+                targetTabID: targetTab.id,
+                edge: dropEdge(for: info)
+            )
+        } else {
+            store.updateSidebarDropIndicator(
+                placement: .folder(folder.id),
+                targetTabID: nil,
+                edge: .after
+            )
+        }
+    }
+}
+
+private struct RegularTabSectionDropDelegate: DropDelegate {
+    let store: BrowserStore
+
+    func validateDrop(info: DropInfo) -> Bool {
+        store.draggedTabID != nil
+    }
+
+    func dropEntered(info: DropInfo) {
+        updateIndicator()
+    }
+
+    func dropUpdated(info: DropInfo) -> DropProposal? {
+        updateIndicator()
+        return DropProposal(operation: .move)
+    }
+
+    func dropExited(info: DropInfo) {
+        store.clearSidebarDropIndicator()
+    }
+
+    func performDrop(info: DropInfo) -> Bool {
+        guard let draggedID = store.draggedTabID else { return false }
+        let sourcePlacement = store.sidebarPlacement(for: draggedID)
+        let indicator = store.sidebarDropIndicator
+        let beforeID: UUID?
+        let appendToEnd: Bool
+        if
+            indicator?.placement == .regular,
+            let targetID = indicator?.targetTabID,
+            let targetTab = store.regularTabsForActiveSpace.first(where: { $0.id == targetID })
+        {
+            let edge = indicator?.edge ?? .after
+            beforeID = insertionBeforeID(
+                targetTabID: targetTab.id,
+                edge: edge,
+                tabs: store.regularTabsForActiveSpace,
+                draggedID: draggedID
+            )
+            appendToEnd = beforeID == nil && edge == .after
+        } else {
+            beforeID = nil
+            appendToEnd = true
+        }
+
+        store.moveTabToPlacement(
+            draggedID,
+            isFavorite: false,
+            isPinned: false,
+            folderID: nil,
+            before: beforeID,
+            appendToEnd: appendToEnd
+        )
+        store.finishTabDrop(draggedID, from: sourcePlacement, to: .regular)
+        return true
+    }
+
+    private func updateIndicator() {
+        if store.sidebarDropIndicator?.placement == .regular,
+           store.sidebarDropIndicator?.targetTabID != nil {
+            return
+        }
+        store.updateSidebarDropIndicator(placement: .regular, targetTabID: nil, edge: .after)
+    }
+}
+
+private struct PinnedTabSectionDropDelegate: DropDelegate {
+    let store: BrowserStore
+
+    func validateDrop(info: DropInfo) -> Bool {
+        store.draggedTabID != nil
+    }
+
+    func dropEntered(info: DropInfo) {
+        updateIndicator()
+    }
+
+    func dropUpdated(info: DropInfo) -> DropProposal? {
+        updateIndicator()
+        return DropProposal(operation: .move)
+    }
+
+    func dropExited(info: DropInfo) {
+        store.clearSidebarDropIndicator()
+    }
+
+    func performDrop(info: DropInfo) -> Bool {
+        guard let draggedID = store.draggedTabID else { return false }
+        let sourcePlacement = store.sidebarPlacement(for: draggedID)
+        let indicator = store.sidebarDropIndicator
+        let beforeID: UUID?
+        let appendToEnd: Bool
+        if
+            indicator?.placement == .pinned,
+            let targetID = indicator?.targetTabID,
+            let targetTab = store.pinnedTabsForActiveSpace.first(where: { $0.id == targetID })
+        {
+            let edge = indicator?.edge ?? .after
+            beforeID = insertionBeforeID(
+                targetTabID: targetTab.id,
+                edge: edge,
+                tabs: store.pinnedTabsForActiveSpace,
+                draggedID: draggedID
+            )
+            appendToEnd = beforeID == nil && edge == .after
+        } else {
+            beforeID = nil
+            appendToEnd = true
+        }
+
+        store.moveTabToPlacement(
+            draggedID,
+            isFavorite: false,
+            isPinned: true,
+            folderID: nil,
+            before: beforeID,
+            appendToEnd: appendToEnd
+        )
+        store.finishTabDrop(draggedID, from: sourcePlacement, to: .pinned)
+        return true
+    }
+
+    private func updateIndicator() {
+        if store.sidebarDropIndicator?.placement == .pinned,
+           store.sidebarDropIndicator?.targetTabID != nil {
+            return
+        }
+        store.updateSidebarDropIndicator(placement: .pinned, targetTabID: nil, edge: .after)
     }
 }
 
@@ -3239,30 +3714,96 @@ private struct FavoriteTabDropDelegate: DropDelegate {
     }
 
     func dropEntered(info: DropInfo) {
-        guard
-            let targetTab,
-            let draggedID = store.draggedTabID,
-            draggedID != targetTab.id,
-            let fromIndex = favoriteTabs.firstIndex(where: { $0.id == draggedID }),
-            let toIndex = favoriteTabs.firstIndex(where: { $0.id == targetTab.id })
-        else {
-            return
-        }
+        updateIndicator(info: info)
+    }
 
-        var orderedIDs = favoriteTabs.map(\.id)
-        let movedID = orderedIDs.remove(at: fromIndex)
-        orderedIDs.insert(movedID, at: toIndex)
-        store.reorderTabs(orderedIDs, isFavorite: true, isPinned: false, folderID: nil)
+    func dropUpdated(info: DropInfo) -> DropProposal? {
+        updateIndicator(info: info)
+        return DropProposal(operation: .move)
+    }
+
+    func dropExited(info: DropInfo) {
+        store.clearSidebarDropIndicator()
     }
 
     func performDrop(info: DropInfo) -> Bool {
         guard let draggedID = store.draggedTabID else { return false }
-
-        if !favoriteTabs.contains(where: { $0.id == draggedID }) {
-            store.addTabToFavorites(draggedID, before: targetTab?.id)
+        let sourcePlacement = store.sidebarPlacement(for: draggedID)
+        let beforeID: UUID?
+        if let targetTab {
+            let edge = store.sidebarDropIndicator?.targetTabID == targetTab.id
+                ? store.sidebarDropIndicator?.edge ?? dropEdge(for: info)
+                : dropEdge(for: info)
+            beforeID = insertionBeforeID(
+                targetTabID: targetTab.id,
+                edge: edge,
+                tabs: favoriteTabs,
+                draggedID: draggedID
+            )
+        } else {
+            beforeID = nil
         }
 
-        store.draggedTabID = nil
+        store.moveTabToPlacement(
+            draggedID,
+            isFavorite: true,
+            isPinned: false,
+            folderID: nil,
+            before: beforeID,
+            appendToEnd: targetTab == nil || beforeID == nil
+        )
+        store.finishTabDrop(draggedID, from: sourcePlacement, to: .favorites)
         return true
     }
+
+    private func updateIndicator(info: DropInfo) {
+        guard let draggedID = store.draggedTabID else { return }
+        if let targetTab {
+            guard draggedID != targetTab.id else { return }
+            store.updateSidebarDropIndicator(
+                placement: .favorites,
+                targetTabID: targetTab.id,
+                edge: dropEdge(for: info, axis: .horizontal)
+            )
+        } else {
+            store.updateSidebarDropIndicator(
+                placement: .favorites,
+                targetTabID: nil,
+                edge: .after
+            )
+        }
+    }
+}
+
+private enum SidebarDropAxis {
+    case vertical
+    case horizontal
+}
+
+private func dropEdge(for info: DropInfo, axis: SidebarDropAxis = .vertical) -> SidebarTabDropEdge {
+    switch axis {
+    case .vertical:
+        return info.location.y < 16 ? .before : .after
+    case .horizontal:
+        return info.location.x < 44 ? .before : .after
+    }
+}
+
+private func insertionBeforeID(
+    targetTabID: UUID,
+    edge: SidebarTabDropEdge,
+    tabs: [BrowserTab],
+    draggedID: UUID
+) -> UUID? {
+    guard edge == .after else {
+        return targetTabID
+    }
+
+    let orderedIDs = tabs.map(\.id).filter { $0 != draggedID }
+    guard let targetIndex = orderedIDs.firstIndex(of: targetTabID) else {
+        return nil
+    }
+
+    let nextIndex = orderedIDs.index(after: targetIndex)
+    return nextIndex < orderedIDs.endIndex ? orderedIDs[nextIndex] : nil
 }

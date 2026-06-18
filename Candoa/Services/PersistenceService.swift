@@ -494,6 +494,10 @@ struct PersistenceService: @unchecked Sendable {
             object.setValue(tab.url?.absoluteString, forKey: Key.urlString)
             object.setValue(tab.faviconSymbol, forKey: Key.faviconSymbol)
             object.setValue(tab.faviconData, forKey: Key.faviconData)
+            object.setValue(tab.favoriteTitle, forKey: Key.favoriteTitle)
+            object.setValue(tab.favoriteURL?.absoluteString, forKey: Key.favoriteURLString)
+            object.setValue(tab.favoriteFaviconSymbol, forKey: Key.favoriteFaviconSymbol)
+            object.setValue(tab.favoriteFaviconData, forKey: Key.favoriteFaviconData)
             object.setValue(tab.isFavorite, forKey: Key.isFavorite)
             object.setValue(tab.isPinned, forKey: Key.isPinned)
             object.setValue(tab.folderID.flatMap { folderIDs.contains($0) ? $0 : nil }, forKey: Key.folderID)
@@ -693,6 +697,10 @@ struct PersistenceService: @unchecked Sendable {
             url: url,
             faviconSymbol: object.string(for: Key.faviconSymbol) ?? "globe",
             faviconData: object.data(for: Key.faviconData),
+            favoriteTitle: object.string(for: Key.favoriteTitle),
+            favoriteURL: object.string(for: Key.favoriteURLString).flatMap(URL.init(string:)),
+            favoriteFaviconSymbol: object.string(for: Key.favoriteFaviconSymbol),
+            favoriteFaviconData: object.data(for: Key.favoriteFaviconData),
             isLoading: false,
             loadingProgress: 0,
             isFavorite: object.bool(for: Key.isFavorite),
@@ -796,6 +804,10 @@ struct PersistenceService: @unchecked Sendable {
                 attribute(Key.urlString, .stringAttributeType),
                 attribute(Key.faviconSymbol, .stringAttributeType, optional: false),
                 attribute(Key.faviconData, .binaryDataAttributeType),
+                attribute(Key.favoriteTitle, .stringAttributeType),
+                attribute(Key.favoriteURLString, .stringAttributeType),
+                attribute(Key.favoriteFaviconSymbol, .stringAttributeType),
+                attribute(Key.favoriteFaviconData, .binaryDataAttributeType),
                 attribute(Key.isFavorite, .booleanAttributeType, optional: false),
                 attribute(Key.isPinned, .booleanAttributeType, optional: false),
                 attribute(Key.folderID, .UUIDAttributeType),
@@ -894,6 +906,10 @@ private enum Key {
     static let urlString = "urlString"
     static let faviconSymbol = "faviconSymbol"
     static let faviconData = "faviconData"
+    static let favoriteTitle = "favoriteTitle"
+    static let favoriteURLString = "favoriteURLString"
+    static let favoriteFaviconSymbol = "favoriteFaviconSymbol"
+    static let favoriteFaviconData = "favoriteFaviconData"
     static let isFavorite = "isFavorite"
     static let isPinned = "isPinned"
     static let folderID = "folderID"

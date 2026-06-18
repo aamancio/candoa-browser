@@ -33,6 +33,29 @@ struct MiniPlayerReturnContext {
     let targetFrame: CGRect?
 }
 
+enum SidebarTabDropPlacement: Equatable {
+    case favorites
+    case pinned
+    case regular
+    case folder(UUID)
+}
+
+enum SidebarTabDropEdge: Equatable {
+    case before
+    case after
+}
+
+struct SidebarTabDropIndicator: Equatable {
+    var placement: SidebarTabDropPlacement
+    var targetTabID: UUID?
+    var edge: SidebarTabDropEdge
+}
+
+private struct SidebarDroppedTabSource: Equatable {
+    var tabID: UUID
+    var placement: SidebarTabDropPlacement
+}
+
 @MainActor
 final class BrowserStore: ObservableObject {
     private struct ClosedTabSnapshot {
@@ -80,7 +103,10 @@ final class BrowserStore: ObservableObject {
     @Published private(set) var canGoBack = false
     @Published private(set) var canGoForward = false
     @Published var draggedTabID: UUID?
+    @Published private(set) var sidebarDropIndicator: SidebarTabDropIndicator?
+    @Published private var settlingDroppedTabSource: SidebarDroppedTabSource?
     private var tabDragSessionWatcher: Timer?
+    private var dropSourceClearTask: Task<Void, Never>?
     @Published var isFindBarPresented = false
     @Published var findQuery = ""
     @Published private(set) var mediaStates: [UUID: TabMediaState] = [:]
@@ -743,7 +769,7 @@ final class BrowserStore: ObservableObject {
             folders.contains(where: { $0.id == folder && $0.spaceID == targetSpaceID }) ? folder : nil
         }
         let isPinned = (pinned || targetFolderID != nil) && !favorite
-        let tab = BrowserTab(
+        var tab = BrowserTab(
             title: title(for: url),
             url: url,
             faviconSymbol: faviconService.placeholderSymbol(for: url),
@@ -758,6 +784,12 @@ final class BrowserStore: ObservableObject {
                 folderID: favorite ? nil : targetFolderID
             )
         )
+        if favorite {
+            tab.favoriteTitle = tab.title
+            tab.favoriteURL = tab.url
+            tab.favoriteFaviconSymbol = tab.faviconSymbol
+            tab.favoriteFaviconData = tab.faviconData
+        }
 
         tabs.insert(tab, at: 0)
         switchTab(to: tab.id)
@@ -803,7 +835,7 @@ final class BrowserStore: ObservableObject {
     func duplicateCurrentTab() {
         guard let tab = activeTab else { return }
         _ = newTab(
-            url: tab.url,
+            url: tab.isFavorite ? tab.favoriteURL ?? tab.url : tab.url,
             favorite: tab.isFavorite,
             pinned: tab.isPinned,
             folderID: tab.folderID,
@@ -814,7 +846,7 @@ final class BrowserStore: ObservableObject {
     func duplicateTab(_ id: UUID) {
         guard let tab = tabs.first(where: { $0.id == id }) else { return }
         _ = newTab(
-            url: tab.url,
+            url: tab.isFavorite ? tab.favoriteURL ?? tab.url : tab.url,
             favorite: tab.isFavorite,
             pinned: tab.isPinned,
             folderID: tab.folderID,
@@ -876,6 +908,9 @@ final class BrowserStore: ObservableObject {
         tabs[index].folderID = nil
         if favorite {
             tabs[index].isPinned = false
+            captureFavoriteSnapshot(at: index)
+        } else {
+            clearFavoriteSnapshot(at: index)
         }
         tabs[index].sortOrder = nextSortOrder(
             spaceID: tabs[index].spaceID,
@@ -888,6 +923,23 @@ final class BrowserStore: ObservableObject {
 
     func addTabToFavorites(_ id: UUID, before targetID: UUID? = nil) {
         moveTabToPlacement(id, isFavorite: true, isPinned: false, folderID: nil, before: targetID)
+    }
+
+    func activateFavorite(_ id: UUID) {
+        guard let index = tabs.firstIndex(where: { $0.id == id }), tabs[index].isFavorite else {
+            switchTab(to: id)
+            return
+        }
+
+        let savedURL = tabs[index].favoriteURL ?? tabs[index].url
+        switchTab(to: id)
+
+        guard let savedURL, tabs[index].url != savedURL else {
+            return
+        }
+
+        setURL(savedURL, title: tabs[index].favoriteDisplayTitle, for: id)
+        webCoordinator.load(savedURL, in: id)
     }
 
     @discardableResult
@@ -941,8 +993,20 @@ final class BrowserStore: ObservableObject {
         flushSession()
     }
 
-    func moveTabToFolder(_ tabID: UUID, folderID: UUID, before targetID: UUID? = nil) {
-        moveTabToPlacement(tabID, isFavorite: false, isPinned: true, folderID: folderID, before: targetID)
+    func moveTabToFolder(
+        _ tabID: UUID,
+        folderID: UUID,
+        before targetID: UUID? = nil,
+        appendToEnd: Bool = false
+    ) {
+        moveTabToPlacement(
+            tabID,
+            isFavorite: false,
+            isPinned: true,
+            folderID: folderID,
+            before: targetID,
+            appendToEnd: appendToEnd
+        )
     }
 
     func switchToTab(at position: Int) {
@@ -1085,7 +1149,7 @@ final class BrowserStore: ObservableObject {
     }
 
     private func rememberClosedTab(_ tab: BrowserTab) {
-        guard let url = tab.url else { return }
+        guard let url = tab.isFavorite ? tab.favoriteURL ?? tab.url : tab.url else { return }
         recentlyClosedTabs.append(ClosedTabSnapshot(
             url: url,
             isFavorite: tab.isFavorite,
@@ -1489,10 +1553,18 @@ final class BrowserStore: ObservableObject {
     func reorderTabs(_ orderedIDs: [UUID], isFavorite: Bool, isPinned: Bool, folderID: UUID? = nil) {
         for (offset, id) in orderedIDs.enumerated() {
             guard let index = tabs.firstIndex(where: { $0.id == id }) else { continue }
+            let wasFavorite = tabs[index].isFavorite
             tabs[index].isFavorite = isFavorite
             tabs[index].isPinned = isPinned && !isFavorite
             tabs[index].folderID = isFavorite ? nil : folderID
             tabs[index].sortOrder = Double(offset)
+            if isFavorite {
+                if !wasFavorite || tabs[index].favoriteURL == nil {
+                    captureFavoriteSnapshot(at: index)
+                }
+            } else if wasFavorite {
+                clearFavoriteSnapshot(at: index)
+            }
         }
     }
 
@@ -1501,7 +1573,8 @@ final class BrowserStore: ObservableObject {
         isFavorite: Bool,
         isPinned: Bool,
         folderID: UUID? = nil,
-        before targetID: UUID? = nil
+        before targetID: UUID? = nil,
+        appendToEnd: Bool = false
     ) {
         guard let index = tabs.firstIndex(where: { $0.id == tabID }) else { return }
         let spaceID = tabs[index].spaceID
@@ -1509,9 +1582,17 @@ final class BrowserStore: ObservableObject {
             folders.contains(where: { $0.id == folderID && $0.spaceID == spaceID }) ? folderID : nil
         }
         let resolvedPinned = (isPinned || resolvedFolderID != nil) && !isFavorite
+        let wasFavorite = tabs[index].isFavorite
         tabs[index].isFavorite = isFavorite
         tabs[index].isPinned = resolvedPinned
         tabs[index].folderID = resolvedFolderID
+        if isFavorite {
+            if !wasFavorite || tabs[index].favoriteURL == nil {
+                captureFavoriteSnapshot(at: index)
+            }
+        } else if wasFavorite {
+            clearFavoriteSnapshot(at: index)
+        }
 
         guard let targetID,
               tabs.contains(where: {
@@ -1522,12 +1603,19 @@ final class BrowserStore: ObservableObject {
                   $0.folderID == resolvedFolderID
               })
         else {
-            tabs[index].sortOrder = nextSortOrder(
-                spaceID: spaceID,
-                isFavorite: isFavorite,
-                isPinned: resolvedPinned,
-                folderID: resolvedFolderID
-            )
+            tabs[index].sortOrder = appendToEnd
+                ? lastSortOrder(
+                    spaceID: spaceID,
+                    isFavorite: isFavorite,
+                    isPinned: resolvedPinned,
+                    folderID: resolvedFolderID
+                )
+                : nextSortOrder(
+                    spaceID: spaceID,
+                    isFavorite: isFavorite,
+                    isPinned: resolvedPinned,
+                    folderID: resolvedFolderID
+                )
             normalizeSortOrder()
             return
         }
@@ -1549,9 +1637,86 @@ final class BrowserStore: ObservableObject {
     }
 
     func beginTabDrag(_ tabID: UUID) -> NSItemProvider {
+        dropSourceClearTask?.cancel()
+        dropSourceClearTask = nil
+        settlingDroppedTabSource = nil
         draggedTabID = tabID
+        clearSidebarDropIndicator()
         startTabDragSessionWatcher(for: tabID)
         return NSItemProvider(object: tabID.uuidString as NSString)
+    }
+
+    func sidebarPlacement(for tabID: UUID) -> SidebarTabDropPlacement? {
+        guard let tab = tabs.first(where: { $0.id == tabID }) else { return nil }
+        if tab.isFavorite { return .favorites }
+        if let folderID = tab.folderID { return .folder(folderID) }
+        if tab.isPinned { return .pinned }
+        return .regular
+    }
+
+    func shouldHideSidebarTab(_ tabID: UUID, placement: SidebarTabDropPlacement) -> Bool {
+        if draggedTabID == tabID { return true }
+        return settlingDroppedTabSource == SidebarDroppedTabSource(tabID: tabID, placement: placement)
+    }
+
+    func updateSidebarDropIndicator(
+        placement: SidebarTabDropPlacement,
+        targetTabID: UUID?,
+        edge: SidebarTabDropEdge
+    ) {
+        let indicator = SidebarTabDropIndicator(
+            placement: placement,
+            targetTabID: targetTabID,
+            edge: edge
+        )
+        guard sidebarDropIndicator != indicator else { return }
+        sidebarDropIndicator = indicator
+    }
+
+    func clearSidebarDropIndicator() {
+        guard sidebarDropIndicator != nil else { return }
+        sidebarDropIndicator = nil
+    }
+
+    func finishTabDrag() {
+        draggedTabID = nil
+        clearSidebarDropIndicator()
+        tabDragSessionWatcher?.invalidate()
+        tabDragSessionWatcher = nil
+        dropSourceClearTask?.cancel()
+        dropSourceClearTask = nil
+        settlingDroppedTabSource = nil
+    }
+
+    func finishTabDrop(
+        _ tabID: UUID,
+        from sourcePlacement: SidebarTabDropPlacement?,
+        to destinationPlacement: SidebarTabDropPlacement
+    ) {
+        draggedTabID = nil
+        clearSidebarDropIndicator()
+        tabDragSessionWatcher?.invalidate()
+        tabDragSessionWatcher = nil
+
+        dropSourceClearTask?.cancel()
+        dropSourceClearTask = nil
+
+        guard let sourcePlacement, sourcePlacement != destinationPlacement else {
+            settlingDroppedTabSource = nil
+            return
+        }
+
+        let source = SidebarDroppedTabSource(tabID: tabID, placement: sourcePlacement)
+        settlingDroppedTabSource = source
+        dropSourceClearTask = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: 220_000_000)
+            guard !Task.isCancelled else { return }
+            await MainActor.run {
+                guard let self, self.settlingDroppedTabSource == source else { return }
+                self.settlingDroppedTabSource = nil
+                self.dropSourceClearTask = nil
+            }
+        }
     }
 
     // SwiftUI's onDrag exposes no end-of-session signal, and a drag released
@@ -1582,7 +1747,7 @@ final class BrowserStore: ObservableObject {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { [weak self] in
                     MainActor.assumeIsolated {
                         guard let self, self.draggedTabID == tabID else { return }
-                        self.draggedTabID = nil
+                        self.finishTabDrag()
                     }
                 }
             }
@@ -1675,6 +1840,7 @@ final class BrowserStore: ObservableObject {
         tabs[index].faviconSymbol = faviconService.placeholderSymbol(for: reportedURL)
         tabs[index].isLoading = isLoading
         tabs[index].loadingProgress = loadingProgress
+        updateFavoriteSnapshotIfStillOnSavedURL(at: index)
 
         if activeTabID == tabID {
             self.canGoBack = canGoBack
@@ -1685,6 +1851,9 @@ final class BrowserStore: ObservableObject {
     func updateFavicon(tabID: UUID, data: Data?) {
         guard let index = tabs.firstIndex(where: { $0.id == tabID }), let data else { return }
         tabs[index].faviconData = data
+        if tabs[index].isFavorite && favoriteSnapshotMatchesLiveURL(tabs[index]) {
+            tabs[index].favoriteFaviconData = data
+        }
     }
 
     func recordHistoryVisit(tabID: UUID, title: String?, url: URL?) {
@@ -1780,6 +1949,42 @@ final class BrowserStore: ObservableObject {
         tabs[index].isLoading = true
         tabs[index].loadingProgress = 0.05
         tabs[index].lastAccessedAt = Date()
+    }
+
+    private func captureFavoriteSnapshot(at index: Int) {
+        guard tabs.indices.contains(index) else { return }
+        tabs[index].favoriteTitle = tabs[index].title
+        tabs[index].favoriteURL = tabs[index].url
+        tabs[index].favoriteFaviconSymbol = tabs[index].faviconSymbol
+        tabs[index].favoriteFaviconData = tabs[index].faviconData
+    }
+
+    private func clearFavoriteSnapshot(at index: Int) {
+        guard tabs.indices.contains(index) else { return }
+        tabs[index].favoriteTitle = nil
+        tabs[index].favoriteURL = nil
+        tabs[index].favoriteFaviconSymbol = nil
+        tabs[index].favoriteFaviconData = nil
+    }
+
+    private func updateFavoriteSnapshotIfStillOnSavedURL(at index: Int) {
+        guard tabs.indices.contains(index), tabs[index].isFavorite else { return }
+        if tabs[index].favoriteURL == nil {
+            captureFavoriteSnapshot(at: index)
+            return
+        }
+
+        guard favoriteSnapshotMatchesLiveURL(tabs[index]) else { return }
+        tabs[index].favoriteTitle = tabs[index].title
+        tabs[index].favoriteFaviconSymbol = tabs[index].faviconSymbol
+        if let faviconData = tabs[index].faviconData {
+            tabs[index].favoriteFaviconData = faviconData
+        }
+    }
+
+    private func favoriteSnapshotMatchesLiveURL(_ tab: BrowserTab) -> Bool {
+        guard let favoriteURL = tab.favoriteURL else { return true }
+        return tab.url == favoriteURL
     }
 
     private func title(for url: URL?) -> String {
@@ -2089,6 +2294,24 @@ final class BrowserStore: ObservableObject {
         return (orders.min() ?? 0) - 1
     }
 
+    private func lastSortOrder(
+        spaceID: UUID,
+        isFavorite: Bool,
+        isPinned: Bool,
+        folderID: UUID? = nil
+    ) -> Double {
+        let resolvedPinned = isPinned && !isFavorite
+        let orders = tabs
+            .filter {
+                $0.spaceID == spaceID &&
+                $0.isFavorite == isFavorite &&
+                $0.isPinned == resolvedPinned &&
+                $0.folderID == (isFavorite ? nil : folderID)
+            }
+            .map(\.sortOrder)
+        return (orders.max() ?? -1) + 1
+    }
+
     private func nextFolderSortOrder(spaceID: UUID) -> Double {
         let orders = folders
             .filter { $0.spaceID == spaceID }
@@ -2162,6 +2385,10 @@ final class BrowserStore: ObservableObject {
         for index in tabs.indices {
             if tabs[index].isFavorite {
                 tabs[index].folderID = nil
+                tabs[index].isPinned = false
+                if tabs[index].favoriteURL == nil {
+                    captureFavoriteSnapshot(at: index)
+                }
                 continue
             }
 
