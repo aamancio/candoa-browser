@@ -2151,12 +2151,16 @@ private enum CandoaAskDrafts {
             return controlAnswer
         }
 
+        if let contentAnswer = pageContentAnswer(for: normalizedPrompt, contextText: context.text) {
+            return contentAnswer
+        }
+
         if normalizedPrompt.contains("what is this page about") || normalizedPrompt.contains("summarize") {
-            return summaryDraft(from: context.text) ?? "I could not read enough page text to summarize \(pageText)."
+            return summaryDraft(from: context.text) ?? "I can't read enough page text to summarize \(pageText)."
         }
 
         if normalizedPrompt.contains("key details") || normalizedPrompt.contains("key facts") {
-            return summaryDraft(from: context.text) ?? "I could not read enough page text to find key details on \(pageText)."
+            return summaryDraft(from: context.text) ?? "I can't read enough page text to find key details on \(pageText)."
         }
 
         if normalizedPrompt.contains("compare") {
@@ -2164,11 +2168,11 @@ private enum CandoaAskDrafts {
         }
 
         if normalizedPrompt.contains("explain") {
-            return summaryDraft(from: context.text) ?? "I could not read enough page text to explain \(pageText)."
+            return summaryDraft(from: context.text) ?? "I can't read enough page text to explain \(pageText)."
         }
 
         if referencesCurrentPage(normalizedPrompt) {
-            return summaryDraft(from: context.text) ?? "I could not read enough page text to summarize \(pageText)."
+            return summaryDraft(from: context.text) ?? "I can't read enough page text to summarize \(pageText)."
         }
 
         if normalizedPrompt.contains("suggest useful questions") {
@@ -2216,35 +2220,35 @@ private enum CandoaAskDrafts {
 
         let controlLines = visibleControlLines(from: contextText)
         guard !controlLines.isEmpty else {
-            return "I do not have a visible controls scan for this page, so I cannot reliably say where that button is."
+            return "I can't reliably place that control because I don't have a fresh scan of the visible page controls."
         }
 
-        let matchingLines = controlLines.filter { line in
-            let normalizedLine = CandoaAskPromptPolicy.normalizedText(line)
+        let matchingControls = controlLines.compactMap(VisiblePageControl.init(rawLine:)).filter { control in
+            let normalizedControlText = CandoaAskPromptPolicy.normalizedText(control.searchableText)
             if asksAboutSignIn(normalizedPrompt) {
-                return normalizedLine.contains("sign in")
-                    || normalizedLine.contains("signin")
-                    || normalizedLine.contains("log in")
-                    || normalizedLine.contains("login")
-                    || normalizedLine.contains("account")
+                return normalizedControlText.contains("sign in")
+                    || normalizedControlText.contains("signin")
+                    || normalizedControlText.contains("log in")
+                    || normalizedControlText.contains("login")
+                    || normalizedControlText.contains("account")
             }
 
             let promptWords = Set(normalizedPrompt
                 .components(separatedBy: CharacterSet.alphanumerics.inverted)
-                .filter { $0.count > 2 }
+                .filter { $0.count > 2 && !controlSearchStopWords.contains($0) }
             )
-            return promptWords.contains(where: { normalizedLine.contains($0) })
+            return promptWords.contains(where: { normalizedControlText.contains($0) })
         }
 
-        if matchingLines.isEmpty, asksAboutSignIn(normalizedPrompt) {
-            return "I do not see a visible Sign in or login control in the scanned page controls. It may be hidden behind an account menu, offscreen, or loaded after another interaction."
+        if matchingControls.isEmpty, asksAboutSignIn(normalizedPrompt) {
+            return "I don't see a visible Sign in or login control on the part of the page I can scan. It may be hidden in an account menu, offscreen, or loaded after another interaction."
         }
 
-        guard let firstMatch = matchingLines.first else {
-            return "I do not see that control in the scanned visible page controls."
+        guard let firstMatch = matchingControls.first else {
+            return "I don't see that control in the visible part of the page."
         }
 
-        return "I found this visible control: \(firstMatch.replacingOccurrences(of: "- ", with: "", options: .anchored))"
+        return firstMatch.conversationalAnswer
     }
 
     static func asksAboutVisibleControl(
@@ -2254,8 +2258,15 @@ private enum CandoaAskDrafts {
         asksAboutSignIn(normalizedPrompt)
             || normalizedPrompt.contains("button")
             || normalizedPrompt.contains("click")
-            || normalizedPrompt.contains("where is")
-            || normalizedPrompt.contains("where can")
+            || normalizedPrompt.contains("tap")
+            || normalizedPrompt.contains("press")
+            || normalizedPrompt.contains("link")
+            || normalizedPrompt.contains("control")
+            || normalizedPrompt.contains("search bar")
+            || normalizedPrompt.contains("search box")
+            || normalizedPrompt.contains("search field")
+            || normalizedPrompt.contains("input")
+            || normalizedPrompt.contains("field")
             || (
                 isRetryPrompt(normalizedPrompt)
                     && recentTurns.reversed().contains { turn in
@@ -2306,9 +2317,173 @@ private enum CandoaAskDrafts {
             .filter { $0.hasPrefix("- ") }
     }
 
+    private static func pageContentAnswer(for normalizedPrompt: String, contextText: String?) -> String? {
+        let promptTerms = contentTerms(in: normalizedPrompt)
+        guard !promptTerms.isEmpty, let semanticText = semanticPageText(from: contextText) else { return nil }
+
+        let lines = semanticText
+            .components(separatedBy: .newlines)
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter {
+                !$0.isEmpty
+                    && CandoaAskPromptPolicy.normalizedText($0) != "full page semantic text"
+            }
+
+        guard !lines.isEmpty else { return nil }
+
+        let scoredLines = lines.enumerated().map { index, line in
+            let normalizedLine = CandoaAskPromptPolicy.normalizedText(line)
+            let score = promptTerms.reduce(0) { partialScore, term in
+                partialScore + (normalizedLine.contains(term) ? 1 : 0)
+            }
+            return (index: index, score: score)
+        }
+
+        guard let bestMatch = scoredLines.max(by: { $0.score < $1.score }), bestMatch.score > 0 else {
+            return nil
+        }
+
+        let sectionLines = lines[bestMatch.index..<min(lines.count, bestMatch.index + 10)]
+            .filter { line in
+                let normalizedLine = CandoaAskPromptPolicy.normalizedText(line)
+                return !normalizedLine.hasPrefix("link ")
+            }
+            .prefix(8)
+
+        guard !sectionLines.isEmpty else { return nil }
+
+        return """
+        Here's the part of the page I found:
+        \(sectionLines.map { "- \($0)" }.joined(separator: "\n"))
+        """
+    }
+
+    private static let controlSearchStopWords: Set<String> = [
+        "and", "are", "button", "can", "click", "control", "field", "for", "from", "how", "input", "into",
+        "link", "page", "press", "search", "should", "that", "the", "this", "where", "with", "you"
+    ]
+
+    private struct VisiblePageControl {
+        let type: String
+        let label: String
+        let location: String?
+        let url: String?
+
+        var searchableText: String {
+            [type, label, location].compactMap { $0 }.joined(separator: " ")
+        }
+
+        var conversationalAnswer: String {
+            var sentence = "I see \(article) \(typeDescription) labeled \"\(label)\""
+            if let location, !location.isEmpty {
+                sentence += " near the \(location) of the page"
+            } else {
+                sentence += " in the visible part of the page"
+            }
+            sentence += "."
+
+            if let url, !url.isEmpty {
+                sentence += " It links to \(url)."
+            }
+
+            return sentence
+        }
+
+        private var typeDescription: String {
+            switch type {
+            case "a":
+                return "link"
+            case "input":
+                return "input"
+            case "textarea":
+                return "text field"
+            case "select":
+                return "menu"
+            default:
+                return type
+            }
+        }
+
+        init?(rawLine: String) {
+            var remaining = rawLine.trimmingCharacters(in: .whitespacesAndNewlines)
+            if remaining.hasPrefix("- ") {
+                remaining.removeFirst(2)
+            }
+
+            let metadataPattern = #"\s*\[(visible|url): ([^\]]+)\]"#
+            let regex = try? NSRegularExpression(pattern: metadataPattern)
+            var location: String?
+            var url: String?
+
+            if let regex {
+                let matches = regex.matches(
+                    in: remaining,
+                    range: NSRange(remaining.startIndex..<remaining.endIndex, in: remaining)
+                )
+                for match in matches {
+                    guard
+                        let keyRange = Range(match.range(at: 1), in: remaining),
+                        let valueRange = Range(match.range(at: 2), in: remaining)
+                    else { continue }
+
+                    let key = String(remaining[keyRange])
+                    let value = String(remaining[valueRange]).trimmingCharacters(in: .whitespacesAndNewlines)
+                    if key == "visible" {
+                        location = value
+                    } else if key == "url" {
+                        url = value
+                    }
+                }
+
+                remaining = regex.stringByReplacingMatches(
+                    in: remaining,
+                    range: NSRange(remaining.startIndex..<remaining.endIndex, in: remaining),
+                    withTemplate: ""
+                )
+            }
+
+            let parts = remaining.split(separator: ":", maxSplits: 1).map {
+                String($0).trimmingCharacters(in: .whitespacesAndNewlines)
+            }
+
+            guard parts.count == 2, !parts[0].isEmpty, !parts[1].isEmpty else { return nil }
+
+            self.type = parts[0]
+            self.label = parts[1]
+            self.location = location
+            self.url = url
+        }
+
+        private var article: String {
+            guard let firstCharacter = typeDescription.first else { return "a" }
+            return "aeiou".contains(firstCharacter.lowercased()) ? "an" : "a"
+        }
+    }
+
+    private static func semanticPageText(from contextText: String?) -> String? {
+        guard let contextText else { return nil }
+        if let controlsRange = contextText.range(of: "Visible page controls and links:") {
+            return String(contextText[..<controlsRange.lowerBound])
+        }
+        return contextText
+    }
+
+    private static func contentTerms(in normalizedPrompt: String) -> [String] {
+        let stopWords: Set<String> = [
+            "a", "about", "an", "and", "are", "can", "do", "does", "for", "from", "in", "is", "it", "me", "of",
+            "on", "page", "section", "site", "that", "the", "this", "to", "what", "where", "which", "with"
+        ]
+
+        return normalizedPrompt
+            .split(separator: " ")
+            .map(String.init)
+            .filter { $0.count > 2 && !stopWords.contains($0) }
+    }
+
     private static func summaryDraft(from pageText: String?) -> String? {
-        guard let pageText else { return nil }
+        guard let pageText = semanticPageText(from: pageText) else { return nil }
         let normalizedText = pageText
+            .replacingOccurrences(of: "Full page semantic text:", with: "")
             .replacingOccurrences(of: "\n", with: " ")
             .replacingOccurrences(of: #"[\s]+"#, with: " ", options: .regularExpression)
             .trimmingCharacters(in: .whitespacesAndNewlines)

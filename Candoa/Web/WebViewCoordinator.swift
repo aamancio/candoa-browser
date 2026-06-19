@@ -597,8 +597,8 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
 
     private static let readablePageTextScript = """
     (() => {
-      const limit = 12000;
-      const root = document.querySelector("main, article, [role='main']") || document.body;
+      const limit = 30000;
+      const root = document.body;
       if (!root) { return ""; }
 
       const clone = root.cloneNode(true);
@@ -607,24 +607,86 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         "style",
         "noscript",
         "svg",
+        "template",
         "canvas",
         "iframe",
-        "nav",
-        "footer",
-        "header",
-        "form",
-        "button",
-        "input",
-        "textarea",
-        "select",
         "[aria-hidden='true']"
       ].join(",")).forEach((node) => node.remove());
 
+      clone.querySelectorAll("img").forEach((image) => {
+        const label = [image.alt, image.title, image.getAttribute("aria-label")]
+          .map((value) => String(value || "").trim())
+          .find((value) => value.length > 0);
+        if (label) {
+          image.replaceWith(document.createTextNode(` Image: ${label} `));
+        } else {
+          image.remove();
+        }
+      });
+
+      clone.querySelectorAll("input, textarea, select, button").forEach((control) => {
+        const label = [
+          control.getAttribute("aria-label"),
+          control.placeholder,
+          control.title,
+          control.value,
+          control.innerText,
+          control.textContent
+        ]
+          .map((value) => String(value || "").trim())
+          .find((value) => value.length > 0);
+        if (label) {
+          control.replaceWith(document.createTextNode(` ${control.tagName.toLowerCase()}: ${label} `));
+        } else {
+          control.remove();
+        }
+      });
+
+      clone.querySelectorAll("a[href]").forEach((link) => {
+        const label = String(link.innerText || link.textContent || link.getAttribute("aria-label") || link.href || "").trim();
+        if (label) {
+          link.replaceWith(document.createTextNode(` Link: ${label} `));
+        } else {
+          link.remove();
+        }
+      });
+
       const description = document.querySelector("meta[name='description']")?.content || "";
+      const clean = (value) => String(value || "")
+        .replace(/[\\s\\n\\r\\t]+/g, " ")
+        .trim();
+      const blockSelectors = [
+        "h1",
+        "h2",
+        "h3",
+        "h4",
+        "h5",
+        "h6",
+        "p",
+        "li",
+        "dt",
+        "dd",
+        "figcaption",
+        "caption",
+        "th",
+        "td",
+        "[role='heading']",
+        "[role='listitem']"
+      ].join(",");
+      const seenLines = new Set();
+      const bodyLines = Array.from(clone.querySelectorAll(blockSelectors))
+        .map((element) => clean(element.innerText || element.textContent))
+        .filter((line) => {
+          if (!line || seenLines.has(line)) { return false; }
+          seenLines.add(line);
+          return true;
+        });
+
+      const fallbackText = clean(clone.innerText || clone.textContent);
       const text = [
         document.title || "",
         description,
-        clone.innerText || clone.textContent || ""
+        bodyLines.length ? bodyLines.join("\\n") : fallbackText
       ]
         .join("\\n\\n")
         .replace(/[ \\t\\f\\v]+/g, " ")

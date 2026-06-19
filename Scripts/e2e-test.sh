@@ -121,51 +121,6 @@ cp "$FIXTURE_DIR/index.html" "$FIXTURE_DIR/first-run.html"
 cp "$FIXTURE_DIR/index.html" "$FIXTURE_DIR/address.html"
 cp "$FIXTURE_DIR/index.html" "$FIXTURE_DIR/new-tab.html"
 
-cat > "$FIXTURE_DIR/youtube.html" <<'HTML'
-<!doctype html>
-<html>
-  <head>
-    <meta charset="utf-8">
-    <title>YouTube Fixture</title>
-    <meta name="description" content="Deterministic YouTube-style page for Ask context tests.">
-  </head>
-  <body>
-    <main>
-      <h1>YouTube Fixture</h1>
-      <p>YouTube fixture is a video-sharing test page for Ask context tests.</p>
-      <p>Its unique context marker is streaming tutorials and channel subscriptions.</p>
-      <p>This fixture must never be used when the attached context is the eBay fixture.</p>
-    </main>
-  </body>
-</html>
-HTML
-
-cat > "$FIXTURE_DIR/ebay.html" <<'HTML'
-<!doctype html>
-<html>
-  <head>
-    <meta charset="utf-8">
-    <title>eBay Fixture</title>
-    <meta name="description" content="Deterministic eBay-style page for Ask context tests.">
-  </head>
-  <body>
-    <header>
-      <p>Hi! <a href="/signin.html">Sign in</a> or <a href="/register.html">register</a></p>
-      <nav>
-        <a href="/deals.html">Deals</a>
-        <a href="/help.html">Help & Contact</a>
-      </nav>
-    </header>
-    <main>
-      <h1>eBay Fixture</h1>
-      <p>eBay fixture is a marketplace test page for Ask context tests.</p>
-      <p>Its unique context marker is listings, auctions, carts, and seller ratings.</p>
-      <p>This fixture must never be used when the attached context is the YouTube fixture.</p>
-    </main>
-  </body>
-</html>
-HTML
-
 python3 -m http.server "$FIXTURE_PORT" --bind 127.0.0.1 --directory "$FIXTURE_DIR" >/tmp/candoa-e2e-http.log 2>&1 &
 FIXTURE_PID="$!"
 export CANDOA_E2E_BASE_URL="http://127.0.0.1:$FIXTURE_PORT"

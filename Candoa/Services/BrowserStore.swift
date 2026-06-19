@@ -309,8 +309,9 @@ final class BrowserStore: ObservableObject {
             controlsText = nil
             imageText = nil
         }
+        let pageTextSection = pageText.map { "Full page semantic text:\n\($0)" }
         let imageTextSection = imageText.map { "Visible page image text from OCR:\n\($0)" }
-        let combinedText = [pageText, controlsText, imageTextSection]
+        let combinedText = [pageTextSection, controlsText, imageTextSection]
             .compactMap { value -> String? in
                 guard let value, !value.isEmpty else { return nil }
                 return value
