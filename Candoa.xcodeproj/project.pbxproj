@@ -36,6 +36,11 @@
 		010000000000000000000141 /* CopiedURLToastView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000041 /* CopiedURLToastView.swift */; };
 		010000000000000000000142 /* CandoaAIService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000042 /* CandoaAIService.swift */; };
 		010000000000000000000143 /* CandoaAskPromptPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000043 /* CandoaAskPromptPolicy.swift */; };
+		010000000000000000000144 /* CandoaAskDrafts.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000044 /* CandoaAskDrafts.swift */; };
+		010000000000000000000145 /* AISidebarResizeHandle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000045 /* AISidebarResizeHandle.swift */; };
+		010000000000000000000146 /* AISidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000046 /* AISidebarView.swift */; };
+		010000000000000000000147 /* AISidebarComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000047 /* AISidebarComponents.swift */; };
+		010000000000000000000148 /* CandoaAskContextCompactor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000048 /* CandoaAskContextCompactor.swift */; };
 		010000000000000000000150 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000050 /* Assets.xcassets */; };
 		010000000000000000000160 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 010000000000000000000161 /* Sparkle */; };
 		010000000000000000000170 /* CandoaUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000060 /* CandoaUITests.swift */; };
@@ -84,6 +89,11 @@
 		010000000000000000000041 /* CopiedURLToastView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CopiedURLToastView.swift; sourceTree = "<group>"; };
 		010000000000000000000042 /* CandoaAIService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CandoaAIService.swift; sourceTree = "<group>"; };
 		010000000000000000000043 /* CandoaAskPromptPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CandoaAskPromptPolicy.swift; sourceTree = "<group>"; };
+		010000000000000000000044 /* CandoaAskDrafts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CandoaAskDrafts.swift; sourceTree = "<group>"; };
+		010000000000000000000045 /* AISidebarResizeHandle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AISidebarResizeHandle.swift; sourceTree = "<group>"; };
+		010000000000000000000046 /* AISidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AISidebarView.swift; sourceTree = "<group>"; };
+		010000000000000000000047 /* AISidebarComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AISidebarComponents.swift; sourceTree = "<group>"; };
+		010000000000000000000048 /* CandoaAskContextCompactor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CandoaAskContextCompactor.swift; sourceTree = "<group>"; };
 		010000000000000000000050 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		010000000000000000000060 /* CandoaUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CandoaUITests.swift; sourceTree = "<group>"; };
 		010000000000000000000063 /* CandoaUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = CandoaUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -154,6 +164,9 @@
 			isa = PBXGroup;
 			children = (
 				010000000000000000000011 /* ContentView.swift */,
+				010000000000000000000045 /* AISidebarResizeHandle.swift */,
+				010000000000000000000046 /* AISidebarView.swift */,
+				010000000000000000000047 /* AISidebarComponents.swift */,
 				010000000000000000000012 /* SidebarView.swift */,
 				010000000000000000000013 /* BrowserChromeView.swift */,
 				010000000000000000000014 /* WebViewContainer.swift */,
@@ -182,6 +195,8 @@
 				01000000000000000000001D /* AppUpdateService.swift */,
 				010000000000000000000042 /* CandoaAIService.swift */,
 				010000000000000000000043 /* CandoaAskPromptPolicy.swift */,
+				010000000000000000000044 /* CandoaAskDrafts.swift */,
+				010000000000000000000048 /* CandoaAskContextCompactor.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -365,6 +380,11 @@
 				010000000000000000000141 /* CopiedURLToastView.swift in Sources */,
 				010000000000000000000142 /* CandoaAIService.swift in Sources */,
 				010000000000000000000143 /* CandoaAskPromptPolicy.swift in Sources */,
+				010000000000000000000144 /* CandoaAskDrafts.swift in Sources */,
+				010000000000000000000145 /* AISidebarResizeHandle.swift in Sources */,
+				010000000000000000000146 /* AISidebarView.swift in Sources */,
+				010000000000000000000147 /* AISidebarComponents.swift in Sources */,
+				010000000000000000000148 /* CandoaAskContextCompactor.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
