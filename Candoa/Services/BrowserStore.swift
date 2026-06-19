@@ -52,6 +52,11 @@ enum SplitTabDropSide: Equatable {
     case trailing
 }
 
+struct SplitTabDropPreview: Equatable {
+    var targetTabID: UUID
+    var side: SplitTabDropSide
+}
+
 struct SidebarTabDropIndicator: Equatable {
     var placement: SidebarTabDropPlacement
     var targetTabID: UUID?
@@ -113,6 +118,7 @@ final class BrowserStore: ObservableObject {
     @Published private(set) var canGoForward = false
     @Published var draggedTabID: UUID?
     @Published private(set) var sidebarDropIndicator: SidebarTabDropIndicator?
+    @Published private(set) var splitDropPreview: SplitTabDropPreview?
     @Published private var settlingDroppedTabID: UUID?
     @Published private var settlingDroppedTabSource: SidebarDroppedTabSource?
     private var tabDragSessionWatcher: Timer?
@@ -355,6 +361,10 @@ final class BrowserStore: ObservableObject {
 
     var activeSplitGroupTabIDs: Set<UUID> {
         Set(splitGroupTabIDs())
+    }
+
+    var activeSidebarDropIndicator: SidebarTabDropIndicator? {
+        draggedTabID == nil ? nil : sidebarDropIndicator
     }
 
     var visibleTabsForActiveSpace: [BrowserTab] {
@@ -2000,6 +2010,7 @@ final class BrowserStore: ObservableObject {
         settlingDroppedTabSource = nil
         draggedTabID = tabID
         clearSidebarDropIndicator()
+        clearSplitDropPreview()
         startTabDragSessionWatcher(for: tabID)
         return NSItemProvider(object: tabID.uuidString as NSString)
     }
@@ -2037,9 +2048,46 @@ final class BrowserStore: ObservableObject {
         sidebarDropIndicator = nil
     }
 
+    func splitDropTargetTabID(for side: SplitTabDropSide, draggedID: UUID) -> UUID? {
+        guard let activeTabID else { return nil }
+        let groupIDs = splitGroupTabIDs()
+        let candidateID: UUID?
+
+        if isSplitViewEnabled, groupIDs.count >= 2 {
+            if !groupIDs.contains(draggedID), groupIDs.count >= Self.splitViewMaxTabs {
+                return nil
+            }
+
+            let orderedIDs = side == .leading ? groupIDs : groupIDs.reversed()
+            candidateID = orderedIDs.first { $0 != draggedID }
+        } else {
+            candidateID = activeTabID == draggedID ? nil : activeTabID
+        }
+
+        guard
+            let candidateID,
+            tabs.contains(where: { $0.id == candidateID && $0.spaceID == activeSpaceID })
+        else {
+            return nil
+        }
+        return candidateID
+    }
+
+    func updateSplitDropPreview(targetTabID: UUID, side: SplitTabDropSide) {
+        let preview = SplitTabDropPreview(targetTabID: targetTabID, side: side)
+        guard splitDropPreview != preview else { return }
+        splitDropPreview = preview
+    }
+
+    func clearSplitDropPreview() {
+        guard splitDropPreview != nil else { return }
+        splitDropPreview = nil
+    }
+
     func finishTabDrag() {
         draggedTabID = nil
         clearSidebarDropIndicator()
+        clearSplitDropPreview()
         tabDragSessionWatcher?.invalidate()
         tabDragSessionWatcher = nil
         dropSourceClearTask?.cancel()
@@ -2055,6 +2103,7 @@ final class BrowserStore: ObservableObject {
     ) {
         draggedTabID = nil
         clearSidebarDropIndicator()
+        clearSplitDropPreview()
         tabDragSessionWatcher?.invalidate()
         tabDragSessionWatcher = nil
 
@@ -2112,7 +2161,7 @@ final class BrowserStore: ObservableObject {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) { [weak self] in
                     MainActor.assumeIsolated {
                         guard let self, self.draggedTabID == tabID else { return }
-                        if self.sidebarDropIndicator != nil {
+                        if self.sidebarDropIndicator != nil || self.splitDropPreview != nil {
                             self.startTabDragSessionWatcher(for: tabID)
                             return
                         }

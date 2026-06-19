@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct WebViewContainer: View {
     @ObservedObject var store: BrowserStore
@@ -36,10 +37,7 @@ struct WebViewContainer: View {
                     HSplitView {
                         ForEach(splitTabs) { splitTab in
                             browserSurface {
-                                webPane(
-                                    for: splitTab,
-                                    title: splitTab.id == tab.id ? "Primary" : "Split"
-                                )
+                                webPane(for: splitTab)
                             }
                         }
                     }
@@ -86,6 +84,9 @@ struct WebViewContainer: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .overlay {
+            splitDropSurfaceOverlay
+        }
         .overlay(alignment: .topTrailing) {
             if store.isFindBarPresented {
                 FindBarView(store: store)
@@ -95,6 +96,36 @@ struct WebViewContainer: View {
             }
         }
         .animation(.easeOut(duration: 0.14), value: store.isFindBarPresented)
+    }
+
+    @ViewBuilder
+    private var splitDropSurfaceOverlay: some View {
+        if store.draggedTabID != nil, store.activeTab != nil, !store.isSpaceSetupPresented {
+            GeometryReader { proxy in
+                ZStack {
+                    Color.clear
+                        .contentShape(Rectangle())
+                        .onDrop(
+                            of: [UTType.text],
+                            delegate: BrowserSurfaceSplitDropDelegate(
+                                store: store,
+                                size: proxy.size
+                            )
+                        )
+
+                    if let preview = store.splitDropPreview {
+                        SplitDropPreviewOverlay(
+                            store: store,
+                            preview: preview,
+                            cornerRadius: surfaceCornerRadius
+                        )
+                        .padding(surfacePadding)
+                        .transition(.opacity.combined(with: .scale(scale: 0.985)))
+                    }
+                }
+                .animation(.easeOut(duration: 0.12), value: store.splitDropPreview)
+            }
+        }
     }
 
     private func browserSurface<Content: View>(@ViewBuilder content: () -> Content) -> some View {
@@ -171,44 +202,160 @@ struct WebViewContainer: View {
         }
     }
 
-    private func webPane(for tab: BrowserTab, title: String) -> some View {
-        VStack(spacing: 0) {
-            HStack(spacing: 8) {
-                Image(systemName: tab.faviconSymbol)
-                    .foregroundStyle(.secondary)
-                Text(tab.title)
-                    .font(.caption)
-                    .lineLimit(1)
-                Spacer()
-                if title == "Split" {
-                    Button {
-                        store.closeSplitView()
-                    } label: {
-                        Image(systemName: "xmark")
-                    }
-                    .buttonStyle(.plain)
-                    .help("Close Split View")
-                }
-            }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 6)
-            .foregroundStyle(CandoaChromeStyle.sidebarTextSecondary)
+    private func webPane(for tab: BrowserTab) -> some View {
+        WKWebViewRepresentable(tab: tab, store: store)
+            .id(tab.id)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(CandoaChromeStyle.surfaceFill.opacity(0.72))
-
-            WKWebViewRepresentable(tab: tab, store: store)
+            .overlay(alignment: .top) {
+                PageLoadingPill(
+                    isLoading: tab.isLoading,
+                    tint: spaceTint,
+                    themeIsDark: themeIsDarkChrome
+                )
+                .padding(.top, 2)
                 .id(tab.id)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(CandoaChromeStyle.surfaceFill.opacity(0.72))
-                .overlay(alignment: .top) {
-                    PageLoadingPill(
-                        isLoading: tab.isLoading,
-                        tint: spaceTint,
-                        themeIsDark: themeIsDarkChrome
-                    )
-                    .padding(.top, 2)
-                    .id(tab.id)
-                }
+            }
+    }
+}
+
+private struct BrowserSurfaceSplitDropDelegate: DropDelegate {
+    let store: BrowserStore
+    let size: CGSize
+
+    func validateDrop(info: DropInfo) -> Bool {
+        guard let draggedID = store.draggedTabID else { return false }
+        return targetTabID(for: info, draggedID: draggedID) != nil
+    }
+
+    func dropEntered(info: DropInfo) {
+        updatePreview(info: info)
+    }
+
+    func dropUpdated(info: DropInfo) -> DropProposal? {
+        updatePreview(info: info)
+        return store.splitDropPreview == nil ? nil : DropProposal(operation: .move)
+    }
+
+    func dropExited(info: DropInfo) {
+        store.clearSplitDropPreview()
+    }
+
+    func performDrop(info: DropInfo) -> Bool {
+        guard
+            let draggedID = store.draggedTabID,
+            let targetID = targetTabID(for: info, draggedID: draggedID)
+        else {
+            store.clearSplitDropPreview()
+            return false
         }
+
+        let sourcePlacement = store.sidebarPlacement(for: draggedID)
+        store.splitTab(draggedID, onto: targetID, side: dropSide(for: info))
+        store.finishTabDrop(draggedID, from: sourcePlacement, to: sourcePlacement ?? .regular)
+        return true
+    }
+
+    private func updatePreview(info: DropInfo) {
+        guard
+            let draggedID = store.draggedTabID,
+            let targetID = targetTabID(for: info, draggedID: draggedID)
+        else {
+            store.clearSplitDropPreview()
+            return
+        }
+
+        store.updateSplitDropPreview(targetTabID: targetID, side: dropSide(for: info))
+    }
+
+    private func targetTabID(for info: DropInfo, draggedID: UUID) -> UUID? {
+        store.splitDropTargetTabID(for: dropSide(for: info), draggedID: draggedID)
+    }
+
+    private func dropSide(for info: DropInfo) -> SplitTabDropSide {
+        info.location.x < size.width / 2 ? .leading : .trailing
+    }
+}
+
+private struct SplitDropPreviewOverlay: View {
+    @ObservedObject var store: BrowserStore
+    let preview: SplitTabDropPreview
+    let cornerRadius: CGFloat
+
+    private var previewTabs: [BrowserTab] {
+        guard
+            let draggedID = store.draggedTabID,
+            let draggedTab = store.visibleTabsForActiveSpace.first(where: { $0.id == draggedID }),
+            let targetTab = store.visibleTabsForActiveSpace.first(where: { $0.id == preview.targetTabID })
+        else {
+            return []
+        }
+
+        var tabs = store.isSplitViewEnabled && store.activeSplitGroupTabs.count >= 2
+            ? store.activeSplitGroupTabs
+            : [targetTab]
+        tabs.removeAll { $0.id == draggedID }
+
+        let targetIndex = tabs.firstIndex { $0.id == preview.targetTabID } ?? tabs.startIndex
+        let insertionIndex = preview.side == .leading
+            ? targetIndex
+            : tabs.index(after: targetIndex)
+        tabs.insert(draggedTab, at: insertionIndex)
+        return Array(tabs.prefix(BrowserStore.splitViewMaxTabs))
+    }
+
+    var body: some View {
+        HStack(spacing: 8) {
+            ForEach(previewTabs) { tab in
+                SplitDropPreviewPane(tab: tab, isDragged: tab.id == store.draggedTabID)
+            }
+        }
+        .padding(8)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                .stroke(Color.primary.opacity(0.16), lineWidth: 1)
+        }
+        .allowsHitTesting(false)
+    }
+}
+
+private struct SplitDropPreviewPane: View {
+    let tab: BrowserTab
+    let isDragged: Bool
+
+    var body: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 7, style: .continuous)
+                .fill(Color.primary.opacity(isDragged ? 0.11 : 0.065))
+                .overlay {
+                    Image(systemName: isDragged ? "rectangle.split.1x2.fill" : "globe")
+                        .font(.system(size: 22, weight: .medium))
+                        .foregroundStyle(Color.primary.opacity(isDragged ? 0.32 : 0.18))
+                }
+                .padding(8)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+            VStack {
+                HStack {
+                    Image(systemName: tab.faviconSymbol)
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(isDragged ? Color.accentColor : .secondary)
+
+                    Spacer()
+                }
+                Spacer()
+            }
+            .padding(12)
+        }
+        .background(Color(nsColor: .controlBackgroundColor).opacity(isDragged ? 0.82 : 0.62))
+        .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 9, style: .continuous)
+                .stroke(isDragged ? Color.accentColor.opacity(0.62) : Color.primary.opacity(0.10), lineWidth: 1)
+        }
+        .shadow(color: Color.black.opacity(isDragged ? 0.16 : 0.08), radius: isDragged ? 12 : 6, x: 0, y: 3)
     }
 }
 

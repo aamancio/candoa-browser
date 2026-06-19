@@ -23,7 +23,7 @@ struct CandoaApp: App {
         }
 
         Settings {
-            ShortcutSettingsView()
+            CandoaSettingsView()
         }
     }
 
@@ -62,16 +62,7 @@ private final class CandoaAppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func updateDockIcon() {
-        let appearance = NSApplication.shared.effectiveAppearance
-        let isDark = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-        let imageName = NSImage.Name(isDark ? "DockIconDark" : "DockIconLight")
-
-        guard let image = NSImage(named: imageName) else {
-            return
-        }
-
-        image.isTemplate = false
-        NSApplication.shared.applicationIconImage = image
+        CandoaDockIconPreference.updateApplicationIcon()
     }
 }
 

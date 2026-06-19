@@ -308,12 +308,12 @@ struct SidebarView: View {
         )
         .opacity(store.shouldHideSidebarTab(tab.id, placement: .favorites) ? 0 : 1)
         .sidebarEssentialDropIndicator(
-            showsLeading: store.sidebarDropIndicator == SidebarTabDropIndicator(
+            showsLeading: store.activeSidebarDropIndicator == SidebarTabDropIndicator(
                 placement: .favorites,
                 targetTabID: tab.id,
                 edge: .before
             ),
-            showsTrailing: store.sidebarDropIndicator == SidebarTabDropIndicator(
+            showsTrailing: store.activeSidebarDropIndicator == SidebarTabDropIndicator(
                 placement: .favorites,
                 targetTabID: tab.id,
                 edge: .after
@@ -399,7 +399,7 @@ struct SidebarView: View {
 
     private var pinnedAppendDropTarget: some View {
         VStack(spacing: 0) {
-            if store.sidebarDropIndicator == SidebarTabDropIndicator(
+            if store.activeSidebarDropIndicator == SidebarTabDropIndicator(
                 placement: .pinned,
                 targetTabID: nil,
                 edge: .after
@@ -439,17 +439,17 @@ struct SidebarView: View {
         // source row leaves a gap that doubles as the insertion indicator.
         .opacity(store.shouldHideSidebarTab(tab.id, placement: .pinned) ? 0 : 1)
         .sidebarRowDropIndicator(
-            showsTop: store.sidebarDropIndicator == SidebarTabDropIndicator(
+            showsTop: store.activeSidebarDropIndicator == SidebarTabDropIndicator(
                 placement: .pinned,
                 targetTabID: tab.id,
                 edge: .before
             ),
-            showsSplit: store.sidebarDropIndicator == SidebarTabDropIndicator(
+            showsSplit: store.activeSidebarDropIndicator == SidebarTabDropIndicator(
                 placement: .pinned,
                 targetTabID: tab.id,
                 edge: .split
             ),
-            showsBottom: store.sidebarDropIndicator == SidebarTabDropIndicator(
+            showsBottom: store.activeSidebarDropIndicator == SidebarTabDropIndicator(
                 placement: .pinned,
                 targetTabID: tab.id,
                 edge: .after
@@ -543,7 +543,7 @@ struct SidebarView: View {
                     .padding(.vertical, 4)
                     .frame(maxWidth: .infinity, alignment: .leading)
 
-                if store.sidebarDropIndicator == SidebarTabDropIndicator(
+                if store.activeSidebarDropIndicator == SidebarTabDropIndicator(
                     placement: .regular,
                     targetTabID: nil,
                     edge: .after
@@ -582,17 +582,17 @@ struct SidebarView: View {
                         // gap it leaves is the insertion indicator.
                         .opacity(store.shouldHideSidebarTab(tab.id, placement: .regular) ? 0 : 1)
                         .sidebarRowDropIndicator(
-                            showsTop: store.sidebarDropIndicator == SidebarTabDropIndicator(
+                            showsTop: store.activeSidebarDropIndicator == SidebarTabDropIndicator(
                                 placement: .regular,
                                 targetTabID: tab.id,
                                 edge: .before
                             ),
-                            showsSplit: store.sidebarDropIndicator == SidebarTabDropIndicator(
+                            showsSplit: store.activeSidebarDropIndicator == SidebarTabDropIndicator(
                                 placement: .regular,
                                 targetTabID: tab.id,
                                 edge: .split
                             ),
-                            showsBottom: store.sidebarDropIndicator == SidebarTabDropIndicator(
+                            showsBottom: store.activeSidebarDropIndicator == SidebarTabDropIndicator(
                                 placement: .regular,
                                 targetTabID: tab.id,
                                 edge: .after
@@ -615,7 +615,7 @@ struct SidebarView: View {
                         )
                     }
 
-                    if store.sidebarDropIndicator == SidebarTabDropIndicator(
+                    if store.activeSidebarDropIndicator == SidebarTabDropIndicator(
                         placement: .regular,
                         targetTabID: nil,
                         edge: .after
@@ -2947,17 +2947,17 @@ private struct FolderSectionView: View {
                     .padding(.leading, CGFloat(nestingLevel + 1) * 12)
                     .opacity(store.shouldHideSidebarTab(tab.id, placement: .folder(folder.id)) ? 0 : 1)
                     .sidebarRowDropIndicator(
-                        showsTop: store.sidebarDropIndicator == SidebarTabDropIndicator(
+                        showsTop: store.activeSidebarDropIndicator == SidebarTabDropIndicator(
                             placement: .folder(folder.id),
                             targetTabID: tab.id,
                             edge: .before
                         ),
-                        showsSplit: store.sidebarDropIndicator == SidebarTabDropIndicator(
+                        showsSplit: store.activeSidebarDropIndicator == SidebarTabDropIndicator(
                             placement: .folder(folder.id),
                             targetTabID: tab.id,
                             edge: .split
                         ),
-                        showsBottom: store.sidebarDropIndicator == SidebarTabDropIndicator(
+                        showsBottom: store.activeSidebarDropIndicator == SidebarTabDropIndicator(
                             placement: .folder(folder.id),
                             targetTabID: tab.id,
                             edge: .after
@@ -2978,7 +2978,7 @@ private struct FolderSectionView: View {
                     )
                 }
 
-                if store.sidebarDropIndicator == SidebarTabDropIndicator(
+                if store.activeSidebarDropIndicator == SidebarTabDropIndicator(
                     placement: .folder(folder.id),
                     targetTabID: nil,
                     edge: .after
@@ -3717,8 +3717,8 @@ private struct TabReorderDropDelegate: DropDelegate {
     func performDrop(info: DropInfo) -> Bool {
         guard let draggedID = store.draggedTabID else { return false }
         let sourcePlacement = store.sidebarPlacement(for: draggedID)
-        let edge = store.sidebarDropIndicator?.targetTabID == targetTab.id
-            ? store.sidebarDropIndicator?.edge ?? dropEdge(for: info, axis: dropAxis)
+        let edge = store.activeSidebarDropIndicator?.targetTabID == targetTab.id
+            ? store.activeSidebarDropIndicator?.edge ?? dropEdge(for: info, axis: dropAxis)
             : dropEdge(for: info, axis: dropAxis)
         if edge == .split {
             store.splitTab(draggedID, onto: targetTab.id, side: splitDropSide(for: info, axis: dropAxis))
@@ -3792,8 +3792,8 @@ private struct FolderTabDropDelegate: DropDelegate {
         let sourcePlacement = store.sidebarPlacement(for: draggedID)
         let beforeID: UUID?
         if let targetTab {
-            let edge = store.sidebarDropIndicator?.targetTabID == targetTab.id
-                ? store.sidebarDropIndicator?.edge ?? dropEdge(for: info)
+            let edge = store.activeSidebarDropIndicator?.targetTabID == targetTab.id
+                ? store.activeSidebarDropIndicator?.edge ?? dropEdge(for: info)
                 : dropEdge(for: info)
             if edge == .split {
                 store.splitTab(draggedID, onto: targetTab.id, side: splitDropSide(for: info))
@@ -3862,7 +3862,7 @@ private struct RegularTabSectionDropDelegate: DropDelegate {
     func performDrop(info: DropInfo) -> Bool {
         guard let draggedID = store.draggedTabID else { return false }
         let sourcePlacement = store.sidebarPlacement(for: draggedID)
-        let indicator = store.sidebarDropIndicator
+        let indicator = store.activeSidebarDropIndicator
         let beforeID: UUID?
         let appendToEnd: Bool
         if
@@ -3901,8 +3901,8 @@ private struct RegularTabSectionDropDelegate: DropDelegate {
     }
 
     private func updateIndicator() {
-        if store.sidebarDropIndicator?.placement == .regular,
-           store.sidebarDropIndicator?.targetTabID != nil {
+        if store.activeSidebarDropIndicator?.placement == .regular,
+           store.activeSidebarDropIndicator?.targetTabID != nil {
             return
         }
         store.updateSidebarDropIndicator(placement: .regular, targetTabID: nil, edge: .after)
@@ -3932,7 +3932,7 @@ private struct PinnedTabSectionDropDelegate: DropDelegate {
     func performDrop(info: DropInfo) -> Bool {
         guard let draggedID = store.draggedTabID else { return false }
         let sourcePlacement = store.sidebarPlacement(for: draggedID)
-        let indicator = store.sidebarDropIndicator
+        let indicator = store.activeSidebarDropIndicator
         let beforeID: UUID?
         let appendToEnd: Bool
         if
@@ -3971,8 +3971,8 @@ private struct PinnedTabSectionDropDelegate: DropDelegate {
     }
 
     private func updateIndicator() {
-        if store.sidebarDropIndicator?.placement == .pinned,
-           store.sidebarDropIndicator?.targetTabID != nil {
+        if store.activeSidebarDropIndicator?.placement == .pinned,
+           store.activeSidebarDropIndicator?.targetTabID != nil {
             return
         }
         store.updateSidebarDropIndicator(placement: .pinned, targetTabID: nil, edge: .after)
@@ -4006,8 +4006,8 @@ private struct FavoriteTabDropDelegate: DropDelegate {
         let sourcePlacement = store.sidebarPlacement(for: draggedID)
         let beforeID: UUID?
         if let targetTab {
-            let edge = store.sidebarDropIndicator?.targetTabID == targetTab.id
-                ? store.sidebarDropIndicator?.edge ?? dropEdge(for: info)
+            let edge = store.activeSidebarDropIndicator?.targetTabID == targetTab.id
+                ? store.activeSidebarDropIndicator?.edge ?? dropEdge(for: info)
                 : dropEdge(for: info)
             beforeID = insertionBeforeID(
                 targetTabID: targetTab.id,
