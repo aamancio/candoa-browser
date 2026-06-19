@@ -1,5 +1,6 @@
 import AppKit
 @preconcurrency import AVFoundation
+import os
 @preconcurrency import Speech
 import SwiftUI
 import UniformTypeIdentifiers
@@ -501,6 +502,17 @@ private extension View {
 }
 
 private struct AISidebarView: View {
+    private static let askLogger = Logger(
+        subsystem: Bundle.main.bundleIdentifier ?? "Candoa",
+        category: "Ask"
+    )
+    private static let compactRetryContextThreshold = 18_000
+    private static let compactRetryLeadingLimit = 2_500
+    private static let compactRetryTrailingLimit = 2_500
+    private static let compactRetryFocusedLineLimit = 45
+    private static let compactRetryControlLineLimit = 30
+    private static let compactRetryOCRLimit = 2_500
+
     @ObservedObject var store: BrowserStore
     @Binding var uiTestingState: String
     let onClose: () -> Void
@@ -1109,48 +1121,55 @@ private struct AISidebarView: View {
 
             #if canImport(FoundationModels)
             if #available(macOS 26.0, *), unavailableReason == nil {
-                do {
-                    var receivedText = false
-                    for try await partialText in CandoaFoundationModelsService.streamResponse(
-                        to: submittedPrompt,
-                        context: pageContext,
-                        recentTurns: recentTurns
-                    ) {
-                        if Task.isCancelled { return }
-
-                        await MainActor.run {
-                            guard let index = messages.firstIndex(where: { $0.id == responseID }) else { return }
-                            messages[index].text = partialText
-                            receivedText = receivedText || !partialText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                        }
-                    }
-
-                    await MainActor.run {
-                        guard let index = messages.firstIndex(where: { $0.id == responseID }) else { return }
-                        if !receivedText {
-                            messages[index].text = CandoaAskDrafts.response(
-                                for: submittedPrompt,
-                                context: pageContext,
-                                recentTurns: recentTurns
-                            )
-                        }
-                        messages[index].isStreaming = false
-                        streamTask = nil
-                    }
-                    return
-                } catch {
-                    await streamLocalResponse(
-                        CandoaAskDrafts.response(
-                            for: submittedPrompt,
-                            context: pageContext,
-                            recentTurns: recentTurns
-                        ),
-                        into: responseID
+                let fullContextLength = pageContext.text?.count ?? 0
+                if let compactContext = compactedModelContextIfNeeded(from: pageContext, prompt: submittedPrompt) {
+                    Self.askLogger.info(
+                        "Ask model compact-context attempt promptChars=\(submittedPrompt.count, privacy: .public) fullContextChars=\(fullContextLength, privacy: .public) compactContextChars=\(compactContext.text?.count ?? 0, privacy: .public)"
                     )
+
+                    if await streamFoundationModelAttempt(
+                        prompt: submittedPrompt,
+                        context: compactContext,
+                        recentTurns: recentTurns,
+                        responseID: responseID,
+                        label: "compact"
+                    ) {
+                        Self.askLogger.info("Ask model compact-context attempt succeeded")
+                        return
+                    }
+                }
+
+                Self.askLogger.info(
+                    "Ask model full-context attempt promptChars=\(submittedPrompt.count, privacy: .public) contextChars=\(fullContextLength, privacy: .public)"
+                )
+
+                if await streamFoundationModelAttempt(
+                    prompt: submittedPrompt,
+                    context: pageContext,
+                    recentTurns: recentTurns,
+                    responseID: responseID,
+                    label: "full"
+                ) {
+                    Self.askLogger.info("Ask model full-context attempt succeeded")
                     return
                 }
+
+                Self.askLogger.warning("Ask model attempts failed; using deterministic fallback")
+                await streamLocalResponse(
+                    CandoaAskDrafts.response(
+                        for: submittedPrompt,
+                        context: pageContext,
+                        recentTurns: recentTurns
+                    ),
+                    into: responseID
+                )
+                return
             }
             #endif
+
+            if let unavailableReason {
+                Self.askLogger.warning("Ask model unavailable: \(unavailableReason, privacy: .public)")
+            }
 
             await streamLocalResponse(
                 CandoaAskDrafts.response(
@@ -1162,6 +1181,165 @@ private struct AISidebarView: View {
                 into: responseID
             )
         }
+    }
+
+    #if canImport(FoundationModels)
+    @available(macOS 26.0, *)
+    private func streamFoundationModelAttempt(
+        prompt: String,
+        context: CandoaAIPageContext,
+        recentTurns: [CandoaAIConversationTurn],
+        responseID: UUID,
+        label: String
+    ) async -> Bool {
+        do {
+            var receivedText = false
+            for try await partialText in CandoaFoundationModelsService.streamResponse(
+                to: prompt,
+                context: context,
+                recentTurns: recentTurns
+            ) {
+                if Task.isCancelled { return false }
+
+                await MainActor.run {
+                    guard let index = messages.firstIndex(where: { $0.id == responseID }) else { return }
+                    messages[index].text = partialText
+                    receivedText = receivedText || !partialText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                }
+            }
+
+            guard receivedText else {
+                Self.askLogger.warning("Ask model \(label, privacy: .public) attempt returned no text")
+                return false
+            }
+
+            await MainActor.run {
+                guard let index = messages.firstIndex(where: { $0.id == responseID }) else { return }
+                messages[index].isStreaming = false
+                streamTask = nil
+            }
+            return true
+        } catch {
+            Self.askLogger.error("Ask model \(label, privacy: .public) attempt failed: \(String(describing: error), privacy: .public)")
+            await MainActor.run {
+                guard let index = messages.firstIndex(where: { $0.id == responseID }) else { return }
+                messages[index].text = ""
+                messages[index].isStreaming = true
+            }
+            return false
+        }
+    }
+    #endif
+
+    private func compactedModelContextIfNeeded(
+        from context: CandoaAIPageContext,
+        prompt: String
+    ) -> CandoaAIPageContext? {
+        guard let text = context.text, text.count > Self.compactRetryContextThreshold else { return nil }
+
+        let semanticText = CandoaAskDrafts.semanticPageText(from: text) ?? text
+        let focusedLines = focusedContextLines(from: semanticText, prompt: prompt)
+        let leadingText = String(semanticText.prefix(Self.compactRetryLeadingLimit))
+        let trailingText = String(semanticText.suffix(Self.compactRetryTrailingLimit))
+        let visibleControls = CandoaAskDrafts.visibleControlsSection(from: text)
+            .flatMap(Self.compactControlsForModel)
+            .map { "\n\nVisible page controls and links:\n\($0)" } ?? ""
+        let ocrText = CandoaAskDrafts.visibleOCRSection(from: text)
+            .map { "\n\nVisible page image text from OCR:\n\(String($0.prefix(Self.compactRetryOCRLimit)))" } ?? ""
+
+        let compactText = """
+        Full page semantic text:
+        Leading page text:
+        \(leadingText)
+
+        Focused lines matching the question:
+        \(focusedLines.isEmpty ? "None found." : focusedLines.joined(separator: "\n"))
+
+        Trailing page text:
+        \(trailingText)\(visibleControls)\(ocrText)
+        """
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard compactText.count < text.count else { return nil }
+
+        return CandoaAIPageContext(
+            title: context.title,
+            url: context.url,
+            text: compactText
+        )
+    }
+
+    private func focusedContextLines(from text: String, prompt: String) -> [String] {
+        let terms = Self.searchTerms(in: CandoaAskPromptPolicy.normalizedText(prompt))
+        guard !terms.isEmpty else { return [] }
+
+        let lines = text
+            .components(separatedBy: .newlines)
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+        let matchingIndexes = lines.indices.filter { index in
+            let normalizedLine = CandoaAskPromptPolicy.normalizedText(lines[index])
+            return terms.contains { normalizedLine.contains($0) }
+        }
+
+        var includedIndexes = Set<Int>()
+        var focusedLines: [String] = []
+
+        for index in matchingIndexes {
+            let lowerBound = max(lines.startIndex, index - 2)
+            let upperBound = min(lines.endIndex, index + 8)
+            for focusedIndex in lowerBound..<upperBound where !includedIndexes.contains(focusedIndex) {
+                includedIndexes.insert(focusedIndex)
+                focusedLines.append(lines[focusedIndex])
+                if focusedLines.count >= Self.compactRetryFocusedLineLimit {
+                    return focusedLines
+                }
+            }
+        }
+
+        return focusedLines
+    }
+
+    private static func compactControlsForModel(_ controlsSection: String) -> String? {
+        let lines = controlsSection
+            .components(separatedBy: .newlines)
+            .map(compactContextLine)
+            .filter { !$0.isEmpty }
+            .prefix(compactRetryControlLineLimit)
+        let text = lines.joined(separator: "\n")
+        return text.isEmpty ? nil : text
+    }
+
+    private static func compactContextLine(_ rawLine: String) -> String {
+        var line = rawLine.trimmingCharacters(in: .whitespacesAndNewlines)
+        line = line.replacingOccurrences(
+            of: #"\s*\[url:\s*https?://[^\]]+\]"#,
+            with: "",
+            options: .regularExpression
+        )
+        line = line.replacingOccurrences(
+            of: #"https?://\S+"#,
+            with: "",
+            options: .regularExpression
+        )
+        line = line.replacingOccurrences(
+            of: #"[\s]+"#,
+            with: " ",
+            options: .regularExpression
+        )
+        return line.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private static func searchTerms(in normalizedPrompt: String) -> [String] {
+        let stopWords: Set<String> = [
+            "a", "about", "an", "and", "are", "can", "do", "does", "for", "from", "in", "is", "it", "me", "of",
+            "on", "page", "section", "site", "that", "the", "this", "to", "what", "where", "which", "with", "you"
+        ]
+
+        return normalizedPrompt
+            .split(separator: " ")
+            .map(String.init)
+            .filter { $0.count > 2 && !stopWords.contains($0) }
     }
 
     private func combinedContext(
@@ -2308,10 +2486,9 @@ private enum CandoaAskDrafts {
     }
 
     private static func visibleControlLines(from contextText: String?) -> [String] {
-        guard let contextText else { return [] }
-        guard let controlsRange = contextText.range(of: "Visible page controls and links:") else { return [] }
+        guard let controlsSection = visibleControlsSection(from: contextText) else { return [] }
 
-        return contextText[controlsRange.upperBound...]
+        return controlsSection
             .components(separatedBy: .newlines)
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { $0.hasPrefix("- ") }
@@ -2319,14 +2496,15 @@ private enum CandoaAskDrafts {
 
     private static func pageContentAnswer(for normalizedPrompt: String, contextText: String?) -> String? {
         let promptTerms = contentTerms(in: normalizedPrompt)
-        guard !promptTerms.isEmpty, let semanticText = semanticPageText(from: contextText) else { return nil }
+        guard !promptTerms.isEmpty, let searchableText = searchablePageContent(from: contextText) else { return nil }
 
-        let lines = semanticText
+        let lines = searchableText
             .components(separatedBy: .newlines)
-            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .compactMap { cleanedPageContentLine($0) }
             .filter {
                 !$0.isEmpty
                     && CandoaAskPromptPolicy.normalizedText($0) != "full page semantic text"
+                    && CandoaAskPromptPolicy.normalizedText($0) != "visible page image text from ocr"
             }
 
         guard !lines.isEmpty else { return nil }
@@ -2344,10 +2522,6 @@ private enum CandoaAskDrafts {
         }
 
         let sectionLines = lines[bestMatch.index..<min(lines.count, bestMatch.index + 10)]
-            .filter { line in
-                let normalizedLine = CandoaAskPromptPolicy.normalizedText(line)
-                return !normalizedLine.hasPrefix("link ")
-            }
             .prefix(8)
 
         guard !sectionLines.isEmpty else { return nil }
@@ -2460,12 +2634,94 @@ private enum CandoaAskDrafts {
         }
     }
 
-    private static func semanticPageText(from contextText: String?) -> String? {
+    static func semanticPageText(from contextText: String?) -> String? {
         guard let contextText else { return nil }
-        if let controlsRange = contextText.range(of: "Visible page controls and links:") {
-            return String(contextText[..<controlsRange.lowerBound])
+        let markerStarts = [
+            contextText.range(of: "Visible page controls and links:")?.lowerBound,
+            contextText.range(of: "Visible page image text from OCR:")?.lowerBound
+        ].compactMap { $0 }
+
+        if let firstMarkerStart = markerStarts.min() {
+            return String(contextText[..<firstMarkerStart])
         }
         return contextText
+    }
+
+    static func visibleControlsSection(from contextText: String?) -> String? {
+        guard let contextText else { return nil }
+        guard let controlsRange = contextText.range(of: "Visible page controls and links:") else { return nil }
+        let controlsTail = contextText[controlsRange.upperBound...]
+        let controlsEnd = controlsTail.range(of: "\n\nVisible page image text from OCR:")?.lowerBound
+            ?? controlsTail.endIndex
+        let section = String(controlsTail[..<controlsEnd]).trimmingCharacters(in: .whitespacesAndNewlines)
+        return section.isEmpty ? nil : section
+    }
+
+    static func visibleOCRSection(from contextText: String?) -> String? {
+        guard let contextText else { return nil }
+        guard let ocrRange = contextText.range(of: "Visible page image text from OCR:") else { return nil }
+        let section = String(contextText[ocrRange.upperBound...]).trimmingCharacters(in: .whitespacesAndNewlines)
+        return section.isEmpty ? nil : section
+    }
+
+    private static func searchablePageContent(from contextText: String?) -> String? {
+        let sections = [
+            semanticPageText(from: contextText),
+            visibleOCRSection(from: contextText).map { "Visible page image text from OCR:\n\($0)" }
+        ]
+            .compactMap { value -> String? in
+                guard let value = value?.trimmingCharacters(in: .whitespacesAndNewlines), !value.isEmpty else { return nil }
+                return value
+            }
+
+        let text = sections.joined(separator: "\n\n")
+        return text.isEmpty ? nil : text
+    }
+
+    private static func cleanedPageContentLine(_ rawLine: String) -> String? {
+        var line = rawLine.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !line.isEmpty else { return nil }
+
+        line = line.replacingOccurrences(
+            of: #"(?i)\bbutton:\s*watchlist\b"#,
+            with: "",
+            options: .regularExpression
+        )
+        line = line.replacingOccurrences(
+            of: #"(?i)\blink:\s*https?://\S+"#,
+            with: "",
+            options: .regularExpression
+        )
+        line = line.replacingOccurrences(
+            of: #"https?://\S+"#,
+            with: "",
+            options: .regularExpression
+        )
+        line = line.replacingOccurrences(
+            of: #"(?i)\s*-\s*opens in new window or tab"#,
+            with: "",
+            options: .regularExpression
+        )
+        line = line.replacingOccurrences(
+            of: #"(?i)\b(previous price)\s*"#,
+            with: "$1 ",
+            options: .regularExpression
+        )
+        line = line.replacingOccurrences(of: "Link:", with: "")
+        line = line.replacingOccurrences(of: "Image:", with: "")
+        line = line.replacingOccurrences(
+            of: #"[\s]+"#,
+            with: " ",
+            options: .regularExpression
+        )
+        line = line.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines.union(.punctuationCharacters))
+
+        let normalizedLine = CandoaAskPromptPolicy.normalizedText(line)
+        guard !normalizedLine.isEmpty else { return nil }
+        guard normalizedLine != "button watchlist" else { return nil }
+        guard !normalizedLine.hasPrefix("link ") else { return nil }
+
+        return line
     }
 
     private static func contentTerms(in normalizedPrompt: String) -> [String] {
@@ -2481,9 +2737,10 @@ private enum CandoaAskDrafts {
     }
 
     private static func summaryDraft(from pageText: String?) -> String? {
-        guard let pageText = semanticPageText(from: pageText) else { return nil }
+        guard let pageText = searchablePageContent(from: pageText) else { return nil }
         let normalizedText = pageText
             .replacingOccurrences(of: "Full page semantic text:", with: "")
+            .replacingOccurrences(of: "Visible page image text from OCR:", with: "")
             .replacingOccurrences(of: "\n", with: " ")
             .replacingOccurrences(of: #"[\s]+"#, with: " ", options: .regularExpression)
             .trimmingCharacters(in: .whitespacesAndNewlines)
