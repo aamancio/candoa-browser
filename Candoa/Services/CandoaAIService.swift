@@ -18,6 +18,12 @@ struct CandoaAIPageContext: Sendable {
     let title: String?
     let url: String?
     let text: String?
+
+    var hasAttachedContext: Bool {
+        [title, url, text].contains { value in
+            value?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
+        }
+    }
 }
 
 enum CandoaAIAvailability: Sendable, Equatable {
@@ -60,7 +66,13 @@ enum CandoaFoundationModelsService {
                         instructions: """
                         You are Ask, Candoa's browser assistant.
                         Answer concisely and directly.
-                        Use the current page context only when it is relevant.
+                        Treat the attached page context as the source for the current user message.
+                        The attached page context may include a "Visible page controls and links" section from the currently visible viewport.
+                        For questions about buttons, links, inputs, signing in, logging in, navigation, or where to click, answer only from the visible controls and links section.
+                        If the requested control is not listed there, say that you do not see it in the visible scanned page context. Do not guess a location.
+                        Words like "this", "that", "page", "site", and "website" in the current message refer to the attached page context when it exists.
+                        If recent conversation conflicts with attached page context, the attached page context wins.
+                        If no page context is attached and the user asks about this page or website, say that you cannot see what they are looking at and ask them to attach page context or share the URL.
                         If you cannot know something from the prompt or context, say so briefly.
                         Do not mention implementation details, model adapters, or Foundation Models.
                         """
@@ -94,18 +106,6 @@ enum CandoaFoundationModelsService {
     ) -> String {
         var parts: [String] = []
 
-        if let title = context.title, !title.isEmpty {
-            parts.append("Current page title: \(title)")
-        }
-
-        if let url = context.url, !url.isEmpty {
-            parts.append("Current page URL: \(url)")
-        }
-
-        if let text = context.text, !text.isEmpty {
-            parts.append("Current page text excerpt:\n\(text)")
-        }
-
         let transcript = recentTurns
             .filter { !$0.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
             .suffix(6)
@@ -121,6 +121,22 @@ enum CandoaFoundationModelsService {
 
         if !transcript.isEmpty {
             parts.append("Recent conversation:\n\(transcript)")
+        }
+
+        if !context.hasAttachedContext {
+            parts.append("Current message context: no page context is attached.")
+        }
+
+        if let title = context.title, !title.isEmpty {
+            parts.append("Current message attached page title: \(title)")
+        }
+
+        if let url = context.url, !url.isEmpty {
+            parts.append("Current message attached page URL: \(url)")
+        }
+
+        if let text = context.text, !text.isEmpty {
+            parts.append("Current message attached page text excerpt:\n\(text)")
         }
 
         parts.append("User: \(userPrompt)")

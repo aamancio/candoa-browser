@@ -2,6 +2,7 @@ import AppKit
 import Combine
 import Foundation
 import SwiftUI
+import Vision
 
 struct TabMediaState: Equatable {
     var hasMedia = false
@@ -295,18 +296,45 @@ final class BrowserStore: ObservableObject {
     func aiPageContext(for tabID: UUID?) async -> CandoaAIPageContext {
         let tab = tabID.flatMap { id in tabs.first { $0.id == id } }
         let pageText: String?
+        let controlsText: String?
+        let imageText: String?
         if let tabID = tab?.id {
             pageText = await webCoordinator.readablePageText(for: tabID)?
                 .trimmingCharacters(in: .whitespacesAndNewlines)
+            controlsText = await webCoordinator.visiblePageControlsText(for: tabID)?
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            imageText = await visiblePageOCRText(for: tabID)
         } else {
             pageText = nil
+            controlsText = nil
+            imageText = nil
         }
+        let imageTextSection = imageText.map { "Visible page image text from OCR:\n\($0)" }
+        let combinedText = [pageText, controlsText, imageTextSection]
+            .compactMap { value -> String? in
+                guard let value, !value.isEmpty else { return nil }
+                return value
+            }
+            .joined(separator: "\n\n")
 
         return CandoaAIPageContext(
             title: tab?.title.trimmingCharacters(in: .whitespacesAndNewlines),
             url: tab?.url?.absoluteString,
-            text: pageText?.isEmpty == false ? pageText : nil
+            text: combinedText.isEmpty ? nil : combinedText
         )
+    }
+
+    private func visiblePageOCRText(for tabID: UUID) async -> String? {
+        await withCheckedContinuation { continuation in
+            webCoordinator.captureVisiblePage(for: tabID) { image in
+                guard let image else {
+                    continuation.resume(returning: nil)
+                    return
+                }
+
+                continuation.resume(returning: CandoaImageTextRecognizer.recognizedText(in: image))
+            }
+        }
     }
 
     var activeSplitTab: BrowserTab? {
@@ -457,7 +485,27 @@ final class BrowserStore: ObservableObject {
     private static func uiTestingFixtureState() -> BrowserWindowState? {
         let environment = ProcessInfo.processInfo.environment
         guard environment["CANDOA_UI_TESTING"] == "1" else { return nil }
-        guard environment["CANDOA_UI_TESTING_FIXTURE"] == "workspace" else { return nil }
+        let fixture = environment["CANDOA_UI_TESTING_FIXTURE"]
+
+        if fixture == "ask" {
+            let askSpaceID = UUID(uuidString: "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA")!
+            let askSpace = BrowserSpace(
+                id: askSpaceID,
+                name: "Ask Test",
+                symbolName: "sparkles",
+                themeAppearance: BrowserSpace.defaultThemeAppearance
+            )
+
+            return BrowserWindowState(
+                spaces: [askSpace],
+                folders: [],
+                tabs: [],
+                activeSpaceID: askSpaceID,
+                activeTabID: nil
+            )
+        }
+
+        guard fixture == "workspace" else { return nil }
 
         let personalSpaceID = UUID(uuidString: "11111111-1111-1111-1111-111111111111")!
         let workSpaceID = UUID(uuidString: "22222222-2222-2222-2222-222222222222")!
@@ -2948,5 +2996,45 @@ final class BrowserStore: ObservableObject {
         for splitTab in activeSplitTabs {
             webCoordinator.ensureLoaded(splitTab)
         }
+    }
+}
+
+enum CandoaImageTextRecognizer {
+    private static let textLimit = 6000
+
+    static func recognizedText(in image: NSImage) -> String? {
+        var proposedRect = CGRect(origin: .zero, size: image.size)
+        guard let cgImage = image.cgImage(forProposedRect: &proposedRect, context: nil, hints: nil) else {
+            return nil
+        }
+
+        return recognizedText(in: cgImage)
+    }
+
+    private static func recognizedText(in cgImage: CGImage) -> String? {
+        let request = VNRecognizeTextRequest()
+        request.recognitionLevel = .accurate
+        request.usesLanguageCorrection = true
+        request.minimumTextHeight = 0.01
+
+        let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
+        do {
+            try handler.perform([request])
+        } catch {
+            return nil
+        }
+
+        let text = (request.results ?? [])
+            .compactMap { $0.topCandidates(1).first?.string }
+            .map {
+                $0.replacingOccurrences(of: #"[\s]+"#, with: " ", options: .regularExpression)
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+            }
+            .filter { !$0.isEmpty }
+            .joined(separator: "\n")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard !text.isEmpty else { return nil }
+        return String(text.prefix(textLimit))
     }
 }

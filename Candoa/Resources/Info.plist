@@ -42,7 +42,9 @@
 	<key>NSCameraUsageDescription</key>
 	<string>Websites you visit can request access to your camera.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Websites you visit can request access to your microphone.</string>
+	<string>Use microphone features only after you choose to allow them, such as dictation or website voice input.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Dictate assistant queries.</string>
 	<key>NSHumanReadableCopyright</key>
 	<string>MPL-2.0 License</string>
 	<key>NSPrincipalClass</key>

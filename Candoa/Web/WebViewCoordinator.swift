@@ -263,6 +263,21 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         }
     }
 
+    func visiblePageControlsText(for tabID: UUID) async -> String? {
+        guard let webView = webViews[tabID] else { return nil }
+
+        return await withCheckedContinuation { continuation in
+            webView.evaluateJavaScript(Self.visiblePageControlsScript) { value, error in
+                guard error == nil else {
+                    continuation.resume(returning: nil)
+                    return
+                }
+
+                continuation.resume(returning: value as? String)
+            }
+        }
+    }
+
     func captureVisiblePage(for tabID: UUID, completion: @escaping (NSImage?) -> Void) {
         guard let webView = webViews[tabID], !webView.bounds.isEmpty else {
             completion(nil)
@@ -617,6 +632,98 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         .trim();
 
       return text.slice(0, limit);
+    })();
+    """
+
+    private static let visiblePageControlsScript = """
+    (() => {
+      const selectors = [
+        "a[href]",
+        "button",
+        "input",
+        "textarea",
+        "select",
+        "[role='button']",
+        "[role='link']",
+        "[role='searchbox']",
+        "[role='textbox']",
+        "[role='combobox']"
+      ].join(",");
+      const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 0;
+      const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 0;
+      const seen = new Set();
+
+      const clean = (value) => String(value || "")
+        .replace(/[\\s\\n\\r\\t]+/g, " ")
+        .trim();
+
+      const labelFor = (element) => {
+        const childImageText = Array.from(element.querySelectorAll("img"))
+          .map((image) => clean([image.alt, image.title, image.getAttribute("aria-label")].find((candidate) => clean(candidate).length > 0)))
+          .filter(Boolean)
+          .join(" ");
+        const ariaLabelledBy = clean(element.getAttribute("aria-labelledby"));
+        const labelledByText = ariaLabelledBy
+          .split(" ")
+          .map((id) => clean(document.getElementById(id)?.innerText || document.getElementById(id)?.textContent))
+          .filter(Boolean)
+          .join(" ");
+        const explicitLabel = element.id
+          ? clean(document.querySelector(`label[for="${CSS.escape(element.id)}"]`)?.innerText)
+          : "";
+        const wrappingLabel = clean(element.closest("label")?.innerText);
+        return clean([
+          element.getAttribute("aria-label"),
+          labelledByText,
+          explicitLabel,
+          wrappingLabel,
+          element.placeholder,
+          element.title,
+          element.alt,
+          childImageText,
+          element.value,
+          element.innerText,
+          element.innerText || element.textContent,
+          element.textContent
+        ].find((candidate) => clean(candidate).length > 0));
+      };
+
+      const locationFor = (rect) => {
+        const horizontal = rect.left < viewportWidth * 0.33
+          ? "left"
+          : rect.left > viewportWidth * 0.66 ? "right" : "center";
+        const vertical = rect.top < viewportHeight * 0.33
+          ? "top"
+          : rect.top > viewportHeight * 0.66 ? "bottom" : "middle";
+        return `${vertical} ${horizontal}`;
+      };
+
+      const rows = Array.from(document.querySelectorAll(selectors))
+        .filter((element) => {
+          if (!(element instanceof HTMLElement)) { return false; }
+          if (element.closest("[aria-hidden='true'], [hidden]")) { return false; }
+          const rect = element.getBoundingClientRect();
+          if (rect.width < 2 || rect.height < 2) { return false; }
+          if (rect.bottom < 0 || rect.right < 0 || rect.top > viewportHeight || rect.left > viewportWidth) { return false; }
+          const style = window.getComputedStyle(element);
+          return style.display !== "none" && style.visibility !== "hidden" && Number(style.opacity || "1") > 0.05;
+        })
+        .map((element) => {
+          const rect = element.getBoundingClientRect();
+          const role = clean(element.getAttribute("role")) || element.tagName.toLowerCase();
+          const label = labelFor(element);
+          const href = element.href ? clean(element.href) : "";
+          const type = clean(element.getAttribute("type"));
+          const key = clean(`${role}|${type}|${label}|${href}|${Math.round(rect.top)}|${Math.round(rect.left)}`);
+          if (seen.has(key)) { return null; }
+          seen.add(key);
+          if (!label && !href) { return null; }
+          return `- ${role}${type ? ` (${type})` : ""}: ${label || href} [visible: ${locationFor(rect)}]${href ? ` [url: ${href}]` : ""}`;
+        })
+        .filter(Boolean)
+        .slice(0, 80);
+
+      return rows.length ? `Visible page controls and links:\\n${rows.join("\\n")}` : "";
     })();
     """
 
@@ -1718,6 +1825,45 @@ extension WebViewCoordinator {
         initiatedByFrame frame: WKFrameInfo,
         type: WKMediaCaptureType
     ) async -> WKPermissionDecision {
-        .prompt
+        await requestSiteMediaCapturePermission(for: origin, type: type, webView: webView)
+    }
+
+    private func requestSiteMediaCapturePermission(
+        for origin: WKSecurityOrigin,
+        type: WKMediaCaptureType,
+        webView: WKWebView
+    ) async -> WKPermissionDecision {
+        let host = origin.host.trimmingCharacters(in: .whitespacesAndNewlines)
+        let siteName = host.isEmpty ? "This website" : host
+        let mediaName = mediaCaptureDisplayName(for: type)
+
+        let alert = NSAlert()
+        alert.messageText = "\(siteName) wants to use \(mediaName)"
+        alert.informativeText = "Allow access only if you trust this page."
+        alert.alertStyle = .informational
+        alert.addButton(withTitle: "Allow")
+        alert.addButton(withTitle: "Don't Allow")
+
+        let response: NSApplication.ModalResponse
+        if let window = webView.window {
+            response = await alert.beginSheetModal(for: window)
+        } else {
+            response = alert.runModal()
+        }
+
+        return response == .alertFirstButtonReturn ? .grant : .deny
+    }
+
+    private func mediaCaptureDisplayName(for type: WKMediaCaptureType) -> String {
+        switch type {
+        case .camera:
+            return "your camera"
+        case .microphone:
+            return "your microphone"
+        case .cameraAndMicrophone:
+            return "your camera and microphone"
+        @unknown default:
+            return "media capture"
+        }
     }
 }

@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DESTINATION="${CANDOA_E2E_DESTINATION:-platform=macOS}"
 DERIVED_DATA_PATH="${CANDOA_DERIVED_DATA_PATH:-}"
-FIXTURE_DIR="$(mktemp -d "${TMPDIR:-/tmp}/candoa-e2e-site.XXXXXX")"
+FIXTURE_DIR="$(mktemp -d "${TMPDIR:-/tmp}/candoa-ask-e2e-site.XXXXXX")"
 DERIVED_DATA_DIR=""
 FIXTURE_PORT="${CANDOA_E2E_PORT:-18765}"
 FIXTURE_PID=""
@@ -13,6 +13,7 @@ XCODEBUILD_ARGS=(
   -scheme Candoa
   -configuration Debug
   -destination "$DESTINATION"
+  -only-testing:CandoaUITests/CandoaAskUITests
 )
 
 if [[ "${CANDOA_E2E_ADHOC_SIGNING:-0}" == "1" ]]; then
@@ -27,7 +28,7 @@ fi
 if [[ -n "$DERIVED_DATA_PATH" ]]; then
   DERIVED_DATA_DIR="$DERIVED_DATA_PATH"
 else
-  DERIVED_DATA_DIR="$(mktemp -d "${TMPDIR:-/tmp}/candoa-e2e-derived.XXXXXX")"
+  DERIVED_DATA_DIR="$(mktemp -d "${TMPDIR:-/tmp}/candoa-ask-e2e-derived.XXXXXX")"
 fi
 
 XCODEBUILD_ARGS+=(-derivedDataPath "$DERIVED_DATA_DIR")
@@ -97,29 +98,9 @@ if pgrep -x Candoa >/dev/null; then
 fi
 
 if pgrep -x Candoa >/dev/null; then
-  echo "Candoa is still running. Quit Candoa before running E2E tests." >&2
+  echo "Candoa is still running. Quit Candoa before running Ask E2E tests." >&2
   exit 1
 fi
-
-cat > "$FIXTURE_DIR/index.html" <<'HTML'
-<!doctype html>
-<html>
-  <head>
-    <meta charset="utf-8">
-    <title>Candoa E2E Fixture</title>
-  </head>
-  <body>
-    <main>
-      <h1>Candoa E2E Fixture</h1>
-      <p>Stable local page for UI navigation tests.</p>
-    </main>
-  </body>
-</html>
-HTML
-
-cp "$FIXTURE_DIR/index.html" "$FIXTURE_DIR/first-run.html"
-cp "$FIXTURE_DIR/index.html" "$FIXTURE_DIR/address.html"
-cp "$FIXTURE_DIR/index.html" "$FIXTURE_DIR/new-tab.html"
 
 cat > "$FIXTURE_DIR/youtube.html" <<'HTML'
 <!doctype html>
@@ -147,6 +128,11 @@ cat > "$FIXTURE_DIR/ebay.html" <<'HTML'
     <meta charset="utf-8">
     <title>eBay Fixture</title>
     <meta name="description" content="Deterministic eBay-style page for Ask context tests.">
+    <style>
+      body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; margin: 0; }
+      header { display: flex; gap: 24px; align-items: center; padding: 8px 14px; border-bottom: 1px solid #ddd; }
+      main { padding: 48px 14px; }
+    </style>
   </head>
   <body>
     <header>
@@ -166,7 +152,54 @@ cat > "$FIXTURE_DIR/ebay.html" <<'HTML'
 </html>
 HTML
 
-python3 -m http.server "$FIXTURE_PORT" --bind 127.0.0.1 --directory "$FIXTURE_DIR" >/tmp/candoa-e2e-http.log 2>&1 &
+cat > "$FIXTURE_DIR/image-signin.html" <<'HTML'
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Image Sign In Fixture</title>
+    <style>
+      body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; margin: 0; padding: 16px; }
+      img { width: 96px; height: 32px; background: #145be8; border-radius: 6px; display: block; }
+    </style>
+  </head>
+  <body>
+    <a href="/secure-signin.html"><img alt="Sign in with secure account"></a>
+    <main>
+      <h1>Image Sign In Fixture</h1>
+      <p>This page uses image alt text as the only visible label for its login link.</p>
+    </main>
+  </body>
+</html>
+HTML
+
+cat > "$FIXTURE_DIR/hidden-signin.html" <<'HTML'
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Hidden Sign In Fixture</title>
+    <style>
+      body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; margin: 0; padding: 16px; }
+      .hidden { display: none; }
+      header { display: flex; gap: 16px; align-items: center; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <a class="hidden" href="/signin.html">Sign in</a>
+      <a href="/register.html">Register</a>
+      <button>Search</button>
+    </header>
+    <main>
+      <h1>Hidden Sign In Fixture</h1>
+      <p>This page has a hidden sign-in link that must not be reported as visible.</p>
+    </main>
+  </body>
+</html>
+HTML
+
+python3 -m http.server "$FIXTURE_PORT" --bind 127.0.0.1 --directory "$FIXTURE_DIR" >/tmp/candoa-ask-e2e-http.log 2>&1 &
 FIXTURE_PID="$!"
 export CANDOA_E2E_BASE_URL="http://127.0.0.1:$FIXTURE_PORT"
 

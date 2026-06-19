@@ -17,11 +17,6 @@ struct CommandPaletteView: View {
     @ObservedObject var store: BrowserStore
     @State private var query = ""
     @State private var selectedSearchProvider: SearchProvider?
-    @State private var isActionsMode = false
-    @State private var isAskMode = false
-    @State private var isAskSupported = false
-    @State private var askMessages: [PaletteAskMessage] = []
-    @State private var askStreamTask: Task<Void, Never>?
     @State private var selectedCommandIndex = 0
     @State private var fieldFocusRequestID = UUID()
     @FocusState private var isSearchFocused: Bool
@@ -29,7 +24,6 @@ struct CommandPaletteView: View {
 
     /// Arc's command bar accent — the one selection color everywhere.
     static let paletteTint = Color(red: 0.26, green: 0.27, blue: 0.88)
-    static let askTint = Color(red: 0.11, green: 0.52, blue: 0.62)
     private static let maxVisibleCommandCount = 6
     private static let commandRowHeight: CGFloat = 46
     private static let commandRowSpacing: CGFloat = 7
@@ -43,23 +37,7 @@ struct CommandPaletteView: View {
     private static let addressPaletteMaxWidth: CGFloat = 440
 
     private var activeTint: Color {
-        if isAskMode {
-            return Self.askTint
-        }
-
         return selectedSearchProvider?.paletteColor ?? Self.paletteTint
-    }
-
-    private static func resolveAskSupport() -> Bool {
-        #if canImport(FoundationModels)
-        if #available(macOS 26.0, *) {
-            if case .available = CandoaFoundationModelsService.availability {
-                return true
-            }
-        }
-        #endif
-
-        return false
     }
 
     var body: some View {
@@ -82,20 +60,15 @@ struct CommandPaletteView: View {
         }
         .background(
             CommandPaletteKeyMonitor(
-                isProviderChipDeletable: (selectedSearchProvider != nil || isAskMode) && query.isEmpty,
+                isProviderChipDeletable: selectedSearchProvider != nil && query.isEmpty,
                 onDeleteProviderChip: deleteSelectedSearchProvider,
                 onMoveSelection: moveSelection,
                 onCancel: { dismissPalette() }
             )
         )
         .onAppear {
-            isAskSupported = false
             query = store.commandPaletteInitialText
             selectedSearchProvider = nil
-            isActionsMode = false
-            isAskMode = false
-            askMessages = []
-            cancelAskStream()
             selectedCommandIndex = 0
             fieldFocusRequestID = UUID()
             focusSearchField()
@@ -113,15 +86,6 @@ struct CommandPaletteView: View {
         .onChange(of: selectedSearchProvider) { _, _ in
             selectedCommandIndex = 0
         }
-        .onChange(of: isActionsMode) { _, _ in
-            selectedCommandIndex = 0
-        }
-        .onChange(of: isAskMode) { _, _ in
-            selectedCommandIndex = 0
-        }
-        .onDisappear {
-            cancelAskStream()
-        }
     }
 
     private var paletteSurface: some View {
@@ -138,8 +102,6 @@ struct CommandPaletteView: View {
 
                 if let selectedSearchProvider {
                     PaletteChip(text: selectedSearchProvider.name, color: selectedSearchProvider.paletteColor)
-                } else if isAskMode {
-                    PaletteChip(text: "Ask", color: Self.askTint)
                 }
 
                 searchField
@@ -173,32 +135,28 @@ struct CommandPaletteView: View {
                 .fill(CandoaChromeStyle.popoverBorder)
                 .frame(height: 1)
 
-            if isAskMode {
-                askConversationView
-            } else {
-                ScrollView(.vertical, showsIndicators: false) {
-                    LazyVStack(spacing: 7) {
-                        ForEach(Array(visibleCommands.enumerated()), id: \.element.id) { index, command in
-                            Button {
-                                run(command)
-                            } label: {
-                                PaletteCommandRow(
-                                    command: command,
-                                    isSelected: index == selectedCommandIndex,
-                                    selectedTint: activeTint
-                                )
-                            }
-                            .buttonStyle(.plain)
+            ScrollView(.vertical, showsIndicators: false) {
+                LazyVStack(spacing: 7) {
+                    ForEach(Array(visibleCommands.enumerated()), id: \.element.id) { index, command in
+                        Button {
+                            run(command)
+                        } label: {
+                            PaletteCommandRow(
+                                command: command,
+                                isSelected: index == selectedCommandIndex,
+                                selectedTint: activeTint
+                            )
                         }
+                        .buttonStyle(.plain)
                     }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 11)
                 }
-                // ScrollView always claims its max height; with few rows
-                // that left a dead slab under the results. Size it to the
-                // rows instead (Arc's bar hugs its content).
-                .frame(height: resultsAreaHeight)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 11)
             }
+            // ScrollView always claims its max height; with few rows
+            // that left a dead slab under the results. Size it to the
+            // rows instead (Arc's bar hugs its content).
+            .frame(height: resultsAreaHeight)
         }
         .frame(height: anchoredPaletteHeight, alignment: .top)
         .background(PaletteBackground())
@@ -385,59 +343,9 @@ struct CommandPaletteView: View {
     /// Arc/Zen-style result navigation: Up/Down arrows and Control-P/N move
     /// the highlight through the visible results, wrapping at the ends.
     private func moveSelection(by delta: Int) {
-        let count = isAskMode && askMessages.isEmpty ? askSuggestions.count : visibleCommands.count
+        let count = visibleCommands.count
         guard count > 0 else { return }
         selectedCommandIndex = ((selectedCommandIndex + delta) % count + count) % count
-    }
-
-    private var askConversationView: some View {
-        ScrollViewReader { proxy in
-            ScrollView {
-                LazyVStack(spacing: Self.commandRowSpacing) {
-                    if askMessages.isEmpty {
-                        ForEach(Array(askSuggestions.enumerated()), id: \.element.title) { index, suggestion in
-                            Button {
-                                submitAskQuery(promptOverride: suggestion.prompt)
-                            } label: {
-                                PaletteAskSuggestionRow(
-                                    suggestion: suggestion,
-                                    isSelected: index == selectedCommandIndex
-                                )
-                            }
-                            .buttonStyle(.plain)
-                        }
-
-                    } else {
-                        ForEach(askMessages) { message in
-                            PaletteAskMessageRow(message: message)
-                                .id(message.id)
-                        }
-                    }
-                }
-                .padding(.horizontal, 14)
-                .padding(.vertical, 11)
-            }
-            .frame(height: askResultsHeight)
-            .onChange(of: askMessages) { _, messages in
-                guard let lastID = messages.last?.id else { return }
-                proxy.scrollTo(lastID, anchor: .bottom)
-            }
-        }
-    }
-
-    private var askResultsHeight: CGFloat {
-        resultsHeight(for: CGFloat(Self.maxVisibleCommandCount))
-    }
-
-    private var askSuggestions: [PaletteAskSuggestion] {
-        [
-            PaletteAskSuggestion(title: "What is this page about?", prompt: "What is this page about?", symbolName: "doc.text.magnifyingglass"),
-            PaletteAskSuggestion(title: "Summarize this page", prompt: "Summarize this page", symbolName: "doc.text"),
-            PaletteAskSuggestion(title: "Find key details", prompt: "Find the key details on this page", symbolName: "list.bullet"),
-            PaletteAskSuggestion(title: "Explain this simply", prompt: "Explain this page simply", symbolName: "text.bubble"),
-            PaletteAskSuggestion(title: "Compare options here", prompt: "Compare the options on this page", symbolName: "arrow.left.arrow.right"),
-            PaletteAskSuggestion(title: "Suggest useful questions", prompt: "Suggest useful questions I can ask about this page", symbolName: "questionmark.bubble")
-        ]
     }
 
     private var searchField: some View {
@@ -488,18 +396,6 @@ struct CommandPaletteView: View {
     }
 
     private var filteredCommands: [PaletteCommand] {
-        if isAskMode {
-            return []
-        }
-
-        if isActionsMode {
-            let trimmedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !trimmedQuery.isEmpty else { return actionCommands }
-            return actionCommands.filter {
-                $0.title.localizedCaseInsensitiveContains(trimmedQuery)
-            }
-        }
-
         let trimmedQuery = commandQueryText.trimmingCharacters(in: .whitespacesAndNewlines)
         if isAddressEditingPalette && shouldSelectCurrentURL {
             return defaultSuggestions
@@ -507,67 +403,15 @@ struct CommandPaletteView: View {
 
         let commands = commandCandidates(for: trimmedQuery, isResumingSearchURL: isResumingSearchURL)
         guard !trimmedQuery.isEmpty else { return commands }
-        let isAskQuery = isAskSupported && askPrompt(from: trimmedQuery) != nil
         return commands.filter {
-            (isAskQuery && $0.style == .ask) ||
             $0.title.localizedCaseInsensitiveContains(trimmedQuery) ||
             ($0.detail?.localizedCaseInsensitiveContains(trimmedQuery) ?? false) ||
+            ($0.sourceLabel?.localizedCaseInsensitiveContains(trimmedQuery) ?? false) ||
             $0.searchText.localizedCaseInsensitiveContains(trimmedQuery)
         }
     }
 
-    /// Arc's Tab-key Actions mode: commands that act on the current tab,
-    /// with their shortcut badges, in Arc's order.
-    private var actionCommands: [PaletteCommand] {
-        [
-            PaletteCommand(
-                title: BrowserCommandTitles.copyURL,
-                symbolName: "doc.on.doc",
-                shortcutHint: "⇧⌘C",
-                action: .copyURL
-            ),
-            PaletteCommand(
-                title: BrowserCommandTitles.closeCurrentTab,
-                symbolName: "xmark",
-                shortcutHint: "⌘W",
-                action: .closeCurrentTab
-            ),
-            PaletteCommand(
-                title: BrowserCommandTitles.reloadTab,
-                symbolName: "arrow.clockwise",
-                shortcutHint: "⌘R",
-                action: .reloadTab
-            ),
-            PaletteCommand(
-                title: BrowserCommandTitles.copyURLAsMarkdown,
-                symbolName: "doc.on.doc",
-                shortcutHint: "⇧⌥⌘C",
-                action: .copyURLAsMarkdown
-            ),
-            PaletteCommand(
-                title: BrowserCommandTitles.pinOrUnpinTab,
-                symbolName: "pin",
-                shortcutHint: "⌘D",
-                action: .togglePinTab
-            ),
-            PaletteCommand(
-                title: BrowserCommandTitles.duplicateTab,
-                symbolName: "square.on.square",
-                action: .duplicateCurrentTab
-            ),
-            PaletteCommand(
-                title: BrowserCommandTitles.toggleSplitView,
-                symbolName: "rectangle.split.1x2",
-                action: .toggleSplitView
-            )
-        ]
-    }
-
     private var leadingSymbolName: String {
-        if isAskMode {
-            return "sparkles"
-        }
-
         return isResumingSearchURL ? "globe" : "magnifyingglass"
     }
 
@@ -575,7 +419,7 @@ struct CommandPaletteView: View {
     /// `activateSearchProviderFromQuery` exactly so the "Search X — Tab" hint
     /// never appears when pressing Tab wouldn't start a site search.
     private var headerSearchProvider: SearchProvider? {
-        guard selectedSearchProvider == nil, !isActionsMode, !isAskMode, !isResumingSearchURL else { return nil }
+        guard selectedSearchProvider == nil, !isResumingSearchURL else { return nil }
         if let autocompleteSuggestion {
             return autocompleteSuggestion.provider
         }
@@ -586,11 +430,7 @@ struct CommandPaletteView: View {
     }
 
     private var placeholderText: String {
-        if isAskMode {
-            return "Ask anything..."
-        }
-
-        return selectedSearchProvider == nil && !isActionsMode ? "Search or Enter URL..." : "Search..."
+        selectedSearchProvider == nil ? "Search or Enter URL..." : "Search..."
     }
 
     private var autocompleteGhostColor: Color {
@@ -614,7 +454,7 @@ struct CommandPaletteView: View {
     private var autocompleteSuggestion: PaletteAutocompleteSuggestion? {
         autocompleteSuggestion(
             for: query,
-            allowsProviderSuggestions: selectedSearchProvider == nil && !isActionsMode && !isAskMode && !isResumingSearchURL
+            allowsProviderSuggestions: selectedSearchProvider == nil && !isResumingSearchURL
         )
     }
 
@@ -702,6 +542,7 @@ struct CommandPaletteView: View {
                 detail: nil,
                 symbolName: "magnifyingglass",
                 searchText: "\(selectedSearchProvider.name) \(trimmedQuery)",
+                sourceLabel: "Search",
                 style: .providerSearch(selectedSearchProvider),
                 action: .searchProvider(selectedSearchProvider, trimmedQuery)
             )
@@ -732,14 +573,18 @@ struct CommandPaletteView: View {
             )
         }
 
-        if !store.commandPalettePrefersCurrentTabNavigation,
-           let provider = suggestedSearchProvider(for: trimmedQuery, allowsAutocomplete: !isResumingSearchURL) {
-            let matchingProviders = searchProviderCommands.filter { $0.provider == provider }
-            return matchingProviders + [navigateCommand] + commands
+        if !isResumingSearchURL,
+           let autocompleteSuggestion = autocompleteSuggestion(
+                for: trimmedQuery,
+                allowsProviderSuggestions: selectedSearchProvider == nil
+           ) {
+            return [autocompleteSuggestion.command, navigateCommand] + commands
         }
 
-        if isAskSupported, askPrompt(from: trimmedQuery) != nil {
-            return [askCommand] + [navigateCommand] + commands
+        if !store.commandPalettePrefersCurrentTabNavigation,
+           let provider = suggestedSearchProvider(for: trimmedQuery, allowsAutocomplete: false) {
+            let matchingProviders = searchProviderCommands.filter { $0.provider == provider }
+            return matchingProviders + [navigateCommand] + commands
         }
 
         return [navigateCommand] + commands
@@ -769,6 +614,7 @@ struct CommandPaletteView: View {
                         symbolName: tab.faviconSymbol,
                         faviconData: tab.faviconData,
                         searchText: "\(tab.title) \(tab.url?.absoluteString ?? "")",
+                        sourceLabel: "Tab",
                         style: .tab,
                         action: .switchTab(tab.id)
                     )
@@ -779,19 +625,8 @@ struct CommandPaletteView: View {
             .sorted { $0.visitedAt > $1.visitedAt }
             .map(\.command)
 
-        let tailCommands = (isAskSupported ? [askCommand] : []) + Array(searchProviderCommands.dropFirst().prefix(2))
+        let tailCommands = Array(searchProviderCommands.dropFirst().prefix(2))
         return [defaultSearchCommand] + recentTrail + tailCommands
-    }
-
-    private var askCommand: PaletteCommand {
-        PaletteCommand(
-            title: "Ask",
-            detail: "Candoa",
-            symbolName: "sparkles",
-            searchText: "ask ai candoa apple intelligence foundation models",
-            style: .ask,
-            action: .startAsk
-        )
     }
 
     private var defaultSearchCommand: PaletteCommand {
@@ -802,6 +637,7 @@ struct CommandPaletteView: View {
             detail: nil,
             symbolName: "google",
             searchText: "google search",
+            sourceLabel: "Search",
             style: .provider(provider),
             action: openTab.map { .switchTab($0.id) } ?? .navigate(provider.homeURL.absoluteString)
         )
@@ -815,6 +651,7 @@ struct CommandPaletteView: View {
                 detail: openTab == nil ? "Open Site" : nil,
                 symbolName: provider.id == "google" ? "google" : provider.symbolName,
                 searchText: ([provider.name] + provider.aliases).joined(separator: " "),
+                sourceLabel: "Search",
                 style: .provider(provider),
                 action: openTab.map { .switchTab($0.id) } ?? .navigate(provider.homeURL.absoluteString)
             )
@@ -830,7 +667,7 @@ struct CommandPaletteView: View {
 
         let tabSuggestions = store.tabs
             .filter { $0.spaceID == store.activeSpaceID }
-            .compactMap { tab -> (Date, String)? in
+            .compactMap { tab -> (Date, String, String)? in
                 guard
                     let url = tab.url,
                     let suggestion = store.navigationService.searchQuery(from: url, provider: provider)
@@ -838,22 +675,22 @@ struct CommandPaletteView: View {
                     return nil
                 }
 
-                return (tab.lastAccessedAt, suggestion)
+                return (tab.lastAccessedAt, suggestion, "Tab")
             }
 
         let historySuggestions = store.recentHistory(limit: 40)
-            .compactMap { visit -> (Date, String)? in
+            .compactMap { visit -> (Date, String, String)? in
                 guard let suggestion = store.navigationService.searchQuery(from: visit.url, provider: provider) else {
                     return nil
                 }
 
-                return (visit.visitedAt, suggestion)
+                return (visit.visitedAt, suggestion, "History")
             }
 
         var seenSuggestions = Set<String>()
         return (tabSuggestions + historySuggestions)
             .sorted { $0.0 > $1.0 }
-            .compactMap { _, suggestion -> PaletteCommand? in
+            .compactMap { _, suggestion, sourceLabel -> PaletteCommand? in
                 let normalizedSuggestion = suggestion.trimmingCharacters(in: .whitespacesAndNewlines)
                 guard !normalizedSuggestion.isEmpty else { return nil }
 
@@ -866,6 +703,7 @@ struct CommandPaletteView: View {
                     detail: nil,
                     symbolName: "magnifyingglass",
                     searchText: "\(provider.name) \(normalizedSuggestion)",
+                    sourceLabel: sourceLabel,
                     style: .providerSearch(provider),
                     action: .searchProvider(provider, normalizedSuggestion)
                 )
@@ -883,7 +721,7 @@ struct CommandPaletteView: View {
             PaletteCommand(title: BrowserCommandTitles.focusAddressBar, symbolName: "text.cursor", action: .focusAddressBar)
         ]
 
-        return isAskSupported ? [askCommand] + commands : commands
+        return commands
     }
 
     private func historyCommands(for query: String) -> [PaletteCommand] {
@@ -901,6 +739,7 @@ struct CommandPaletteView: View {
                 symbolName: openTab.faviconSymbol,
                 faviconData: openTab.faviconData,
                 searchText: "\(visit.title) \(visit.url.absoluteString)",
+                sourceLabel: "Tab",
                 style: .tab,
                 action: .switchTab(openTab.id)
             )
@@ -912,6 +751,7 @@ struct CommandPaletteView: View {
             symbolName: FaviconService.shared.placeholderSymbol(for: visit.url),
             faviconPageURL: visit.url,
             searchText: "\(visit.title) \(visit.url.absoluteString)",
+            sourceLabel: "History",
             style: .history,
             action: .navigate(visit.url.absoluteString)
         )
@@ -925,19 +765,7 @@ struct CommandPaletteView: View {
                 }
                 return $0.lastAccessedAt > $1.lastAccessedAt
             }
-            .map {
-                let spaceName = spaceName(for: $0.spaceID)
-                let urlText = $0.url?.absoluteString ?? ""
-                return PaletteCommand(
-                    title: $0.title,
-                    detail: urlText.isEmpty ? spaceName : hostDisplayText(for: $0.url),
-                    symbolName: $0.faviconSymbol,
-                    faviconData: $0.faviconData,
-                    searchText: "\($0.title) \(spaceName) \(urlText)",
-                    style: .tab,
-                    action: .switchTab($0.id)
-                )
-            }
+            .map(tabCommand)
     }
 
     private var spaceCommands: [PaletteCommand] {
@@ -947,36 +775,20 @@ struct CommandPaletteView: View {
                 detail: $0.name,
                 symbolName: $0.symbolName,
                 searchText: $0.name,
+                sourceLabel: "Space",
                 action: .switchSpace($0.id)
             )
         }
     }
 
     private func performSelectedCommand() {
-        if isAskMode {
-            let prompt = query.trimmingCharacters(in: .whitespacesAndNewlines)
-            if prompt.isEmpty, askMessages.isEmpty, askSuggestions.indices.contains(selectedCommandIndex) {
-                submitAskQuery(promptOverride: askSuggestions[selectedCommandIndex].prompt)
-            } else {
-                submitAskQuery()
-            }
-            return
-        }
-
         let commands = visibleCommands
-        if selectedCommandIndex > 0, selectedCommandIndex < commands.count {
+        if commands.indices.contains(selectedCommandIndex) {
             run(commands[selectedCommandIndex])
             return
         }
 
         let trimmedQuery = commandQueryText.trimmingCharacters(in: .whitespacesAndNewlines)
-        if let autocompleteSuggestion,
-           !trimmedQuery.isEmpty,
-           selectedCommandIndex == 0 {
-            run(command(for: autocompleteSuggestion))
-            return
-        }
-
         if let selectedSearchProvider, !trimmedQuery.isEmpty {
             run(
                 PaletteCommand(
@@ -992,36 +804,9 @@ struct CommandPaletteView: View {
         run(command)
     }
 
-    private func command(for suggestion: PaletteAutocompleteSuggestion) -> PaletteCommand {
-        if let provider = suggestion.provider {
-            let openTab = openTab(onSiteOf: provider)
-            return PaletteCommand(
-                title: provider.name,
-                detail: openTab == nil ? "Open Site" : nil,
-                symbolName: provider.id == "google" ? "google" : provider.symbolName,
-                searchText: ([provider.name] + provider.aliases).joined(separator: " "),
-                style: .provider(provider),
-                action: openTab.map { .switchTab($0.id) } ?? .navigate(provider.homeURL.absoluteString)
-            )
-        }
-
-        return PaletteCommand(
-            title: suggestion.text,
-            detail: nil,
-            symbolName: "globe",
-            searchText: suggestion.text,
-            action: .navigate(suggestion.text)
-        )
-    }
-
     private func activateSearchProviderFromQuery() {
-        guard selectedSearchProvider == nil, !isActionsMode, !isAskMode else {
+        guard selectedSearchProvider == nil else {
             fieldFocusRequestID = UUID()
-            return
-        }
-
-        if isAskSupported, let prompt = askPrompt(from: commandQueryText) {
-            activateAskMode(prompt: prompt, submitsImmediately: false)
             return
         }
 
@@ -1050,36 +835,21 @@ struct CommandPaletteView: View {
             return
         }
 
-        // Arc's rule: anything without a provider chip to enter gets the
-        // Actions panel instead — Tab never lands on nothing.
-        isActionsMode = true
-        query = ""
         fieldFocusRequestID = UUID()
     }
 
     private func deleteSelectedSearchProvider() {
         selectedSearchProvider = nil
-        isActionsMode = false
-        isAskMode = false
-        askMessages = []
-        cancelAskStream()
         fieldFocusRequestID = UUID()
     }
 
     private func dismissPalette() {
         isSearchFocused = false
-        cancelAskStream()
         store.dismissCommandPalette()
     }
 
     private func run(_ command: PaletteCommand) {
         store.setUITestingLastCommandDescription(command.title)
-
-        if case .startAsk = command.action {
-            guard isAskSupported else { return }
-            activateAskMode(prompt: askPrompt(from: commandQueryText) ?? "", submitsImmediately: true)
-            return
-        }
 
         let opensNewTab = store.consumeCommandPaletteNewTabIntent()
         dismissPalette()
@@ -1115,8 +885,6 @@ struct CommandPaletteView: View {
             store.copyActiveTabURL(asMarkdown: true)
         case .togglePinTab:
             store.togglePinForActiveTab()
-        case .startAsk:
-            break
         case .navigate(let input):
             if opensNewTab {
                 store.navigateNewTab(to: input)
@@ -1135,390 +903,6 @@ struct CommandPaletteView: View {
         case .switchSpace(let id):
             store.switchSpace(to: id)
         }
-    }
-
-    private func activateAskMode(prompt: String, submitsImmediately: Bool) {
-        guard isAskSupported else { return }
-
-        selectedSearchProvider = nil
-        isActionsMode = false
-        cancelAskStream()
-        isAskMode = true
-        askMessages = []
-        query = prompt
-        fieldFocusRequestID = UUID()
-
-        if submitsImmediately, !prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            submitAskQuery(promptOverride: prompt)
-        }
-    }
-
-    private func askPrompt(from rawQuery: String) -> String? {
-        let trimmedQuery = rawQuery.trimmingCharacters(in: .whitespacesAndNewlines)
-        let lowercasedQuery = trimmedQuery.lowercased()
-
-        for command in ["ask", "ai", "candoa"] {
-            if lowercasedQuery == command {
-                return ""
-            }
-
-            let prefix = "\(command) "
-            if lowercasedQuery.hasPrefix(prefix) {
-                let startIndex = trimmedQuery.index(trimmedQuery.startIndex, offsetBy: prefix.count)
-                return String(trimmedQuery[startIndex...]).trimmingCharacters(in: .whitespacesAndNewlines)
-            }
-        }
-
-        return nil
-    }
-
-    private func submitAskQuery(promptOverride: String? = nil) {
-        guard isAskSupported else { return }
-
-        let prompt = (promptOverride ?? query).trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !prompt.isEmpty else { return }
-        guard PaletteAskPromptPolicy.canSubmit(prompt, hasConversation: !askMessages.isEmpty) else { return }
-        let usesPageContext = PaletteAskPromptPolicy.usesPageContext(prompt)
-
-        query = ""
-        cancelAskStream()
-
-        let recentTurns = recentAskTurns()
-        askMessages.append(PaletteAskMessage(role: .user, text: prompt, isStreaming: false))
-
-        let responseID = UUID()
-        askMessages.append(PaletteAskMessage(id: responseID, role: .assistant, text: "", isStreaming: true))
-
-        askStreamTask = Task {
-            let pageContext = usesPageContext
-                ? await store.activeAIPageContext()
-                : CandoaAIPageContext(title: nil, url: nil, text: nil)
-
-            #if canImport(FoundationModels)
-            if #available(macOS 26.0, *) {
-                switch CandoaFoundationModelsService.availability {
-                case .available:
-                    do {
-                        var receivedText = false
-                        for try await partialText in CandoaFoundationModelsService.streamResponse(
-                            to: prompt,
-                            context: pageContext,
-                            recentTurns: recentTurns
-                        ) {
-                            if Task.isCancelled { return }
-
-                            await MainActor.run {
-                                guard let index = askMessages.firstIndex(where: { $0.id == responseID }) else { return }
-                                askMessages[index].text = partialText
-                                receivedText = receivedText || !partialText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                            }
-                        }
-
-                        await MainActor.run {
-                            guard let index = askMessages.firstIndex(where: { $0.id == responseID }) else { return }
-                            if !receivedText {
-                                askMessages[index].text = draftAskResponse(for: prompt, context: pageContext)
-                            }
-                            askMessages[index].isStreaming = false
-                            askStreamTask = nil
-                        }
-                        return
-                    } catch {
-                        await MainActor.run {
-                            guard let index = askMessages.firstIndex(where: { $0.id == responseID }) else { return }
-                            askMessages[index].text = draftAskResponse(for: prompt, context: pageContext)
-                            askMessages[index].isStreaming = false
-                            askStreamTask = nil
-                        }
-                        return
-                    }
-                case .unavailable(let reason):
-                    await streamLocalAskResponse(
-                        draftAskResponse(for: prompt, context: pageContext, modelUnavailableReason: reason),
-                        into: responseID
-                    )
-                    return
-                }
-            }
-            #endif
-
-            await streamLocalAskResponse(draftAskResponse(for: prompt, context: pageContext), into: responseID)
-        }
-    }
-
-    @MainActor
-    private func streamLocalAskResponse(_ response: String, into responseID: UUID) async {
-        guard let index = askMessages.firstIndex(where: { $0.id == responseID }) else { return }
-        askMessages[index].text = ""
-        askMessages[index].isStreaming = true
-
-        for chunk in streamChunks(for: response) {
-            if Task.isCancelled { return }
-
-            do {
-                try await Task.sleep(nanoseconds: 34_000_000)
-            } catch {
-                return
-            }
-
-            if Task.isCancelled { return }
-
-            guard let index = askMessages.firstIndex(where: { $0.id == responseID }) else { return }
-            askMessages[index].text += chunk
-        }
-
-        guard let index = askMessages.firstIndex(where: { $0.id == responseID }) else { return }
-        askMessages[index].isStreaming = false
-        askStreamTask = nil
-    }
-
-    private func recentAskTurns() -> [CandoaAIConversationTurn] {
-        askMessages.compactMap { message in
-            let trimmedText = message.text.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !trimmedText.isEmpty else { return nil }
-
-            let role: CandoaAIConversationTurn.Role
-            switch message.role {
-            case .user:
-                role = .user
-            case .assistant:
-                role = .assistant
-            }
-
-            return CandoaAIConversationTurn(role: role, text: trimmedText)
-        }
-    }
-
-    private func cancelAskStream() {
-        askStreamTask?.cancel()
-        askStreamTask = nil
-
-        for index in askMessages.indices where askMessages[index].isStreaming {
-            askMessages[index].isStreaming = false
-        }
-    }
-
-    private func draftAskResponse(
-        for prompt: String,
-        context: CandoaAIPageContext,
-        modelUnavailableReason: String? = nil
-    ) -> String {
-        if let modelUnavailableReason,
-           arithmeticAnswer(for: prompt) == nil,
-           quickLocalAnswer(for: prompt) == nil {
-            return modelUnavailableReason
-        }
-
-        if let arithmeticAnswer = arithmeticAnswer(for: prompt) {
-            return arithmeticAnswer
-        }
-
-        if let quickAnswer = quickLocalAnswer(for: prompt) {
-            return quickAnswer
-        }
-
-        let normalizedPrompt = prompt.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        let pageTitle = context.title?.trimmingCharacters(in: .whitespacesAndNewlines)
-        let pageText = pageTitle?.isEmpty == false ? pageTitle! : "this page"
-
-        if normalizedPrompt.contains("what is this page about") {
-            return summaryDraft(from: context.text) ?? "I could not read enough page text to describe \(pageText)."
-        }
-
-        if normalizedPrompt.contains("summarize") {
-            return summaryDraft(from: context.text) ?? "I could not read enough page text to summarize \(pageText)."
-        }
-
-        if normalizedPrompt.contains("key details") || normalizedPrompt.contains("key facts") {
-            return summaryDraft(from: context.text) ?? "I could not read enough page text to find key details on \(pageText)."
-        }
-
-        if normalizedPrompt.contains("compare") {
-            return "I can read the page now, but comparison still needs a product/option extractor. Try asking a specific question about one item on \(pageText)."
-        }
-
-        if normalizedPrompt.contains("buying") {
-            return "For buying decisions, I would look for price, return policy, dimensions, reviews, warranty, and whether the listing clearly matches what you need."
-        }
-
-        if normalizedPrompt.contains("explain") {
-            return summaryDraft(from: context.text) ?? "I could not read enough page text to explain \(pageText)."
-        }
-
-        if normalizedPrompt.contains("suggest useful questions") {
-            return """
-            You could ask:
-            • What matters most on this page?
-            • What should I do next?
-            • What is missing or unclear?
-            """
-        }
-
-        return "I can't answer that yet."
-    }
-
-    private func summaryDraft(from pageText: String?) -> String? {
-        guard let pageText else { return nil }
-        let normalizedText = pageText
-            .replacingOccurrences(of: "\n", with: " ")
-            .replacingOccurrences(of: #"[\s]+"#, with: " ", options: .regularExpression)
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-        guard normalizedText.count > 80 else { return nil }
-
-        let sentences = normalizedText
-            .components(separatedBy: CharacterSet(charactersIn: ".!?"))
-            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-            .filter { $0.count > 30 }
-            .prefix(3)
-
-        let summary = sentences.map { "• \($0)" }.joined(separator: "\n")
-        return summary.isEmpty ? String(normalizedText.prefix(420)) : summary
-    }
-
-    private func streamChunks(for response: String) -> [String] {
-        response.split(separator: " ", omittingEmptySubsequences: false).enumerated().map { index, word in
-            index == 0 ? String(word) : " \(word)"
-        }
-    }
-
-    private func quickLocalAnswer(for prompt: String) -> String? {
-        let normalizedPrompt = normalizedQuestionText(prompt)
-
-        if normalizedPrompt.contains("capital of united states") ||
-            normalizedPrompt.contains("capital of the united states") ||
-            normalizedPrompt.contains("capital of usa") ||
-            normalizedPrompt.contains("capital of the usa") ||
-            normalizedPrompt.contains("capital of america") {
-            return "Washington, D.C."
-        }
-
-        if normalizedPrompt.contains("president of united states") ||
-            normalizedPrompt.contains("president of the united states") ||
-            normalizedPrompt.contains("president of usa") {
-            return "I can't answer current political questions yet."
-        }
-
-        return nil
-    }
-
-    private func normalizedQuestionText(_ text: String) -> String {
-        PaletteAskPromptPolicy.normalizedText(text)
-    }
-
-    private func arithmeticAnswer(for prompt: String) -> String? {
-        let tokens = arithmeticTokens(for: prompt)
-        guard tokens.count >= 3 else { return nil }
-
-        for index in 0..<(tokens.count - 2) {
-            guard
-                case .number(let left) = tokens[index],
-                case .operation(let operation) = tokens[index + 1],
-                case .number(let right) = tokens[index + 2]
-            else {
-                continue
-            }
-
-            let result: Double
-            switch operation {
-            case .add:
-                result = left + right
-            case .subtract:
-                result = left - right
-            case .multiply:
-                result = left * right
-            case .divide:
-                guard right != 0 else { return "I can't divide by zero." }
-                result = left / right
-            }
-
-            return formatArithmeticResult(result)
-        }
-
-        return nil
-    }
-
-    private func arithmeticTokens(for prompt: String) -> [PaletteArithmeticToken] {
-        let normalizedPrompt = prompt
-            .lowercased()
-            .replacingOccurrences(of: "+", with: " plus ")
-            .replacingOccurrences(of: "-", with: " minus ")
-            .replacingOccurrences(of: "*", with: " times ")
-            .replacingOccurrences(of: "×", with: " times ")
-            .replacingOccurrences(of: "/", with: " divided ")
-
-        let allowedCharacters = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "."))
-        let words = normalizedPrompt
-            .components(separatedBy: allowedCharacters.inverted)
-            .filter { !$0.isEmpty }
-
-        var tokens: [PaletteArithmeticToken] = []
-        for word in words {
-            if let number = arithmeticNumber(for: word) {
-                tokens.append(.number(number))
-                continue
-            }
-
-            if let operation = arithmeticOperation(for: word) {
-                tokens.append(.operation(operation))
-            }
-        }
-
-        return tokens
-    }
-
-    private func arithmeticNumber(for word: String) -> Double? {
-        if let number = Double(word) {
-            return number
-        }
-
-        let numberWords: [String: Double] = [
-            "zero": 0,
-            "one": 1,
-            "two": 2,
-            "three": 3,
-            "four": 4,
-            "five": 5,
-            "six": 6,
-            "seven": 7,
-            "eight": 8,
-            "nine": 9,
-            "ten": 10,
-            "eleven": 11,
-            "twelve": 12,
-            "thirteen": 13,
-            "fourteen": 14,
-            "fifteen": 15,
-            "sixteen": 16,
-            "seventeen": 17,
-            "eighteen": 18,
-            "nineteen": 19,
-            "twenty": 20
-        ]
-
-        return numberWords[word]
-    }
-
-    private func arithmeticOperation(for word: String) -> PaletteArithmeticOperation? {
-        switch word {
-        case "plus", "add", "added":
-            return .add
-        case "minus", "subtract", "subtracted", "less":
-            return .subtract
-        case "times", "multiply", "multiplied", "x":
-            return .multiply
-        case "divided", "divide", "over":
-            return .divide
-        default:
-            return nil
-        }
-    }
-
-    private func formatArithmeticResult(_ result: Double) -> String {
-        if result.rounded(.towardZero) == result {
-            return "\(Int(result))"
-        }
-
-        return String(format: "%.4g", result)
     }
 
     private func spaceName(for id: UUID) -> String {
@@ -1564,7 +948,23 @@ struct CommandPaletteView: View {
 
         for (providerIndex, provider) in NavigationService.searchProviders.enumerated() {
             for (candidateIndex, text) in autocompleteTexts(for: provider).enumerated() {
-                guard let suggestion = makeAutocompleteSuggestion(text: text, query: rawQuery, provider: provider) else {
+                let openTab = openTab(onSiteOf: provider)
+                let command = PaletteCommand(
+                    title: provider.name,
+                    detail: openTab == nil ? "Open Site" : nil,
+                    symbolName: provider.id == "google" ? "google" : provider.symbolName,
+                    searchText: ([provider.name] + provider.aliases).joined(separator: " "),
+                    sourceLabel: "Search",
+                    style: .provider(provider),
+                    action: openTab.map { .switchTab($0.id) } ?? .navigate(provider.homeURL.absoluteString)
+                )
+
+                guard let suggestion = makeAutocompleteSuggestion(
+                    text: text,
+                    query: rawQuery,
+                    provider: provider,
+                    command: command
+                ) else {
                     continue
                 }
 
@@ -1587,8 +987,12 @@ struct CommandPaletteView: View {
 
     private func localAutocompleteSuggestion(for rawQuery: String) -> PaletteAutocompleteSuggestion? {
         let historySuggestion = store.recentHistory(matching: rawQuery, limit: 8)
-            .flatMap { autocompleteTexts(title: $0.title, url: $0.url) }
-            .compactMap { makeAutocompleteSuggestion(text: $0, query: rawQuery) }
+            .flatMap { visit in
+                autocompleteTexts(title: visit.title, url: visit.url).map { (visit, $0) }
+            }
+            .compactMap { visit, text in
+                makeAutocompleteSuggestion(text: text, query: rawQuery, command: historyCommand(for: visit))
+            }
             .first
 
         if let historySuggestion {
@@ -1603,9 +1007,28 @@ struct CommandPaletteView: View {
                 }
                 return $0.lastAccessedAt > $1.lastAccessedAt
             }
-            .flatMap { autocompleteTexts(title: $0.title, url: $0.url) }
-            .compactMap { makeAutocompleteSuggestion(text: $0, query: rawQuery) }
+            .flatMap { tab in
+                autocompleteTexts(title: tab.title, url: tab.url).map { (tab, $0) }
+            }
+            .compactMap { tab, text in
+                makeAutocompleteSuggestion(text: text, query: rawQuery, command: tabCommand(for: tab))
+            }
             .first
+    }
+
+    private func tabCommand(for tab: BrowserTab) -> PaletteCommand {
+        let spaceName = spaceName(for: tab.spaceID)
+        let urlText = tab.url?.absoluteString ?? ""
+        return PaletteCommand(
+            title: tab.title,
+            detail: urlText.isEmpty ? spaceName : hostDisplayText(for: tab.url),
+            symbolName: tab.faviconSymbol,
+            faviconData: tab.faviconData,
+            searchText: "\(tab.title) \(spaceName) \(urlText)",
+            sourceLabel: "Tab",
+            style: .tab,
+            action: .switchTab(tab.id)
+        )
     }
 
     private func autocompleteTexts(for provider: SearchProvider) -> [String] {
@@ -1626,7 +1049,8 @@ struct CommandPaletteView: View {
     private func makeAutocompleteSuggestion(
         text: String,
         query: String,
-        provider: SearchProvider? = nil
+        provider: SearchProvider? = nil,
+        command: PaletteCommand
     ) -> PaletteAutocompleteSuggestion? {
         guard text.range(of: query, options: [.anchored, .caseInsensitive]) != nil else {
             return nil
@@ -1637,11 +1061,11 @@ struct CommandPaletteView: View {
         }
 
         let suffixStart = text.index(text.startIndex, offsetBy: query.count)
-        let resolvedProvider = provider ?? store.navigationService.searchProvider(matching: text)
         return PaletteAutocompleteSuggestion(
             text: text,
             suffix: String(text[suffixStart...]),
-            provider: resolvedProvider
+            provider: provider,
+            command: command
         )
     }
 
@@ -1845,6 +1269,13 @@ private struct PaletteCommandRow: View {
                     .lineLimit(1)
             }
 
+            if let sourceLabel = command.sourceLabel, !sourceLabel.isEmpty {
+                Text("— \(sourceLabel)")
+                    .foregroundStyle(isSelected ? Color.white.opacity(0.72) : Color.secondary)
+                    .lineLimit(1)
+                    .fixedSize(horizontal: true, vertical: false)
+            }
+
             Spacer(minLength: 12)
 
             if command.showsSwitchToTab {
@@ -1869,86 +1300,9 @@ private struct PaletteCommandRow: View {
         .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
         .onHover { isHovering = $0 }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(command.title)
+        .accessibilityLabel(command.accessibilityLabel)
         .accessibilityAddTraits(.isButton)
         .accessibilityIdentifier("command-row-\(candoaAccessibilitySlug(command.title))")
-    }
-}
-
-private struct PaletteAskMessageRow: View {
-    let message: PaletteAskMessage
-
-    private var isUser: Bool {
-        message.role == .user
-    }
-
-    private var bubbleColor: Color {
-        isUser ? CommandPaletteView.askTint : Color.primary.opacity(0.08)
-    }
-
-    var body: some View {
-        HStack(alignment: .top) {
-            if isUser {
-                Spacer(minLength: 52)
-            }
-
-            VStack(alignment: .leading, spacing: 6) {
-                if !message.text.isEmpty {
-                    Text(message.text)
-                        .font(.system(size: 13.5, weight: .medium))
-                        .foregroundStyle(isUser ? Color.white : Color.primary)
-                        .textSelection(.enabled)
-                        .fixedSize(horizontal: false, vertical: true)
-                } else if message.isStreaming {
-                    ProgressView()
-                        .controlSize(.small)
-                        .tint(.secondary)
-                } else {
-                    Text("No response.")
-                        .font(.system(size: 13.5, weight: .medium))
-                        .foregroundStyle(.secondary)
-                }
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 9)
-            .background(bubbleColor)
-            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-
-            if !isUser {
-                Spacer(minLength: 52)
-            }
-        }
-    }
-}
-
-private struct PaletteAskSuggestionRow: View {
-    let suggestion: PaletteAskSuggestion
-    let isSelected: Bool
-    private static let rowHeight: CGFloat = 46
-
-    private var backgroundColor: Color {
-        isSelected ? CommandPaletteView.askTint.opacity(0.36) : Color.clear
-    }
-
-    var body: some View {
-        HStack(spacing: 12) {
-            Image(systemName: suggestion.symbolName)
-                .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(isSelected ? Color.white.opacity(0.92) : Color.secondary)
-                .frame(width: 24, height: 24)
-
-            Text(suggestion.title)
-                .font(.system(size: 13.5, weight: .semibold))
-                .foregroundStyle(isSelected ? Color.white : Color.primary)
-                .lineLimit(1)
-
-            Spacer(minLength: 12)
-        }
-        .padding(.horizontal, 14)
-        .frame(height: Self.rowHeight)
-        .contentShape(Rectangle())
-        .background(backgroundColor)
-        .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
     }
 }
 
@@ -2448,6 +1802,7 @@ private struct PaletteCommand: Identifiable {
     var faviconData: Data? = nil
     var faviconPageURL: URL? = nil
     var searchText = ""
+    var sourceLabel: String? = nil
     var style: PaletteCommandStyle = .generic
     var shortcutHint: String?
     let action: PaletteAction
@@ -2456,7 +1811,7 @@ private struct PaletteCommand: Identifiable {
         switch style {
         case .provider(let provider), .providerSearch(let provider):
             return provider
-        case .generic, .tab, .history, .ask:
+        case .generic, .tab, .history:
             return nil
         }
     }
@@ -2468,221 +1823,28 @@ private struct PaletteCommand: Identifiable {
 
         return false
     }
+
+    var accessibilityLabel: String {
+        [title, detail, sourceLabel]
+            .compactMap { value in
+                let trimmedValue = value?.trimmingCharacters(in: .whitespacesAndNewlines)
+                return trimmedValue?.isEmpty == false ? trimmedValue : nil
+            }
+            .joined(separator: ", ")
+    }
 }
 
 private struct PaletteAutocompleteSuggestion {
     let text: String
     let suffix: String
     let provider: SearchProvider?
-}
-
-private struct PaletteAskMessage: Identifiable, Equatable {
-    var id = UUID()
-    let role: PaletteAskRole
-    var text: String
-    var isStreaming: Bool
-}
-
-private struct PaletteAskSuggestion {
-    let title: String
-    let prompt: String
-    let symbolName: String
-}
-
-private enum PaletteArithmeticToken {
-    case number(Double)
-    case operation(PaletteArithmeticOperation)
-}
-
-private enum PaletteArithmeticOperation {
-    case add
-    case subtract
-    case multiply
-    case divide
-}
-
-private enum PaletteAskRole: Equatable {
-    case user
-    case assistant
-}
-
-enum PaletteAskPromptPolicy {
-    private static let singleWordPageCommands: Set<String> = [
-        "summarize",
-        "summary",
-        "explain",
-        "compare"
-    ]
-
-    private static let pageContextPhrases = [
-        "before buying",
-        "about this page",
-        "check this page",
-        "check trust",
-        "choices",
-        "compare choices",
-        "compare options",
-        "compare the top options",
-        "compare these options",
-        "explain the important parts",
-        "explain this",
-        "explain this page",
-        "find key details",
-        "find the key points",
-        "find any next steps",
-        "find next steps",
-        "from this page",
-        "important parts",
-        "key details",
-        "key points",
-        "list pros and cons",
-        "missing context",
-        "next steps",
-        "options on this page",
-        "on this page",
-        "pros and cons",
-        "pull out key facts",
-        "red flags",
-        "source quality",
-        "suggest useful questions",
-        "summarize this",
-        "summarize this page",
-        "summary of this",
-        "this article",
-        "this listing",
-        "this page",
-        "this product",
-        "this site",
-        "top options"
-    ]
-
-    static func canSubmit(_ prompt: String, hasConversation: Bool = false) -> Bool {
-        let trimmedPrompt = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmedPrompt.isEmpty else { return false }
-
-        if containsArithmeticExpression(trimmedPrompt) {
-            return true
-        }
-
-        let words = normalizedText(trimmedPrompt)
-            .split(separator: " ")
-            .map(String.init)
-
-        guard let firstWord = words.first else { return false }
-
-        if hasConversation, firstWord.count >= 3 {
-            return true
-        }
-
-        if words.count == 1 {
-            return firstWord.count >= 3 || singleWordPageCommands.contains(firstWord)
-        }
-
-        if words.count == 2 {
-            return trimmedPrompt.contains("?") || words.joined().count >= 6
-        }
-
-        return true
-    }
-
-    static func usesPageContext(_ prompt: String) -> Bool {
-        let normalizedPrompt = normalizedText(prompt)
-        let words = normalizedPrompt
-            .split(separator: " ")
-            .map(String.init)
-
-        if words.count == 1, let firstWord = words.first {
-            return singleWordPageCommands.contains(firstWord)
-        }
-
-        return pageContextPhrases.contains { normalizedPrompt.contains($0) }
-    }
-
-    static func normalizedText(_ text: String) -> String {
-        text
-            .lowercased()
-            .replacingOccurrences(of: "teh", with: "the")
-            .replacingOccurrences(of: "whats", with: "what is")
-            .components(separatedBy: CharacterSet.alphanumerics.inverted)
-            .filter { !$0.isEmpty }
-            .joined(separator: " ")
-    }
-
-    private static func containsArithmeticExpression(_ prompt: String) -> Bool {
-        let normalizedPrompt = prompt
-            .lowercased()
-            .replacingOccurrences(of: "+", with: " plus ")
-            .replacingOccurrences(of: "-", with: " minus ")
-            .replacingOccurrences(of: "*", with: " times ")
-            .replacingOccurrences(of: "×", with: " times ")
-            .replacingOccurrences(of: "/", with: " divided ")
-
-        let words = normalizedPrompt
-            .components(separatedBy: CharacterSet.alphanumerics.inverted)
-            .filter { !$0.isEmpty }
-
-        var hasNumber = false
-        var hasOperation = false
-        for word in words {
-            if Double(word) != nil || numberWords.contains(word) {
-                hasNumber = true
-            }
-
-            if operationWords.contains(word) {
-                hasOperation = true
-            }
-        }
-
-        return hasNumber && hasOperation
-    }
-
-    private static let numberWords: Set<String> = [
-        "zero",
-        "one",
-        "two",
-        "three",
-        "four",
-        "five",
-        "six",
-        "seven",
-        "eight",
-        "nine",
-        "ten",
-        "eleven",
-        "twelve",
-        "thirteen",
-        "fourteen",
-        "fifteen",
-        "sixteen",
-        "seventeen",
-        "eighteen",
-        "nineteen",
-        "twenty"
-    ]
-
-    private static let operationWords: Set<String> = [
-        "plus",
-        "add",
-        "added",
-        "minus",
-        "subtract",
-        "subtracted",
-        "less",
-        "times",
-        "multiply",
-        "multiplied",
-        "x",
-        "divided",
-        "divide",
-        "over"
-    ]
+    let command: PaletteCommand
 }
 
 private enum PaletteCommandStyle: Equatable {
     case generic
     case tab
     case history
-    case ask
     case provider(SearchProvider)
     case providerSearch(SearchProvider)
 }
@@ -2698,7 +1860,6 @@ private enum PaletteAction {
     case copyURL
     case copyURLAsMarkdown
     case togglePinTab
-    case startAsk
     case navigate(String)
     case searchProvider(SearchProvider, String)
     case switchTab(UUID)
