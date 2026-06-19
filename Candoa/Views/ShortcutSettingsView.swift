@@ -77,12 +77,6 @@ struct CandoaSettingsView: View {
                 }
                 .tag(CandoaSettingsTab.shortcuts)
 
-            ModsSettingsPane()
-                .tabItem {
-                    Label(CandoaSettingsTab.mods.title, systemImage: CandoaSettingsTab.mods.symbolName)
-                }
-                .tag(CandoaSettingsTab.mods)
-
             SearchSettingsPane()
                 .tabItem {
                     Label(CandoaSettingsTab.search.title, systemImage: CandoaSettingsTab.search.symbolName)
@@ -107,7 +101,8 @@ struct CandoaSettingsView: View {
                 }
                 .tag(CandoaSettingsTab.advanced)
         }
-        .frame(width: 860, height: 640)
+        .tabViewStyle(.automatic)
+        .frame(width: 780, height: 560)
     }
 }
 
@@ -116,7 +111,6 @@ private enum CandoaSettingsTab: Hashable {
     case lookAndFeel
     case tabs
     case shortcuts
-    case mods
     case search
     case privacy
     case sync
@@ -128,7 +122,6 @@ private enum CandoaSettingsTab: Hashable {
         case .lookAndFeel: return "Look & Feel"
         case .tabs: return "Tabs"
         case .shortcuts: return "Shortcuts"
-        case .mods: return "Mods"
         case .search: return "Search"
         case .privacy: return "Privacy"
         case .sync: return "Sync"
@@ -142,7 +135,6 @@ private enum CandoaSettingsTab: Hashable {
         case .lookAndFeel: return "paintbrush"
         case .tabs: return "rectangle.stack"
         case .shortcuts: return "keyboard"
-        case .mods: return "puzzlepiece.extension"
         case .search: return "magnifyingglass"
         case .privacy: return "lock"
         case .sync: return "arrow.triangle.2.circlepath"
@@ -190,7 +182,6 @@ private enum CandoaSettingsOption {
     static let pinnedCloseShortcutBehavior = prefix + "PinnedCloseShortcutBehavior"
 
     static let disableDefaultShortcuts = prefix + "DisableDefaultShortcuts"
-    static let autoUpdateMods = prefix + "AutoUpdateMods"
     static let defaultSearchProvider = prefix + "DefaultSearchProvider"
     static let showSearchSuggestions = prefix + "ShowSearchSuggestions"
     static let showQuickActions = prefix + "ShowQuickActions"
@@ -637,63 +628,6 @@ private struct TabManagementSettingsPane: View {
     }
 }
 
-private struct ModsSettingsPane: View {
-    @AppStorage(CandoaSettingsOption.autoUpdateMods) private var autoUpdateMods = true
-
-    var body: some View {
-        SettingsPane {
-            VStack(alignment: .leading, spacing: 18) {
-                SettingsSectionTitle("Mods")
-
-                SettingsCard {
-                    SettingsToggleRow(
-                        systemImage: "arrow.triangle.2.circlepath",
-                        title: "Automatically update installed mods on startup",
-                        subtitle: "Keep installed interface mods current when the app opens.",
-                        isOn: $autoUpdateMods
-                    )
-
-                    SettingsDivider()
-
-                    SettingsRow(
-                        systemImage: "shippingbox.and.arrow.down",
-                        title: "Import mods",
-                        subtitle: "Import a mods backup file."
-                    ) {
-                        Button("Import") {}
-                            .buttonStyle(.bordered)
-                            .disabled(true)
-                    }
-
-                    SettingsDivider()
-
-                    SettingsRow(
-                        systemImage: "square.and.arrow.up",
-                        title: "Export mods",
-                        subtitle: "Export installed mods to a backup file."
-                    ) {
-                        Button("Export") {}
-                            .buttonStyle(.bordered)
-                            .disabled(true)
-                    }
-
-                    SettingsDivider()
-
-                    SettingsRow(
-                        systemImage: "arrow.down.circle",
-                        title: "Check for updates",
-                        subtitle: "Look for updates to installed mods."
-                    ) {
-                        Button("Check") {}
-                            .buttonStyle(.bordered)
-                            .disabled(true)
-                    }
-                }
-            }
-        }
-    }
-}
-
 private struct SearchSettingsPane: View {
     private let providers = NavigationService.searchProviders
     @AppStorage(CandoaSettingsOption.defaultSearchProvider) private var defaultSearchProvider = NavigationService.searchProviders.first?.id ?? "google"
@@ -935,18 +869,20 @@ struct ShortcutSettingsView: View {
     }
 
     var body: some View {
-        VStack(spacing: 18) {
+        VStack(spacing: 14) {
             HStack(spacing: 8) {
-                Image(systemName: "magnifyingglass")
+                Text("Search:")
+                    .font(.system(size: 13))
                     .foregroundStyle(.secondary)
+                    .frame(width: 64, alignment: .trailing)
 
                 TextField("Search shortcuts", text: $searchText)
-                    .textFieldStyle(.plain)
-                    .font(.system(size: 17, weight: .semibold))
+                    .textFieldStyle(.roundedBorder)
+                    .frame(width: 260)
+
+                Spacer()
             }
-            .padding(.horizontal, 14)
-            .frame(height: 46)
-            .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+            .padding(.horizontal, 10)
 
             ScrollView {
                 LazyVStack(spacing: 0) {
@@ -962,8 +898,8 @@ struct ShortcutSettingsView: View {
                 .padding(.horizontal, 10)
             }
         }
-        .padding(.horizontal, 28)
-        .padding(.top, 28)
+        .padding(.horizontal, 34)
+        .padding(.top, 24)
         .padding(.bottom, 20)
         .background(Color(nsColor: .windowBackgroundColor))
     }
@@ -979,10 +915,10 @@ private struct SettingsPane<Content: View>: View {
     var body: some View {
         ScrollView {
             content
-                .frame(maxWidth: 760)
-                .padding(.horizontal, 34)
-                .padding(.top, 34)
-                .padding(.bottom, 28)
+                .frame(maxWidth: 640)
+                .padding(.horizontal, 42)
+                .padding(.top, 26)
+                .padding(.bottom, 26)
                 .frame(maxWidth: .infinity)
         }
         .background(Color(nsColor: .windowBackgroundColor))
@@ -997,13 +933,8 @@ private struct SettingsCard<Content: View>: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
+        VStack(alignment: .leading, spacing: 0) {
             content
-        }
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 9, style: .continuous)
-                .stroke(Color.primary.opacity(0.10), lineWidth: 1)
         }
     }
 }
@@ -1027,18 +958,14 @@ private struct SettingsRow<Accessory: View>: View {
     }
 
     var body: some View {
-        HStack(alignment: .center, spacing: 12) {
-            Image(systemName: systemImage)
-                .font(.system(size: 17, weight: .medium))
-                .foregroundStyle(.secondary)
-                .frame(width: 24)
-
+        HStack(alignment: .firstTextBaseline, spacing: 12) {
             VStack(alignment: .leading, spacing: 4) {
                 Text(title)
-                    .font(.system(size: 14.5, weight: .semibold))
+                    .font(.system(size: 13))
+                    .foregroundStyle(.primary)
 
                 Text(subtitle)
-                    .font(.system(size: 12.5, weight: .medium))
+                    .font(.system(size: 11.5))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -1047,8 +974,8 @@ private struct SettingsRow<Accessory: View>: View {
 
             accessory
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 13)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
     }
 }
 
@@ -1061,8 +988,9 @@ private struct SettingsSectionTitle: View {
 
     var body: some View {
         Text(title)
-            .font(.system(size: 16, weight: .bold))
-            .padding(.leading, 2)
+            .font(.system(size: 13, weight: .semibold))
+            .foregroundStyle(.secondary)
+            .padding(.leading, 10)
     }
 }
 
@@ -1100,6 +1028,7 @@ private struct SettingsPickerRow: View {
                 }
             }
             .labelsHidden()
+            .controlSize(.regular)
             .frame(width: 220)
         }
     }
@@ -1108,7 +1037,7 @@ private struct SettingsPickerRow: View {
 private struct SettingsDivider: View {
     var body: some View {
         Divider()
-            .overlay(Color.primary.opacity(0.08))
+            .overlay(Color.primary.opacity(0.10))
     }
 }
 
@@ -1117,11 +1046,11 @@ private struct SettingsStatusPill: View {
 
     var body: some View {
         Text(text)
-            .font(.system(size: 12.5, weight: .semibold))
+            .font(.system(size: 12))
             .foregroundStyle(.secondary)
-            .padding(.horizontal, 11)
-            .frame(height: 28)
-            .background(Color.primary.opacity(0.07), in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+            .padding(.horizontal, 8)
+            .frame(height: 22)
+            .background(Color(nsColor: .controlBackgroundColor), in: Capsule())
     }
 }
 
@@ -1234,19 +1163,19 @@ private struct DockIconChoice: View {
                     .resizable()
                     .interpolation(.high)
                     .scaledToFit()
-                    .frame(width: 96, height: 96)
+                    .frame(width: 72, height: 72)
 
                 Text(preference.title)
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(.system(size: 12))
                     .foregroundStyle(isSelected ? Color.accentColor : Color.primary)
             }
-            .padding(12)
-            .frame(width: 160)
-            .background(isSelected ? Color.accentColor.opacity(0.14) : Color.primary.opacity(0.05))
-            .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
+            .padding(10)
+            .frame(width: 124)
+            .background(isSelected ? Color.accentColor.opacity(0.12) : Color(nsColor: .controlBackgroundColor))
+            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
             .overlay {
-                RoundedRectangle(cornerRadius: 9, style: .continuous)
-                    .stroke(isSelected ? Color.accentColor.opacity(0.6) : Color.primary.opacity(0.10), lineWidth: 1)
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .stroke(isSelected ? Color.accentColor.opacity(0.55) : Color.primary.opacity(0.08), lineWidth: 1)
             }
         }
         .buttonStyle(.plain)
@@ -1416,6 +1345,7 @@ private struct ShortcutCaptureView: NSViewRepresentable {
 
         private static func keyString(for event: NSEvent) -> String {
             switch event.keyCode {
+            case 48: return "Tab"
             case 123: return "Left"
             case 124: return "Right"
             case 125: return "Down"
@@ -1431,6 +1361,8 @@ enum CandoaShortcutDefinition: String, CaseIterable, Identifiable {
     static let removedValue = "none"
 
     case newTab
+    case closeCurrentTab
+    case reopenClosedTab
     case focusAddressBar
     case copyURL
     case copyURLAsMarkdown
@@ -1438,10 +1370,24 @@ enum CandoaShortcutDefinition: String, CaseIterable, Identifiable {
     case pinOrUnpinTab
     case toggleSidebar
     case toggleAISidebar
+    case clearUnpinnedTabs
+    case goBack
+    case goForward
+    case nextRecentTab
+    case previousRecentTab
+    case nextTab
+    case previousTab
+    case nextSpace
+    case previousSpace
     case addSplitView
     case closeSplitView
     case findInPage
+    case findNext
+    case findPrevious
     case reloadTab
+    case zoomIn
+    case zoomOut
+    case resetZoom
 
     var id: String { rawValue }
     var storageKey: String { "CandoaShortcut.\(rawValue)" }
@@ -1449,6 +1395,8 @@ enum CandoaShortcutDefinition: String, CaseIterable, Identifiable {
     var title: String {
         switch self {
         case .newTab: return BrowserCommandTitles.newTab
+        case .closeCurrentTab: return BrowserCommandTitles.closeCurrentTab
+        case .reopenClosedTab: return BrowserCommandTitles.reopenClosedTab
         case .focusAddressBar: return BrowserCommandTitles.focusAddressBar
         case .copyURL: return BrowserCommandTitles.copyURL
         case .copyURLAsMarkdown: return BrowserCommandTitles.copyURLAsMarkdown
@@ -1456,10 +1404,24 @@ enum CandoaShortcutDefinition: String, CaseIterable, Identifiable {
         case .pinOrUnpinTab: return BrowserCommandTitles.pinOrUnpinTab
         case .toggleSidebar: return BrowserCommandTitles.toggleSidebar
         case .toggleAISidebar: return BrowserCommandTitles.toggleAISidebar
+        case .clearUnpinnedTabs: return BrowserCommandTitles.clearUnpinnedTabs
+        case .goBack: return BrowserCommandTitles.back
+        case .goForward: return BrowserCommandTitles.forward
+        case .nextRecentTab: return "Next Recent Tab"
+        case .previousRecentTab: return "Previous Recent Tab"
+        case .nextTab: return BrowserCommandTitles.nextTab
+        case .previousTab: return BrowserCommandTitles.previousTab
+        case .nextSpace: return BrowserCommandTitles.nextSpace
+        case .previousSpace: return BrowserCommandTitles.previousSpace
         case .addSplitView: return BrowserCommandTitles.addSplitView
         case .closeSplitView: return BrowserCommandTitles.closeSplitView
         case .findInPage: return BrowserCommandTitles.findInPage
+        case .findNext: return BrowserCommandTitles.findNext
+        case .findPrevious: return BrowserCommandTitles.findPrevious
         case .reloadTab: return BrowserCommandTitles.reloadTab
+        case .zoomIn: return BrowserCommandTitles.zoomIn
+        case .zoomOut: return BrowserCommandTitles.zoomOut
+        case .resetZoom: return BrowserCommandTitles.resetZoom
         }
     }
 
@@ -1471,6 +1433,12 @@ enum CandoaShortcutDefinition: String, CaseIterable, Identifiable {
             return "AI"
         case .addSplitView, .closeSplitView:
             return "Split View"
+        case .goBack, .goForward, .nextRecentTab, .previousRecentTab, .nextTab, .previousTab, .nextSpace, .previousSpace:
+            return "Navigation"
+        case .findInPage, .findNext, .findPrevious:
+            return "Search & Find"
+        case .zoomIn, .zoomOut, .resetZoom:
+            return "Media & Display"
         default:
             return "Browser"
         }
@@ -1479,6 +1447,8 @@ enum CandoaShortcutDefinition: String, CaseIterable, Identifiable {
     var defaultShortcut: String {
         switch self {
         case .newTab: return "Command-T"
+        case .closeCurrentTab: return "Command-W"
+        case .reopenClosedTab: return "Shift-Command-T"
         case .focusAddressBar: return "Command-L"
         case .copyURL: return "Shift-Command-C"
         case .copyURLAsMarkdown: return "Option-Shift-Command-C"
@@ -1486,25 +1456,63 @@ enum CandoaShortcutDefinition: String, CaseIterable, Identifiable {
         case .pinOrUnpinTab: return "Command-D"
         case .toggleSidebar: return "Command-B"
         case .toggleAISidebar: return "Option-Command-B"
+        case .clearUnpinnedTabs: return "Shift-Command-K"
+        case .goBack: return "Command-Left"
+        case .goForward: return "Command-Right"
+        case .nextRecentTab: return "Control-Tab"
+        case .previousRecentTab: return "Control-Shift-Tab"
+        case .nextTab: return "Option-Command-Down"
+        case .previousTab: return "Option-Command-Up"
+        case .nextSpace: return "Option-Command-Right"
+        case .previousSpace: return "Option-Command-Left"
         case .addSplitView: return "Control-Shift-="
         case .closeSplitView: return "Control-Shift--"
         case .findInPage: return "Command-F"
+        case .findNext: return "Command-G"
+        case .findPrevious: return "Shift-Command-G"
         case .reloadTab: return "Command-R"
+        case .zoomIn: return "Command-="
+        case .zoomOut: return "Command--"
+        case .resetZoom: return "Command-0"
+        }
+    }
+
+    var alternateDefaultShortcuts: [String] {
+        switch self {
+        case .goBack:
+            return ["Command-["]
+        case .goForward:
+            return ["Command-]"]
+        case .zoomIn:
+            return ["Shift-Command-="]
+        default:
+            return []
         }
     }
 
     var symbolName: String {
         switch self {
+        case .closeCurrentTab: return "xmark"
+        case .reopenClosedTab: return "arrow.uturn.backward"
         case .captureFullPage: return "camera"
         case .addSplitView, .closeSplitView: return "rectangle.split.1x2"
         case .copyURL, .copyURLAsMarkdown: return "link"
-        case .findInPage: return "magnifyingglass"
+        case .findInPage, .findNext, .findPrevious: return "magnifyingglass"
         case .reloadTab: return "arrow.clockwise"
         case .pinOrUnpinTab: return "pin"
         case .toggleSidebar: return "sidebar.left"
         case .toggleAISidebar: return "sidebar.right"
         case .focusAddressBar: return "text.cursor"
         case .newTab: return "plus"
+        case .clearUnpinnedTabs: return "clear"
+        case .goBack: return "chevron.left"
+        case .goForward: return "chevron.right"
+        case .nextRecentTab, .previousRecentTab: return "control"
+        case .nextTab, .previousTab: return "arrow.up.arrow.down"
+        case .nextSpace, .previousSpace: return "square.grid.2x2"
+        case .zoomIn: return "plus.magnifyingglass"
+        case .zoomOut: return "minus.magnifyingglass"
+        case .resetZoom: return "1.magnifyingglass"
         }
     }
 

@@ -376,6 +376,26 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         }
     }
 
+    func hostSplitWebView(for tabID: UUID, in container: NSView) {
+        guard let webView = webViews[tabID] else { return }
+        if miniPlayerHostedTabID == tabID {
+            restoreMiniPlayerPresentation(tabID: tabID)
+            miniPlayerHostedTabID = nil
+        }
+
+        webView.frame = container.bounds
+        webView.autoresizingMask = [.width, .height]
+        webView.isHidden = false
+
+        guard webView.superview !== container else { return }
+        webView.removeFromSuperview()
+        container.addSubview(webView)
+
+        if restoringTabIDs.contains(tabID), let snapshot = wakeSnapshots[tabID] {
+            presentRestoreOverlay(snapshot, for: tabID, in: container)
+        }
+    }
+
     func hostMiniPlayerWebView(for tabID: UUID, in container: NSView) {
         guard let webView = webViews[tabID] else { return }
         // Adopting a different tab must first restore the previously hosted

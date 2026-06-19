@@ -209,6 +209,7 @@ final class BrowserStore: ObservableObject {
             .filter { $0.spaceID == activeSpaceID }
             .map(\.name)
             .joined(separator: "|")
+        let activeSpaceName = activeSpace?.name ?? "none"
 
         return [
             "setup=\(isInitialSpaceSetupPresented)",
@@ -216,6 +217,7 @@ final class BrowserStore: ObservableObject {
             "newTabPalette=\(isNewTabPaletteActive)",
             "find=\(isFindBarPresented)",
             "sidebar=\(sidebarVisible)",
+            "space=\(activeSpaceName)",
             "active=\(activeTitle)",
             "url=\(activeURL)",
             "tabs=\(tabTitles)",
@@ -499,62 +501,52 @@ final class BrowserStore: ObservableObject {
         let fixture = environment["CANDOA_UI_TESTING_FIXTURE"]
 
         if fixture == "ask" {
-            let askSpaceID = UUID(uuidString: "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA")!
-            let askSpace = BrowserSpace(
-                id: askSpaceID,
-                name: "Ask Test",
-                symbolName: "sparkles",
-                themeAppearance: BrowserSpace.defaultThemeAppearance
-            )
-
-            return BrowserWindowState(
-                spaces: [askSpace],
-                folders: [],
-                tabs: [],
-                activeSpaceID: askSpaceID,
-                activeTabID: nil
-            )
+            return testingBotFixtureState(includesSeedTabs: false)
         }
 
-        guard fixture == "workspace" else { return nil }
+        return testingBotFixtureState(includesSeedTabs: true)
+    }
 
-        let personalSpaceID = UUID(uuidString: "11111111-1111-1111-1111-111111111111")!
-        let workSpaceID = UUID(uuidString: "22222222-2222-2222-2222-222222222222")!
+    private static func testingBotFixtureState(includesSeedTabs: Bool) -> BrowserWindowState {
+        let testingBotSpaceID = UUID(uuidString: "11111111-1111-1111-1111-111111111111")!
         let workFolderID = UUID(uuidString: "33333333-3333-3333-3333-333333333333")!
         let secondFolderID = UUID(uuidString: "44444444-4444-4444-4444-444444444444")!
-        let exampleTabID = UUID(uuidString: "55555555-5555-5555-5555-555555555555")!
+        let appleTabID = UUID(uuidString: "55555555-5555-5555-5555-555555555555")!
         let amazonTabID = UUID(uuidString: "66666666-6666-6666-6666-666666666666")!
         let granolaTabID = UUID(uuidString: "77777777-7777-7777-7777-777777777777")!
         let xTabID = UUID(uuidString: "88888888-8888-8888-8888-888888888888")!
-        let stagingTabID = UUID(uuidString: "99999999-9999-9999-9999-999999999999")!
+        let webKitTabID = UUID(uuidString: "99999999-9999-9999-9999-999999999999")!
 
-        let personalSpace = BrowserSpace(
-            id: personalSpaceID,
-            name: "Personal",
-            symbolName: "person.crop.circle",
+        let testingBotSpace = BrowserSpace(
+            id: testingBotSpaceID,
+            name: "TestingBot",
+            symbolName: "sparkles",
             themeColorHex: "#6E8BFF",
             themeAppearance: BrowserSpace.defaultThemeAppearance
         )
-        let workSpace = BrowserSpace(
-            id: workSpaceID,
-            name: "Work",
-            symbolName: "briefcase",
-            themeColorHex: "#74A8D8",
-            themeAppearance: BrowserSpace.defaultThemeAppearance
-        )
+
+        guard includesSeedTabs else {
+            return BrowserWindowState(
+                spaces: [testingBotSpace],
+                folders: [],
+                tabs: [],
+                activeSpaceID: testingBotSpaceID,
+                activeTabID: nil
+            )
+        }
 
         let folders = [
             BrowserFolder(
                 id: workFolderID,
                 name: "Work",
-                spaceID: personalSpaceID,
+                spaceID: testingBotSpaceID,
                 sortOrder: 0,
                 isExpanded: false
             ),
             BrowserFolder(
                 id: secondFolderID,
                 name: "Second",
-                spaceID: personalSpaceID,
+                spaceID: testingBotSpaceID,
                 parentFolderID: workFolderID,
                 sortOrder: 0,
                 isExpanded: true
@@ -563,20 +555,20 @@ final class BrowserStore: ObservableObject {
 
         let tabs = [
             BrowserTab(
-                id: exampleTabID,
-                title: "example.com",
-                url: URL(string: "https://example.com")!,
-                faviconSymbol: "globe",
-                spaceID: personalSpaceID,
+                id: appleTabID,
+                title: "Apple",
+                url: URL(string: "https://www.apple.com")!,
+                faviconSymbol: "apple.logo",
+                spaceID: testingBotSpaceID,
                 sortOrder: 0
             ),
             BrowserTab(
                 id: amazonTabID,
                 title: "amazon.com",
-                url: URL(string: "https://amazon.com")!,
+                url: URL(string: "https://www.amazon.com")!,
                 faviconSymbol: "shippingbox.fill",
                 isPinned: true,
-                spaceID: personalSpaceID,
+                spaceID: testingBotSpaceID,
                 sortOrder: 0
             ),
             BrowserTab(
@@ -586,7 +578,7 @@ final class BrowserStore: ObservableObject {
                 faviconSymbol: "g.circle.fill",
                 isPinned: true,
                 folderID: workFolderID,
-                spaceID: personalSpaceID,
+                spaceID: testingBotSpaceID,
                 sortOrder: 0
             ),
             BrowserTab(
@@ -596,27 +588,27 @@ final class BrowserStore: ObservableObject {
                 faviconSymbol: "xmark",
                 isPinned: true,
                 folderID: secondFolderID,
-                spaceID: personalSpaceID,
+                spaceID: testingBotSpaceID,
                 sortOrder: 0
             ),
             BrowserTab(
-                id: stagingTabID,
-                title: "SideKick Stag",
-                url: URL(string: "https://staging.sidekick.example")!,
+                id: webKitTabID,
+                title: "WebKit Documentation",
+                url: URL(string: "https://developer.apple.com/documentation/webkit")!,
                 faviconSymbol: "shield.fill",
                 isPinned: true,
                 folderID: workFolderID,
-                spaceID: personalSpaceID,
+                spaceID: testingBotSpaceID,
                 sortOrder: 1
             )
         ]
 
         return BrowserWindowState(
-            spaces: [personalSpace, workSpace],
+            spaces: [testingBotSpace],
             folders: folders,
             tabs: tabs,
-            activeSpaceID: personalSpaceID,
-            activeTabID: exampleTabID
+            activeSpaceID: testingBotSpaceID,
+            activeTabID: appleTabID
         )
     }
 

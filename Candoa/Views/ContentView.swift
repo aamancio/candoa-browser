@@ -214,6 +214,8 @@ struct ContentView: View {
                 openNewTabFlow()
             } onCommandW: {
                 closeTabOrWindow()
+            } onReopenClosedTab: {
+                store.reopenLastClosedTab()
             } onFocusAddressBar: {
                 store.focusAddressBar()
             } onCopyURL: {
@@ -230,8 +232,14 @@ struct ContentView: View {
                 toggleAISidebar()
             } onFindInPage: {
                 store.showFindBar()
+            } onFindNext: {
+                store.findNext()
+            } onFindPrevious: {
+                store.findPrevious()
             } onReload: {
                 store.reloadActiveTab()
+            } onClearUnpinnedTabs: {
+                store.clearUnpinnedTabs()
             } onControlTab: {
                 store.switchToNextRecentTab(keepsPreviewOpen: true)
             } onControlShiftTab: {
@@ -250,6 +258,16 @@ struct ContentView: View {
                 store.zoomInActiveTab()
             } onZoomOut: {
                 store.zoomOutActiveTab()
+            } onResetZoom: {
+                store.resetZoomForActiveTab()
+            } onNextTab: {
+                store.switchToNextTab()
+            } onPreviousTab: {
+                store.switchToPreviousTab()
+            } onNextSpace: {
+                store.switchToNextSpace()
+            } onPreviousSpace: {
+                store.switchToPreviousSpace()
             } onAddSplit: {
                 addSplitView()
             } onCloseSplit: {
@@ -402,4 +420,3 @@ struct ContentView: View {
         }
     }
 }
-

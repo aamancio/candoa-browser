@@ -14,6 +14,50 @@ struct WKWebViewRepresentable: NSViewRepresentable {
     }
 }
 
+struct SplitWebViewHost: NSViewRepresentable {
+    let tab: BrowserTab
+    @ObservedObject var store: BrowserStore
+
+    func makeNSView(context: Context) -> NSView {
+        SplitWebViewHostContainer()
+    }
+
+    func updateNSView(_ container: NSView, context: Context) {
+        store.webCoordinator.ensureLoaded(tab)
+        guard let container = container as? SplitWebViewHostContainer else { return }
+        container.configure(tabID: tab.id, coordinator: store.webCoordinator)
+    }
+}
+
+private final class SplitWebViewHostContainer: NSView {
+    private var tabID: UUID?
+    private weak var coordinator: WebViewCoordinator?
+
+    func configure(tabID: UUID, coordinator: WebViewCoordinator) {
+        self.tabID = tabID
+        self.coordinator = coordinator
+        needsLayout = true
+    }
+
+    override func layout() {
+        super.layout()
+        for subview in subviews {
+            subview.frame = bounds
+        }
+
+        guard
+            window != nil,
+            !bounds.isEmpty,
+            let tabID,
+            let coordinator
+        else {
+            return
+        }
+
+        coordinator.hostSplitWebView(for: tabID, in: self)
+    }
+}
+
 /// Persistent host for the active tab's web view. Unlike swapping
 /// representables per tab, this keeps background web views parented so
 /// media playback can survive tab switches and move into the mini player.

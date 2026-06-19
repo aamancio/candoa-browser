@@ -4,10 +4,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DESTINATION="${CANDOA_E2E_DESTINATION:-platform=macOS}"
 DERIVED_DATA_PATH="${CANDOA_DERIVED_DATA_PATH:-}"
-FIXTURE_DIR="$(mktemp -d "${TMPDIR:-/tmp}/candoa-e2e-site.XXXXXX")"
 DERIVED_DATA_DIR=""
-FIXTURE_PORT="${CANDOA_E2E_PORT:-18765}"
-FIXTURE_PID=""
 XCODEBUILD_ARGS=(
   -project Candoa.xcodeproj
   -scheme Candoa
@@ -33,11 +30,6 @@ fi
 XCODEBUILD_ARGS+=(-derivedDataPath "$DERIVED_DATA_DIR")
 
 cleanup() {
-  if [[ -n "$FIXTURE_PID" ]]; then
-    kill "$FIXTURE_PID" 2>/dev/null || true
-    wait "$FIXTURE_PID" 2>/dev/null || true
-  fi
-  rm -rf "$FIXTURE_DIR"
   if [[ -z "$DERIVED_DATA_PATH" && -n "$DERIVED_DATA_DIR" ]]; then
     rm -rf "$DERIVED_DATA_DIR"
   fi
@@ -100,29 +92,5 @@ if pgrep -x Candoa >/dev/null; then
   echo "Candoa is still running. Quit Candoa before running E2E tests." >&2
   exit 1
 fi
-
-cat > "$FIXTURE_DIR/index.html" <<'HTML'
-<!doctype html>
-<html>
-  <head>
-    <meta charset="utf-8">
-    <title>Candoa E2E Fixture</title>
-  </head>
-  <body>
-    <main>
-      <h1>Candoa E2E Fixture</h1>
-      <p>Stable local page for UI navigation tests.</p>
-    </main>
-  </body>
-</html>
-HTML
-
-cp "$FIXTURE_DIR/index.html" "$FIXTURE_DIR/first-run.html"
-cp "$FIXTURE_DIR/index.html" "$FIXTURE_DIR/address.html"
-cp "$FIXTURE_DIR/index.html" "$FIXTURE_DIR/new-tab.html"
-
-python3 -m http.server "$FIXTURE_PORT" --bind 127.0.0.1 --directory "$FIXTURE_DIR" >/tmp/candoa-e2e-http.log 2>&1 &
-FIXTURE_PID="$!"
-export CANDOA_E2E_BASE_URL="http://127.0.0.1:$FIXTURE_PORT"
 
 xcodebuild "${XCODEBUILD_ARGS[@]}" test

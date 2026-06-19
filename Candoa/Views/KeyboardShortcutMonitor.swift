@@ -4,6 +4,7 @@ import SwiftUI
 struct KeyboardShortcutMonitor: NSViewRepresentable {
     let onCommandT: () -> Void
     let onCommandW: () -> Void
+    let onReopenClosedTab: () -> Void
     let onFocusAddressBar: () -> Void
     let onCopyURL: () -> Void
     let onCopyURLAsMarkdown: () -> Void
@@ -12,7 +13,10 @@ struct KeyboardShortcutMonitor: NSViewRepresentable {
     let onToggleSidebar: () -> Void
     let onToggleAISidebar: () -> Void
     let onFindInPage: () -> Void
+    let onFindNext: () -> Void
+    let onFindPrevious: () -> Void
     let onReload: () -> Void
+    let onClearUnpinnedTabs: () -> Void
     let onControlTab: () -> Void
     let onControlShiftTab: () -> Void
     let onControlReleased: () -> Void
@@ -22,6 +26,11 @@ struct KeyboardShortcutMonitor: NSViewRepresentable {
     let onGoForward: () -> Void
     let onZoomIn: () -> Void
     let onZoomOut: () -> Void
+    let onResetZoom: () -> Void
+    let onNextTab: () -> Void
+    let onPreviousTab: () -> Void
+    let onNextSpace: () -> Void
+    let onPreviousSpace: () -> Void
     let onAddSplit: () -> Void
     let onCloseSplit: () -> Void
 
@@ -44,6 +53,7 @@ struct KeyboardShortcutMonitor: NSViewRepresentable {
     private func apply(to coordinator: Coordinator) {
         coordinator.onCommandT = onCommandT
         coordinator.onCommandW = onCommandW
+        coordinator.onReopenClosedTab = onReopenClosedTab
         coordinator.onFocusAddressBar = onFocusAddressBar
         coordinator.onCopyURL = onCopyURL
         coordinator.onCopyURLAsMarkdown = onCopyURLAsMarkdown
@@ -52,7 +62,10 @@ struct KeyboardShortcutMonitor: NSViewRepresentable {
         coordinator.onToggleSidebar = onToggleSidebar
         coordinator.onToggleAISidebar = onToggleAISidebar
         coordinator.onFindInPage = onFindInPage
+        coordinator.onFindNext = onFindNext
+        coordinator.onFindPrevious = onFindPrevious
         coordinator.onReload = onReload
+        coordinator.onClearUnpinnedTabs = onClearUnpinnedTabs
         coordinator.onControlTab = onControlTab
         coordinator.onControlShiftTab = onControlShiftTab
         coordinator.onControlReleased = onControlReleased
@@ -62,6 +75,11 @@ struct KeyboardShortcutMonitor: NSViewRepresentable {
         coordinator.onGoForward = onGoForward
         coordinator.onZoomIn = onZoomIn
         coordinator.onZoomOut = onZoomOut
+        coordinator.onResetZoom = onResetZoom
+        coordinator.onNextTab = onNextTab
+        coordinator.onPreviousTab = onPreviousTab
+        coordinator.onNextSpace = onNextSpace
+        coordinator.onPreviousSpace = onPreviousSpace
         coordinator.onAddSplit = onAddSplit
         coordinator.onCloseSplit = onCloseSplit
     }
@@ -69,6 +87,7 @@ struct KeyboardShortcutMonitor: NSViewRepresentable {
     final class Coordinator: NSObject {
         var onCommandT: () -> Void = {}
         var onCommandW: () -> Void = {}
+        var onReopenClosedTab: () -> Void = {}
         var onFocusAddressBar: () -> Void = {}
         var onCopyURL: () -> Void = {}
         var onCopyURLAsMarkdown: () -> Void = {}
@@ -77,7 +96,10 @@ struct KeyboardShortcutMonitor: NSViewRepresentable {
         var onToggleSidebar: () -> Void = {}
         var onToggleAISidebar: () -> Void = {}
         var onFindInPage: () -> Void = {}
+        var onFindNext: () -> Void = {}
+        var onFindPrevious: () -> Void = {}
         var onReload: () -> Void = {}
+        var onClearUnpinnedTabs: () -> Void = {}
         var onControlTab: () -> Void = {}
         var onControlShiftTab: () -> Void = {}
         var onControlReleased: () -> Void = {}
@@ -87,6 +109,11 @@ struct KeyboardShortcutMonitor: NSViewRepresentable {
         var onGoForward: () -> Void = {}
         var onZoomIn: () -> Void = {}
         var onZoomOut: () -> Void = {}
+        var onResetZoom: () -> Void = {}
+        var onNextTab: () -> Void = {}
+        var onPreviousTab: () -> Void = {}
+        var onNextSpace: () -> Void = {}
+        var onPreviousSpace: () -> Void = {}
         var onAddSplit: () -> Void = {}
         var onCloseSplit: () -> Void = {}
         private var monitor: Any?
@@ -115,6 +142,16 @@ struct KeyboardShortcutMonitor: NSViewRepresentable {
 
                 if Self.matchesConfiguredShortcut(.newTab, event) {
                     onCommandT()
+                    return nil
+                }
+
+                if Self.matchesConfiguredShortcut(.closeCurrentTab, event) {
+                    onCommandW()
+                    return nil
+                }
+
+                if Self.matchesConfiguredShortcut(.reopenClosedTab, event) {
+                    onReopenClosedTab()
                     return nil
                 }
 
@@ -158,32 +195,42 @@ struct KeyboardShortcutMonitor: NSViewRepresentable {
                     return nil
                 }
 
+                if Self.matchesConfiguredShortcut(.findNext, event) {
+                    onFindNext()
+                    return nil
+                }
+
+                if Self.matchesConfiguredShortcut(.findPrevious, event) {
+                    onFindPrevious()
+                    return nil
+                }
+
                 if Self.matchesConfiguredShortcut(.reloadTab, event) {
                     onReload()
                     return nil
                 }
 
-                if Self.isCommandW(event) {
-                    onCommandW()
-                    return nil
-                }
-
-                if Self.isGoBack(event) {
+                if Self.matchesConfiguredShortcut(.goBack, event) {
                     onGoBack()
                     return nil
                 }
 
-                if Self.isGoForward(event) {
+                if Self.matchesConfiguredShortcut(.goForward, event) {
                     onGoForward()
                     return nil
                 }
 
-                if Self.isControlShiftTab(event) {
+                if Self.matchesConfiguredShortcut(.clearUnpinnedTabs, event) {
+                    onClearUnpinnedTabs()
+                    return nil
+                }
+
+                if Self.matchesConfiguredShortcut(.previousRecentTab, event) {
                     onControlShiftTab()
                     return nil
                 }
 
-                if Self.isControlTab(event) {
+                if Self.matchesConfiguredShortcut(.nextRecentTab, event) {
                     onControlTab()
                     return nil
                 }
@@ -198,24 +245,48 @@ struct KeyboardShortcutMonitor: NSViewRepresentable {
                     return nil
                 }
 
-                if Self.matchesKey(event, keyCode: Self.equalsKeyCode, modifiers: [.control, .shift]) {
+                if Self.matchesConfiguredShortcut(.addSplitView, event) {
                     onAddSplit()
                     return nil
                 }
 
-                if Self.matchesKey(event, keyCode: Self.minusKeyCode, modifiers: [.control, .shift]) {
+                if Self.matchesConfiguredShortcut(.closeSplitView, event) {
                     onCloseSplit()
                     return nil
                 }
 
-                // Catches both Command-= and Command-Shift-= (the literal Command-Plus).
-                if Self.matchesZoomKey(event, keyCode: Self.equalsKeyCode) {
+                if Self.matchesConfiguredShortcut(.zoomIn, event) {
                     onZoomIn()
                     return nil
                 }
 
-                if Self.matchesZoomKey(event, keyCode: Self.minusKeyCode) {
+                if Self.matchesConfiguredShortcut(.zoomOut, event) {
                     onZoomOut()
+                    return nil
+                }
+
+                if Self.matchesConfiguredShortcut(.resetZoom, event) {
+                    onResetZoom()
+                    return nil
+                }
+
+                if Self.matchesConfiguredShortcut(.nextTab, event) {
+                    onNextTab()
+                    return nil
+                }
+
+                if Self.matchesConfiguredShortcut(.previousTab, event) {
+                    onPreviousTab()
+                    return nil
+                }
+
+                if Self.matchesConfiguredShortcut(.nextSpace, event) {
+                    onNextSpace()
+                    return nil
+                }
+
+                if Self.matchesConfiguredShortcut(.previousSpace, event) {
+                    onPreviousSpace()
                     return nil
                 }
 
@@ -290,10 +361,14 @@ struct KeyboardShortcutMonitor: NSViewRepresentable {
             let storedShortcut = UserDefaults.standard.string(forKey: definition.storageKey) ?? ""
             guard storedShortcut != CandoaShortcutDefinition.removedValue else { return false }
 
-            let targetShortcut = storedShortcut.isEmpty ? definition.defaultShortcut : storedShortcut
-            guard targetShortcut != "None" else { return false }
+            guard let shortcut = shortcutString(for: event) else { return false }
 
-            return shortcutString(for: event) == targetShortcut
+            if storedShortcut.isEmpty {
+                let defaultShortcuts = [definition.defaultShortcut] + definition.alternateDefaultShortcuts
+                return defaultShortcuts.contains(shortcut)
+            }
+
+            return storedShortcut != "None" && shortcut == storedShortcut
         }
 
         private static func shortcutString(for event: NSEvent) -> String? {
@@ -314,6 +389,7 @@ struct KeyboardShortcutMonitor: NSViewRepresentable {
 
         private static func keyString(for event: NSEvent) -> String {
             switch event.keyCode {
+            case 48: return "Tab"
             case 123: return "Left"
             case 124: return "Right"
             case 125: return "Down"

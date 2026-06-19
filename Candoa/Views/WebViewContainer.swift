@@ -34,13 +34,15 @@ struct WebViewContainer: View {
             } else if let tab = store.activeTab {
                 let splitTabs = store.activeSplitGroupTabs
                 if splitTabs.count >= 2 {
-                    HSplitView {
+                    HStack(spacing: surfacePadding) {
                         ForEach(splitTabs) { splitTab in
                             browserSurface {
                                 webPane(for: splitTab)
                             }
+                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                         }
                     }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                     .padding(surfacePadding)
                 } else {
                     browserSurface {
@@ -203,7 +205,7 @@ struct WebViewContainer: View {
     }
 
     private func webPane(for tab: BrowserTab) -> some View {
-        WKWebViewRepresentable(tab: tab, store: store)
+        SplitWebViewHost(tab: tab, store: store)
             .id(tab.id)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(CandoaChromeStyle.surfaceFill.opacity(0.72))

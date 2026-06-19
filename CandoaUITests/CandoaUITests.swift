@@ -14,20 +14,21 @@ final class CandoaUITests: XCTestCase {
         XCTAssertTrue(app.windows.firstMatch.waitForExistence(timeout: 10))
     }
 
-    func testFirstRunNewTabFindAndSidebarShortcuts() throws {
+    func testTestingBotNewTabFindAndSidebarShortcuts() throws {
         let app = launchApp()
 
-        completeInitialSpaceSetup(in: app, spaceName: "Personal")
+        XCTAssertTrue(waitForState(in: app, containing: "setup=false"), currentState(in: app))
+        XCTAssertTrue(waitForState(in: app, containing: "space=TestingBot"), currentState(in: app))
 
         let newTabButton = element("sidebar-new-tab-button", in: app)
         XCTAssertTrue(newTabButton.waitForExistence(timeout: 5))
         app.typeKey("t", modifierFlags: .command)
 
         XCTAssertTrue(waitForState(in: app, containing: "newTabPalette=true"), currentState(in: app))
-        let firstRunURL = e2eURL(path: "/first-run.html")
-        submitCommandPaletteText(firstRunURL, in: app)
+        let realURL = "https://example.com"
+        submitCommandPaletteText(realURL, in: app)
 
-        XCTAssertTrue(waitForState(in: app, containing: "url=\(firstRunURL)"), currentState(in: app))
+        XCTAssertTrue(waitForState(in: app, containing: "url=\(realURL)"), currentState(in: app))
         XCTAssertTrue(element("sidebar-address-button", in: app).waitForExistence(timeout: 5))
 
         app.typeKey("f", modifierFlags: .command)
@@ -41,25 +42,29 @@ final class CandoaUITests: XCTestCase {
         XCTAssertTrue(waitForState(in: app, containing: "sidebar=true"), currentState(in: app))
     }
 
-    func testWorkspaceFixtureCoversAddressAndCommandPaletteTabCreation() throws {
-        let app = launchApp(fixture: "workspace")
+    func testTestingBotFixtureCoversAddressAndCommandPaletteTabCreation() throws {
+        let app = launchApp()
 
+        XCTAssertTrue(waitForState(in: app, containing: "space=TestingBot"), currentState(in: app))
         XCTAssertTrue(waitForState(in: app, containing: "folders=Work|Second"), currentState(in: app))
-        XCTAssertTrue(waitForState(in: app, containing: "tabs=amazon.com|Granola|SideKick Stag|Home / X|"), currentState(in: app))
+        XCTAssertTrue(
+            waitForState(in: app, containing: "tabs=amazon.com|Granola|WebKit Documentation|Home / X|Apple"),
+            currentState(in: app)
+        )
 
         let addressButton = element("sidebar-address-button", in: app)
         XCTAssertTrue(addressButton.waitForExistence(timeout: 5))
         addressButton.click()
 
         XCTAssertTrue(waitForState(in: app, containing: "palette=true"), currentState(in: app))
-        let addressURL = e2eURL(path: "/address.html")
+        let addressURL = "https://developer.apple.com/documentation/webkit"
         submitCommandPaletteText(addressURL, in: app)
 
         XCTAssertTrue(waitForState(in: app, containing: "url=\(addressURL)"), currentState(in: app))
 
         app.typeKey("t", modifierFlags: .command)
         XCTAssertTrue(waitForState(in: app, containing: "newTabPalette=true"), currentState(in: app))
-        let newTabURL = e2eURL(path: "/new-tab.html")
+        let newTabURL = "https://www.iana.org/domains/reserved"
         submitCommandPaletteText(newTabURL, in: app)
 
         XCTAssertTrue(waitForState(in: app, containing: "url=\(newTabURL)"), currentState(in: app))
@@ -68,33 +73,13 @@ final class CandoaUITests: XCTestCase {
         XCTAssertTrue(waitForState(in: app, containing: "find=true"), currentState(in: app))
     }
 
-    private func launchApp(fixture: String? = nil) -> XCUIApplication {
+    private func launchApp() -> XCUIApplication {
         let app = XCUIApplication()
         app.launchEnvironment["CANDOA_UI_TESTING"] = "1"
-        app.launchEnvironment["CANDOA_UI_TESTING_STORE_ID"] = UUID().uuidString
-
-        if let fixture {
-            app.launchEnvironment["CANDOA_UI_TESTING_FIXTURE"] = fixture
-        }
+        app.launchEnvironment["CANDOA_UI_TESTING_STORE_ID"] = "TestingBot"
 
         app.launch()
         return app
-    }
-
-    private func e2eURL(path: String) -> String {
-        let baseURL = ProcessInfo.processInfo.environment["CANDOA_E2E_BASE_URL"] ?? "http://127.0.0.1:18765"
-        return "\(baseURL)\(path)"
-    }
-
-    private func completeInitialSpaceSetup(in app: XCUIApplication, spaceName: String) {
-        let spaceNameField = element("space-name-field", in: app)
-        XCTAssertTrue(spaceNameField.waitForExistence(timeout: 5))
-        spaceNameField.click()
-        spaceNameField.typeText(spaceName)
-
-        let primaryButton = element("space-primary-button", in: app)
-        XCTAssertTrue(primaryButton.waitForExistence(timeout: 5))
-        primaryButton.click()
     }
 
     private func element(_ identifier: String, in app: XCUIApplication) -> XCUIElement {
@@ -270,7 +255,7 @@ final class CandoaAskLiveUITests: XCTestCase {
     private func launchAskApp() -> XCUIApplication {
         let app = XCUIApplication()
         app.launchEnvironment["CANDOA_UI_TESTING"] = "1"
-        app.launchEnvironment["CANDOA_UI_TESTING_STORE_ID"] = UUID().uuidString
+        app.launchEnvironment["CANDOA_UI_TESTING_STORE_ID"] = "TestingBot"
         app.launchEnvironment["CANDOA_UI_TESTING_FIXTURE"] = "ask"
         app.launch()
         return app
