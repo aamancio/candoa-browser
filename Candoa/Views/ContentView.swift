@@ -15,6 +15,8 @@ struct ContentView: View {
     @State private var isSidebarHoverRevealed = false
     @State private var isSidebarRevealSuppressed = false
     @State private var isAISidebarVisible = false
+    @State private var isAISidebarMounted = false
+    @State private var aiSidebarTransitionGeneration = 0
     @State private var aiSidebarUITestingState = ""
     @State private var aiSidebarResizeStartWidth: CGFloat?
     @State private var miniPlayerOrigin: CGPoint?
@@ -60,7 +62,6 @@ struct ContentView: View {
         ZStack(alignment: .leading) {
             WebViewContainer(store: store)
                 .ignoresSafeArea(.container, edges: .top)
-                .padding(.trailing, isAISidebarVisible ? currentAISidebarWidth : 0)
 
             sidebarLayout
                 .offset(x: isSidebarPresented ? 0 : -sidebarTotalWidth)
@@ -68,18 +69,9 @@ struct ContentView: View {
                 .animation(.easeOut(duration: 0.18), value: isSidebarVisible)
                 .zIndex(2)
 
-            if isAISidebarVisible {
-                GeometryReader { proxy in
-                    aiSidebarPanel(width: currentAISidebarWidth)
-                        .position(
-                            x: proxy.size.width - currentAISidebarWidth / 2,
-                            y: proxy.size.height / 2
-                        )
-                }
-                .ignoresSafeArea(.container, edges: .top)
-                .transition(.move(edge: .trailing).combined(with: .opacity))
-                .animation(.easeOut(duration: 0.18), value: isAISidebarVisible)
-                .zIndex(3)
+            if isAISidebarMounted {
+                aiSidebarOverlay(width: currentAISidebarWidth)
+                    .zIndex(3)
             }
 
             if store.isCommandPalettePresented {
@@ -383,6 +375,21 @@ struct ContentView: View {
         }
     }
 
+    private func aiSidebarOverlay(width: CGFloat) -> some View {
+        GeometryReader { proxy in
+            aiSidebarPanel(width: width)
+                .frame(width: width, height: proxy.size.height)
+                .position(
+                    x: proxy.size.width - width / 2,
+                    y: proxy.size.height / 2
+                )
+                .offset(x: isAISidebarVisible ? 0 : width)
+        }
+        .ignoresSafeArea(.container, edges: .top)
+        .allowsHitTesting(isAISidebarVisible)
+        .accessibilityHidden(!isAISidebarVisible)
+    }
+
     private func toggleSidebar() {
         if isSidebarVisible {
             isSidebarVisible = false
@@ -396,7 +403,41 @@ struct ContentView: View {
     }
 
     private func toggleAISidebar() {
-        isAISidebarVisible.toggle()
+        if isAISidebarVisible {
+            closeAISidebar()
+        } else {
+            openAISidebar()
+        }
+    }
+
+    private func openAISidebar() {
+        guard !isAISidebarVisible else { return }
+        aiSidebarTransitionGeneration += 1
+        let generation = aiSidebarTransitionGeneration
+
+        isAISidebarMounted = true
+        DispatchQueue.main.async {
+            guard aiSidebarTransitionGeneration == generation else { return }
+            withAnimation(.easeOut(duration: AISidebarLayout.slideAnimationDuration)) {
+                isAISidebarVisible = true
+            }
+        }
+    }
+
+    private func closeAISidebar() {
+        guard isAISidebarVisible || isAISidebarMounted else { return }
+        aiSidebarTransitionGeneration += 1
+        let generation = aiSidebarTransitionGeneration
+
+        aiSidebarResizeStartWidth = nil
+        withAnimation(.easeOut(duration: AISidebarLayout.slideAnimationDuration)) {
+            isAISidebarVisible = false
+        }
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + AISidebarLayout.slideAnimationDuration) {
+            guard aiSidebarTransitionGeneration == generation, !isAISidebarVisible else { return }
+            isAISidebarMounted = false
+        }
     }
 
     private func clampedAISidebarWidth(_ width: CGFloat) -> CGFloat {
