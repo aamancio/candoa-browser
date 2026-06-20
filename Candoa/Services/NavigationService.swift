@@ -279,9 +279,36 @@ struct NavigationService {
         )
     ]
 
-    private let searchBaseURL = BrowserDefaults.googleSearchURL
+    private static let defaultSearchProviderIDs = [
+        "google",
+        "bing",
+        "yahoo",
+        "duckduckgo",
+        "yandex",
+        "perplexity"
+    ]
 
-    func destinationURL(for rawInput: String) -> URL? {
+    static var defaultSearchProviders: [SearchProvider] {
+        defaultSearchProviderIDs.compactMap { searchProvider(id: $0) }
+    }
+
+    static func searchProvider(id: String) -> SearchProvider? {
+        searchProviders.first { $0.id == id }
+    }
+
+    static func defaultSearchProvider(for id: String?) -> SearchProvider {
+        guard
+            let id,
+            defaultSearchProviderIDs.contains(id),
+            let provider = searchProvider(id: id)
+        else {
+            return searchProviders[0]
+        }
+
+        return provider
+    }
+
+    func destinationURL(for rawInput: String, defaultSearchProviderID: String? = nil) -> URL? {
         let input = rawInput.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !input.isEmpty else { return nil }
 
@@ -297,11 +324,8 @@ struct NavigationService {
             return provider.homeURL
         }
 
-        var components = URLComponents(url: searchBaseURL, resolvingAgainstBaseURL: false)
-        var queryItems = components?.queryItems ?? []
-        queryItems.append(URLQueryItem(name: "q", value: input))
-        components?.queryItems = queryItems
-        return components?.url
+        let provider = Self.defaultSearchProvider(for: defaultSearchProviderID)
+        return provider.searchURL(for: input)
     }
 
     func searchProvider(matching rawInput: String) -> SearchProvider? {

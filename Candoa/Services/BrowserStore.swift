@@ -139,6 +139,10 @@ final class BrowserStore: ObservableObject {
         )
     }
 
+    private var defaultSearchProviderID: String? {
+        UserDefaults.standard.string(forKey: CandoaSettingsOption.defaultSearchProvider)
+    }
+
     private func boolSetting(_ key: String, default defaultValue: Bool) -> Bool {
         guard let value = UserDefaults.standard.object(forKey: key) as? Bool else {
             return defaultValue
@@ -2346,7 +2350,10 @@ final class BrowserStore: ObservableObject {
     }
 
     func navigateActiveTab(to rawInput: String) {
-        guard let url = navigationService.destinationURL(for: rawInput) else { return }
+        guard let url = navigationService.destinationURL(
+            for: rawInput,
+            defaultSearchProviderID: defaultSearchProviderID
+        ) else { return }
         navigateActiveTab(to: url)
     }
 
@@ -2362,7 +2369,10 @@ final class BrowserStore: ObservableObject {
     }
 
     func navigateNewTab(to rawInput: String) {
-        guard let url = navigationService.destinationURL(for: rawInput) else { return }
+        guard let url = navigationService.destinationURL(
+            for: rawInput,
+            defaultSearchProviderID: defaultSearchProviderID
+        ) else { return }
         navigateNewTab(to: url)
     }
 

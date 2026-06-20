@@ -630,6 +630,7 @@ private struct TabManagementSettingsPane: View {
 
 private struct SearchSettingsPane: View {
     private let providers = NavigationService.searchProviders
+    private let defaultSearchProviders = NavigationService.defaultSearchProviders
     @AppStorage(CandoaSettingsOption.defaultSearchProvider) private var defaultSearchProvider = NavigationService.searchProviders.first?.id ?? "google"
     @AppStorage(CandoaSettingsOption.showSearchSuggestions) private var showSearchSuggestions = true
     @AppStorage(CandoaSettingsOption.showQuickActions) private var showQuickActions = true
@@ -645,7 +646,9 @@ private struct SearchSettingsPane: View {
                         title: "Default Search Engine",
                         subtitle: "Choose the search provider shown first in the command surface.",
                         selection: $defaultSearchProvider,
-                        options: providers.map { SettingsPickerOption(id: $0.id, title: $0.name) }
+                        options: defaultSearchProviders.map {
+                            SettingsPickerOption(id: $0.id, title: defaultSearchEngineTitle(for: $0))
+                        }
                     )
 
                     SettingsDivider()
@@ -679,6 +682,25 @@ private struct SearchSettingsPane: View {
                     }
                 }
             }
+        }
+        .onAppear(perform: normalizeDefaultSearchProvider)
+    }
+
+    private func normalizeDefaultSearchProvider() {
+        let normalizedProvider = NavigationService.defaultSearchProvider(for: defaultSearchProvider)
+        if normalizedProvider.id != defaultSearchProvider {
+            defaultSearchProvider = normalizedProvider.id
+        }
+    }
+
+    private func defaultSearchEngineTitle(for provider: SearchProvider) -> String {
+        switch provider.id {
+        case "bing":
+            return "Microsoft Bing"
+        case "yahoo":
+            return "Yahoo!"
+        default:
+            return provider.name
         }
     }
 }

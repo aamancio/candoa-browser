@@ -21,6 +21,7 @@ struct CommandPaletteView: View {
     @State private var fieldFocusRequestID = UUID()
     @FocusState private var isSearchFocused: Bool
     @Environment(\.colorScheme) private var colorScheme
+    @AppStorage(CandoaSettingsOption.defaultSearchProvider) private var defaultSearchProvider = NavigationService.searchProviders.first?.id ?? "google"
 
     /// Arc's command bar accent — the one selection color everywhere.
     static let paletteTint = Color(red: 0.26, green: 0.27, blue: 0.88)
@@ -630,13 +631,13 @@ struct CommandPaletteView: View {
     }
 
     private var defaultSearchCommand: PaletteCommand {
-        let provider = NavigationService.searchProviders[0]
+        let provider = NavigationService.defaultSearchProvider(for: defaultSearchProvider)
         let openTab = openTab(onSiteOf: provider)
         return PaletteCommand(
-            title: "Google",
+            title: provider.name,
             detail: nil,
-            symbolName: "google",
-            searchText: "google search",
+            symbolName: provider.id == "google" ? "google" : provider.symbolName,
+            searchText: ([provider.name] + provider.aliases).joined(separator: " "),
             sourceLabel: "Search",
             style: .provider(provider),
             action: openTab.map { .switchTab($0.id) } ?? .navigate(provider.homeURL.absoluteString)
