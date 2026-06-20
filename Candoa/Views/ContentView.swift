@@ -60,38 +60,25 @@ struct ContentView: View {
         ZStack(alignment: .leading) {
             WebViewContainer(store: store)
                 .ignoresSafeArea(.container, edges: .top)
-                .padding(.leading, isSidebarVisible ? sidebarTotalWidth : 0)
                 .padding(.trailing, isAISidebarVisible ? currentAISidebarWidth : 0)
 
             sidebarLayout
                 .offset(x: isSidebarPresented ? 0 : -sidebarTotalWidth)
+                .animation(.easeOut(duration: 0.18), value: isSidebarPresented)
+                .animation(.easeOut(duration: 0.18), value: isSidebarVisible)
                 .zIndex(2)
 
             if isAISidebarVisible {
-                AISidebarView(store: store, uiTestingState: $aiSidebarUITestingState) {
-                    toggleAISidebar()
-                }
-                .frame(width: currentAISidebarWidth)
-                .overlay(alignment: .leading) {
-                    AISidebarResizeHandle(isResizing: aiSidebarResizeStartWidth != nil)
-                        .frame(width: AISidebarLayout.resizeHandleHitWidth)
-                        .offset(x: -AISidebarLayout.resizeHandleHitWidth / 2)
-                        .gesture(
-                            DragGesture(minimumDistance: 0, coordinateSpace: .global)
-                                .onChanged { value in
-                                    let startWidth = aiSidebarResizeStartWidth ?? currentAISidebarWidth
-                                    if aiSidebarResizeStartWidth == nil {
-                                        aiSidebarResizeStartWidth = currentAISidebarWidth
-                                    }
-                                    aiSidebarWidth = Double(clampedAISidebarWidth(startWidth - value.translation.width))
-                                }
-                                .onEnded { _ in
-                                    aiSidebarResizeStartWidth = nil
-                                }
+                GeometryReader { proxy in
+                    aiSidebarPanel(width: currentAISidebarWidth)
+                        .position(
+                            x: proxy.size.width - currentAISidebarWidth / 2,
+                            y: proxy.size.height / 2
                         )
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
+                .ignoresSafeArea(.container, edges: .top)
                 .transition(.move(edge: .trailing).combined(with: .opacity))
+                .animation(.easeOut(duration: 0.18), value: isAISidebarVisible)
                 .zIndex(3)
             }
 
@@ -114,29 +101,20 @@ struct ContentView: View {
             if let mediaTab = store.floatingMiniPlayerTab,
                let mediaState = store.floatingMiniPlayerState {
                 GeometryReader { proxy in
-                    let leadingInset = isSidebarVisible ? sidebarTotalWidth : 0
                     let availableSize = CGSize(
-                        width: max(0, proxy.size.width - leadingInset),
+                        width: proxy.size.width,
                         height: proxy.size.height
                     )
 
-                    HStack(spacing: 0) {
-                        if isSidebarVisible {
-                            Color.clear
-                                .frame(width: sidebarTotalWidth)
-                                .allowsHitTesting(false)
-                        }
-
-                        FloatingMiniPlayerContainer(
-                            store: store,
-                            tab: mediaTab,
-                            state: mediaState,
-                            availableSize: availableSize,
-                            summon: store.pendingMiniPlayerSummon,
-                            origin: $miniPlayerOrigin,
-                            expandedSize: $miniPlayerExpandedSize
-                        )
-                    }
+                    FloatingMiniPlayerContainer(
+                        store: store,
+                        tab: mediaTab,
+                        state: mediaState,
+                        availableSize: availableSize,
+                        summon: store.pendingMiniPlayerSummon,
+                        origin: $miniPlayerOrigin,
+                        expandedSize: $miniPlayerExpandedSize
+                    )
                     .frame(width: proxy.size.width, height: proxy.size.height, alignment: .topLeading)
                 }
                 .ignoresSafeArea(.container, edges: .top)
@@ -280,9 +258,6 @@ struct ContentView: View {
         // (see BrowserStore.presentCommandPalette).
         .animation(.easeOut(duration: 0.14), value: store.isTabSwitcherPresented)
         .animation(.easeOut(duration: 0.16), value: store.mediaControllerTabID)
-        .animation(.easeOut(duration: 0.18), value: isSidebarPresented)
-        .animation(.easeOut(duration: 0.18), value: isSidebarVisible)
-        .animation(.easeOut(duration: 0.18), value: isAISidebarVisible)
         .focusedSceneValue(\.browserCommandActions, browserCommandActions)
         .alert(
             "Relaunch Candoa",
@@ -367,10 +342,10 @@ struct ContentView: View {
         .frame(width: sidebarTotalWidth, alignment: .leading)
         .frame(maxHeight: .infinity)
         .background {
-            // Opaque backing only when the sidebar floats over the web view
-            // (hover reveal). When pinned, it stays transparent so the
-            // window-wide backdrop reads as one continuous surface.
-            if isSidebarOverlaying {
+            // The sidebar floats over a stable browser surface. Keep an
+            // opaque native chrome backing whenever it is onscreen so page
+            // content never bleeds through the sidebar lane.
+            if isSidebarPresented {
                 CandoaWindowBackdrop(store: store)
                     .ignoresSafeArea(.container, edges: .top)
             }
@@ -381,6 +356,31 @@ struct ContentView: View {
             x: 3,
             y: 0
         )
+    }
+
+    private func aiSidebarPanel(width: CGFloat) -> some View {
+        AISidebarView(store: store, uiTestingState: $aiSidebarUITestingState) {
+            toggleAISidebar()
+        }
+        .frame(width: width)
+        .overlay(alignment: .leading) {
+            AISidebarResizeHandle(isResizing: aiSidebarResizeStartWidth != nil)
+                .frame(width: AISidebarLayout.resizeHandleHitWidth)
+                .offset(x: -AISidebarLayout.resizeHandleHitWidth / 2)
+                .gesture(
+                    DragGesture(minimumDistance: 0, coordinateSpace: .global)
+                        .onChanged { value in
+                            let startWidth = aiSidebarResizeStartWidth ?? width
+                            if aiSidebarResizeStartWidth == nil {
+                                aiSidebarResizeStartWidth = width
+                            }
+                            aiSidebarWidth = Double(clampedAISidebarWidth(startWidth - value.translation.width))
+                        }
+                        .onEnded { _ in
+                            aiSidebarResizeStartWidth = nil
+                        }
+                )
+        }
     }
 
     private func toggleSidebar() {
