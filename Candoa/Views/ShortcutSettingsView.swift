@@ -1210,15 +1210,15 @@ private struct ShortcutSettingsRow: View {
         HStack(spacing: 12) {
             Image(systemName: definition.symbolName)
                 .foregroundStyle(.secondary)
-                .font(.system(size: 18, weight: .medium))
-                .frame(width: 38)
+                .font(.system(size: 14, weight: .medium))
+                .frame(width: 30)
 
-            VStack(alignment: .leading, spacing: 3) {
+            VStack(alignment: .leading, spacing: 2) {
                 Text(definition.title)
-                    .font(.system(size: 16, weight: .semibold))
+                    .font(.system(size: 13))
 
                 Text(definition.category)
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(.system(size: 11.5))
                     .foregroundStyle(.secondary)
             }
 
@@ -1228,32 +1228,35 @@ private struct ShortcutSettingsRow: View {
                 isRecording = true
             } label: {
                 Text(isRecording ? "Press Keys" : displayShortcut)
-                    .font(.system(size: 14, weight: .semibold, design: .rounded))
-                    .frame(minWidth: 150)
+                    .font(.system(size: 12, weight: .medium, design: .rounded))
+                    .frame(minWidth: 132)
             }
             .buttonStyle(.bordered)
+            .controlSize(.small)
             .help("Set Shortcut")
 
             Button {
                 storedShortcut = isRemoved ? "" : CandoaShortcutDefinition.removedValue
             } label: {
                 Image(systemName: isRemoved ? "plus" : "minus")
-                    .frame(width: 18, height: 18)
+                    .frame(width: 16, height: 16)
             }
             .buttonStyle(.borderless)
+            .controlSize(.small)
             .help(isRemoved ? "Restore Shortcut" : "Remove Shortcut")
 
             Button {
                 storedShortcut = ""
             } label: {
                 Image(systemName: "arrow.counterclockwise")
-                    .frame(width: 18, height: 18)
+                    .frame(width: 16, height: 16)
             }
             .buttonStyle(.borderless)
+            .controlSize(.small)
             .disabled(storedShortcut.isEmpty)
             .help("Reset to Default")
         }
-        .padding(.vertical, 12)
+        .padding(.vertical, 8)
         .background {
             if isRecording {
                 ShortcutCaptureView { shortcut in
