@@ -59,17 +59,17 @@ struct CandoaSettingsView: View {
                 }
                 .tag(CandoaSettingsTab.general)
 
-            LookAndFeelSettingsPane()
+            SpacesSettingsPane()
                 .tabItem {
-                    Label(CandoaSettingsTab.lookAndFeel.title, systemImage: CandoaSettingsTab.lookAndFeel.symbolName)
+                    Label(CandoaSettingsTab.spaces.title, systemImage: CandoaSettingsTab.spaces.symbolName)
                 }
-                .tag(CandoaSettingsTab.lookAndFeel)
+                .tag(CandoaSettingsTab.spaces)
 
-            TabManagementSettingsPane()
+            LinksSettingsPane()
                 .tabItem {
-                    Label(CandoaSettingsTab.tabs.title, systemImage: CandoaSettingsTab.tabs.symbolName)
+                    Label(CandoaSettingsTab.links.title, systemImage: CandoaSettingsTab.links.symbolName)
                 }
-                .tag(CandoaSettingsTab.tabs)
+                .tag(CandoaSettingsTab.links)
 
             ShortcutSettingsView()
                 .tabItem {
@@ -77,23 +77,11 @@ struct CandoaSettingsView: View {
                 }
                 .tag(CandoaSettingsTab.shortcuts)
 
-            SearchSettingsPane()
+            IconSettingsPane()
                 .tabItem {
-                    Label(CandoaSettingsTab.search.title, systemImage: CandoaSettingsTab.search.symbolName)
+                    Label(CandoaSettingsTab.icon.title, systemImage: CandoaSettingsTab.icon.symbolName)
                 }
-                .tag(CandoaSettingsTab.search)
-
-            PrivacySettingsPane()
-                .tabItem {
-                    Label(CandoaSettingsTab.privacy.title, systemImage: CandoaSettingsTab.privacy.symbolName)
-                }
-                .tag(CandoaSettingsTab.privacy)
-
-            SyncSettingsPane()
-                .tabItem {
-                    Label(CandoaSettingsTab.sync.title, systemImage: CandoaSettingsTab.sync.symbolName)
-                }
-                .tag(CandoaSettingsTab.sync)
+                .tag(CandoaSettingsTab.icon)
 
             AdvancedSettingsPane()
                 .tabItem {
@@ -102,29 +90,25 @@ struct CandoaSettingsView: View {
                 .tag(CandoaSettingsTab.advanced)
         }
         .tabViewStyle(.automatic)
-        .frame(width: 780, height: 560)
+        .frame(width: 740, height: 560)
     }
 }
 
 private enum CandoaSettingsTab: Hashable {
     case general
-    case lookAndFeel
-    case tabs
+    case spaces
+    case links
     case shortcuts
-    case search
-    case privacy
-    case sync
+    case icon
     case advanced
 
     var title: String {
         switch self {
         case .general: return "General"
-        case .lookAndFeel: return "Look & Feel"
-        case .tabs: return "Tabs"
+        case .spaces: return "Spaces"
+        case .links: return "Links"
         case .shortcuts: return "Shortcuts"
-        case .search: return "Search"
-        case .privacy: return "Privacy"
-        case .sync: return "Sync"
+        case .icon: return "Icon"
         case .advanced: return "Advanced"
         }
     }
@@ -132,12 +116,10 @@ private enum CandoaSettingsTab: Hashable {
     var symbolName: String {
         switch self {
         case .general: return "gearshape"
-        case .lookAndFeel: return "paintbrush"
-        case .tabs: return "rectangle.stack"
+        case .spaces: return "square.grid.2x2"
+        case .links: return "rectangle.on.rectangle"
         case .shortcuts: return "keyboard"
-        case .search: return "magnifyingglass"
-        case .privacy: return "lock"
-        case .sync: return "arrow.triangle.2.circlepath"
+        case .icon: return "app.dashed"
         case .advanced: return "slider.horizontal.3"
         }
     }
@@ -194,35 +176,29 @@ private struct GeneralSettingsPane: View {
     @AppStorage(CandoaSettingsOption.openPreviousWindowsAndTabs) private var openPreviousWindowsAndTabs = true
     @AppStorage(CandoaSettingsOption.continueWhereLeftOff) private var continueWhereLeftOff = false
     @AppStorage(CandoaSettingsOption.checkDefaultBrowser) private var checkDefaultBrowser = false
-    @AppStorage(CandoaSettingsOption.openLinksInTabs) private var openLinksInTabs = true
-    @AppStorage(CandoaSettingsOption.switchToOpenedTabImmediately) private var switchToOpenedTabImmediately = false
-    @AppStorage(CandoaSettingsOption.openExternalLinksNextToActiveTab) private var openExternalLinksNextToActiveTab = false
-    @AppStorage(CandoaSettingsOption.ctrlTabRecentlyUsedOrder) private var ctrlTabRecentlyUsedOrder = false
-    @AppStorage(CandoaSettingsOption.dragTabsIntoGroups) private var dragTabsIntoGroups = true
-    @AppStorage(CandoaSettingsOption.enableContainerTabs) private var enableContainerTabs = true
-    @AppStorage(CandoaSettingsOption.askBeforeClosingMultipleTabs) private var askBeforeClosingMultipleTabs = false
     @AppStorage(CandoaSettingsOption.askBeforeQuitting) private var askBeforeQuitting = true
     @AppStorage(CandoaSettingsOption.websiteAppearance) private var websiteAppearance = "dark"
+    @AppStorage(CandoaSettingsOption.defaultSearchProvider) private var defaultSearchProvider = NavigationService.searchProviders.first?.id ?? "google"
+    @AppStorage(CandoaSettingsOption.showSearchSuggestions) private var showSearchSuggestions = true
+    @State private var syncsWorkspaceWithICloud = CandoaSyncPreferences.syncsWorkspaceWithICloud
+    @State private var syncsHistoryWithICloud = CandoaSyncPreferences.syncsHistoryWithICloud
 
     var body: some View {
         SettingsPane {
-            VStack(alignment: .leading, spacing: 18) {
-                SettingsSectionTitle("Default Browser")
-
+            VStack(alignment: .leading, spacing: 20) {
                 SettingsCard {
                     SettingsRow(
                         systemImage: "app.badge",
-                        title: "Candoa is not your default browser",
-                        subtitle: "Set the default browser from macOS System Settings."
+                        title: "Default browser",
+                        subtitle: "Set Candoa as the default browser in macOS."
                     ) {
                         Button("Open Settings") {
                             NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.Desktop-Settings.extension")!)
                         }
                         .buttonStyle(.bordered)
+                        .controlSize(.small)
                     }
                 }
-
-                SettingsSectionTitle("Startup")
 
                 SettingsCard {
                     SettingsToggleRow(
@@ -251,76 +227,7 @@ private struct GeneralSettingsPane: View {
                     )
                 }
 
-                SettingsSectionTitle("Tabs")
-
                 SettingsCard {
-                    SettingsToggleRow(
-                        systemImage: "rectangle.on.rectangle",
-                        title: "Open links in tabs instead of new windows",
-                        subtitle: "Prefer tabs for links that request a new browser window.",
-                        isOn: $openLinksInTabs
-                    )
-
-                    SettingsDivider()
-
-                    SettingsToggleRow(
-                        systemImage: "arrowshape.turn.up.right",
-                        title: "When opening a link in a new tab, switch to it immediately",
-                        subtitle: "Bring new background tabs to the front as soon as they open.",
-                        isOn: $switchToOpenedTabImmediately
-                    )
-
-                    SettingsDivider()
-
-                    SettingsToggleRow(
-                        systemImage: "arrow.right.to.line.compact",
-                        title: "Open links from apps next to your active tab",
-                        subtitle: "Place external links near the tab you are using.",
-                        isOn: $openExternalLinksNextToActiveTab
-                    )
-                }
-
-                SettingsSectionTitle("Interaction")
-
-                SettingsCard {
-                    SettingsToggleRow(
-                        systemImage: "control",
-                        title: "Ctrl-Tab cycles through tabs in recently used order",
-                        subtitle: "Match Zen's recently used tab switcher behavior.",
-                        isOn: $ctrlTabRecentlyUsedOrder
-                    )
-
-                    SettingsDivider()
-
-                    SettingsToggleRow(
-                        systemImage: "rectangle.stack.badge.plus",
-                        title: "Drag tabs together to create tab groups",
-                        subtitle: "Enable tab grouping gestures in the sidebar.",
-                        isOn: $dragTabsIntoGroups
-                    )
-
-                    SettingsDivider()
-
-                    SettingsToggleRow(
-                        systemImage: "shippingbox",
-                        title: "Enable container tabs",
-                        subtitle: "Reserve per-workspace session isolation controls.",
-                        isOn: $enableContainerTabs
-                    )
-                }
-
-                SettingsSectionTitle("Closing")
-
-                SettingsCard {
-                    SettingsToggleRow(
-                        systemImage: "exclamationmark.triangle",
-                        title: "Ask before closing multiple tabs",
-                        subtitle: "Confirm before closing a window with several active tabs.",
-                        isOn: $askBeforeClosingMultipleTabs
-                    )
-
-                    SettingsDivider()
-
                     SettingsToggleRow(
                         systemImage: "command",
                         title: "Ask before quitting with Command-Q",
@@ -328,8 +235,6 @@ private struct GeneralSettingsPane: View {
                         isOn: $askBeforeQuitting
                     )
                 }
-
-                SettingsSectionTitle("Language and Appearance")
 
                 SettingsCard {
                     SettingsPickerRow(
@@ -343,8 +248,96 @@ private struct GeneralSettingsPane: View {
                             SettingsPickerOption(id: "dark", title: "Dark")
                         ]
                     )
+
+                    SettingsDivider()
+
+                    SettingsPickerRow(
+                        systemImage: "magnifyingglass",
+                        title: "Search engine",
+                        subtitle: "Used by the command bar and address field.",
+                        selection: $defaultSearchProvider,
+                        options: NavigationService.defaultSearchProviders.map {
+                            SettingsPickerOption(id: $0.id, title: defaultSearchEngineTitle(for: $0))
+                        }
+                    )
+
+                    SettingsDivider()
+
+                    SettingsToggleRow(
+                        systemImage: "lightbulb",
+                        title: "Include search suggestions",
+                        subtitle: "Show search completions in the command surface.",
+                        isOn: $showSearchSuggestions
+                    )
+                }
+
+                SettingsCard {
+                    SettingsToggleRow(
+                        systemImage: "square.grid.2x2",
+                        title: "Sync Spaces with iCloud",
+                        subtitle: CandoaCloudKitEntitlements.hasConfiguredContainer
+                            ? "Keep Spaces and tabs available on your Macs."
+                            : "This build is missing the CloudKit entitlement.",
+                        isOn: workspaceSyncBinding
+                    )
+                    .disabled(!CandoaCloudKitEntitlements.hasConfiguredContainer)
+
+                    SettingsDivider()
+
+                    SettingsToggleRow(
+                        systemImage: "clock.arrow.circlepath",
+                        title: "Sync history",
+                        subtitle: "Requires Spaces sync.",
+                        isOn: historySyncBinding
+                    )
+                    .disabled(!CandoaCloudKitEntitlements.hasConfiguredContainer || !syncsWorkspaceWithICloud)
                 }
             }
+        }
+        .onAppear(perform: normalizeDefaultSearchProvider)
+    }
+
+    private func normalizeDefaultSearchProvider() {
+        let normalizedProvider = NavigationService.defaultSearchProvider(for: defaultSearchProvider)
+        if normalizedProvider.id != defaultSearchProvider {
+            defaultSearchProvider = normalizedProvider.id
+        }
+    }
+
+    private func defaultSearchEngineTitle(for provider: SearchProvider) -> String {
+        switch provider.id {
+        case "bing":
+            return "Microsoft Bing"
+        case "yahoo":
+            return "Yahoo!"
+        default:
+            return provider.name
+        }
+    }
+
+    private var workspaceSyncBinding: Binding<Bool> {
+        Binding {
+            syncsWorkspaceWithICloud
+        } set: { newValue in
+            syncsWorkspaceWithICloud = newValue
+            CandoaSyncPreferences.syncsWorkspaceWithICloud = newValue
+            if !newValue {
+                syncsHistoryWithICloud = false
+                CandoaSyncPreferences.syncsHistoryWithICloud = false
+            }
+        }
+    }
+
+    private var historySyncBinding: Binding<Bool> {
+        Binding {
+            syncsHistoryWithICloud
+        } set: { newValue in
+            if newValue, !syncsWorkspaceWithICloud {
+                syncsWorkspaceWithICloud = true
+                CandoaSyncPreferences.syncsWorkspaceWithICloud = true
+            }
+            syncsHistoryWithICloud = newValue
+            CandoaSyncPreferences.syncsHistoryWithICloud = newValue
         }
     }
 }
@@ -501,6 +494,229 @@ private struct LookAndFeelSettingsPane: View {
                         }
                     }
                     .padding(14)
+                }
+            }
+        }
+    }
+}
+
+private struct SpacesSettingsPane: View {
+    @AppStorage(CandoaSettingsOption.dragTabsIntoGroups) private var dragTabsIntoGroups = true
+    @AppStorage(CandoaSettingsOption.enableContainerTabs) private var enableContainerTabs = true
+    @AppStorage(CandoaSettingsOption.syncOnlyPinnedTabs) private var syncOnlyPinnedTabs = false
+    @AppStorage(CandoaSettingsOption.ignorePendingTabsWhenCycling) private var ignorePendingTabsWhenCycling = false
+    @AppStorage(CandoaSettingsOption.ctrlTabCyclesWithinScope) private var ctrlTabCyclesWithinScope = false
+    @AppStorage(CandoaSettingsOption.selectRecentlyUsedOnClose) private var selectRecentlyUsedOnClose = true
+    @AppStorage(CandoaSettingsOption.restorePinnedTabsToPinnedURL) private var restorePinnedTabsToPinnedURL = false
+    @AppStorage(CandoaSettingsOption.containerSpecificEssentials) private var containerSpecificEssentials = true
+    @AppStorage(CandoaSettingsOption.pinnedCloseShortcutBehavior) private var pinnedCloseShortcutBehavior = "reset-unload-switch"
+
+    var body: some View {
+        SettingsPane {
+            VStack(alignment: .leading, spacing: 20) {
+                SettingsCard {
+                    SettingsToggleRow(
+                        systemImage: "rectangle.stack.badge.plus",
+                        title: "Drag tabs together to create groups",
+                        subtitle: "Enable grouping gestures in the sidebar.",
+                        isOn: $dragTabsIntoGroups
+                    )
+
+                    SettingsDivider()
+
+                    SettingsToggleRow(
+                        systemImage: "shippingbox",
+                        title: "Container tabs",
+                        subtitle: "Keep separate sessions available for Spaces.",
+                        isOn: $enableContainerTabs
+                    )
+
+                    SettingsDivider()
+
+                    SettingsToggleRow(
+                        systemImage: "pin",
+                        title: "Sync only pinned tabs",
+                        subtitle: "Keep workspace sync focused on pinned tabs.",
+                        isOn: $syncOnlyPinnedTabs
+                    )
+                }
+
+                SettingsCard {
+                    SettingsToggleRow(
+                        systemImage: "clock.badge.xmark",
+                        title: "Ignore pending tabs when cycling",
+                        subtitle: "Skip unloaded tabs with Ctrl-Tab.",
+                        isOn: $ignorePendingTabsWhenCycling
+                    )
+
+                    SettingsDivider()
+
+                    SettingsToggleRow(
+                        systemImage: "rectangle.3.group",
+                        title: "Cycle within the current scope",
+                        subtitle: "Keep Ctrl-Tab inside the current tab group.",
+                        isOn: $ctrlTabCyclesWithinScope
+                    )
+
+                    SettingsDivider()
+
+                    SettingsToggleRow(
+                        systemImage: "arrow.left.arrow.right",
+                        title: "Select recently used tab on close",
+                        subtitle: "Return to the tab you used most recently.",
+                        isOn: $selectRecentlyUsedOnClose
+                    )
+                }
+
+                SettingsCard {
+                    SettingsToggleRow(
+                        systemImage: "pin.circle",
+                        title: "Restore pinned tabs to pinned URL",
+                        subtitle: "Reset pinned tabs to their saved URL on launch.",
+                        isOn: $restorePinnedTabsToPinnedURL
+                    )
+
+                    SettingsDivider()
+
+                    SettingsToggleRow(
+                        systemImage: "square.grid.2x2",
+                        title: "Container-specific essentials",
+                        subtitle: "Separate essential tabs by container.",
+                        isOn: $containerSpecificEssentials
+                    )
+
+                    SettingsDivider()
+
+                    SettingsPickerRow(
+                        systemImage: "keyboard",
+                        title: "Pinned tab close shortcut",
+                        subtitle: "Choose what Command-W does on pinned tabs.",
+                        selection: $pinnedCloseShortcutBehavior,
+                        options: [
+                            SettingsPickerOption(id: "reset-unload-switch", title: "Reset, unload, switch"),
+                            SettingsPickerOption(id: "unload-switch", title: "Unload and switch"),
+                            SettingsPickerOption(id: "reset-switch", title: "Reset and switch"),
+                            SettingsPickerOption(id: "switch", title: "Switch"),
+                            SettingsPickerOption(id: "reset", title: "Reset"),
+                            SettingsPickerOption(id: "close", title: "Close")
+                        ]
+                    )
+                }
+            }
+        }
+    }
+}
+
+private struct LinksSettingsPane: View {
+    @AppStorage(CandoaSettingsOption.openLinksInTabs) private var openLinksInTabs = true
+    @AppStorage(CandoaSettingsOption.switchToOpenedTabImmediately) private var switchToOpenedTabImmediately = false
+    @AppStorage(CandoaSettingsOption.openExternalLinksNextToActiveTab) private var openExternalLinksNextToActiveTab = false
+    @AppStorage(CandoaSettingsOption.enableGlance) private var enableGlance = true
+    @AppStorage(CandoaSettingsOption.glanceTrigger) private var glanceTrigger = "meta"
+    @AppStorage(CandoaSettingsOption.urlBarBehavior) private var urlBarBehavior = "floating-on-type"
+
+    var body: some View {
+        SettingsPane {
+            VStack(alignment: .leading, spacing: 20) {
+                SettingsCard {
+                    SettingsToggleRow(
+                        systemImage: "rectangle.on.rectangle",
+                        title: "Open links in tabs",
+                        subtitle: "Prefer tabs for links that request a new window.",
+                        isOn: $openLinksInTabs
+                    )
+
+                    SettingsDivider()
+
+                    SettingsToggleRow(
+                        systemImage: "arrowshape.turn.up.right",
+                        title: "Switch to newly opened tabs",
+                        subtitle: "Bring new tabs forward as they open.",
+                        isOn: $switchToOpenedTabImmediately
+                    )
+
+                    SettingsDivider()
+
+                    SettingsToggleRow(
+                        systemImage: "arrow.right.to.line.compact",
+                        title: "Open external links next to active tab",
+                        subtitle: "Place links from other apps near your current tab.",
+                        isOn: $openExternalLinksNextToActiveTab
+                    )
+                }
+
+                SettingsCard {
+                    SettingsToggleRow(
+                        systemImage: "eye",
+                        title: "Glance",
+                        subtitle: "Preview a link without opening a new tab.",
+                        isOn: $enableGlance
+                    )
+
+                    SettingsDivider()
+
+                    SettingsPickerRow(
+                        systemImage: "cursorarrow.click",
+                        title: "Glance trigger",
+                        subtitle: "Choose the modifier used while clicking links.",
+                        selection: $glanceTrigger,
+                        options: [
+                            SettingsPickerOption(id: "ctrl", title: "Control + Click"),
+                            SettingsPickerOption(id: "alt", title: "Option + Click"),
+                            SettingsPickerOption(id: "shift", title: "Shift + Click"),
+                            SettingsPickerOption(id: "meta", title: "Command + Click")
+                        ]
+                    )
+                }
+
+                SettingsCard {
+                    SettingsPickerRow(
+                        systemImage: "text.cursor",
+                        title: "URL bar",
+                        subtitle: "Choose how the address surface appears.",
+                        selection: $urlBarBehavior,
+                        options: [
+                            SettingsPickerOption(id: "normal", title: "Normal"),
+                            SettingsPickerOption(id: "floating-on-type", title: "Floating while typing"),
+                            SettingsPickerOption(id: "float", title: "Always floating")
+                        ]
+                    )
+                }
+            }
+        }
+    }
+}
+
+private struct IconSettingsPane: View {
+    @AppStorage(CandoaDockIconPreference.storageKey) private var selectedIconPreference = CandoaDockIconPreference.system.rawValue
+
+    var body: some View {
+        SettingsPane {
+            VStack(alignment: .leading, spacing: 20) {
+                SettingsCard {
+                    HStack(alignment: .top, spacing: 18) {
+                        ForEach(CandoaDockIconPreference.allCases) { preference in
+                            DockIconChoice(
+                                preference: preference,
+                                isSelected: selectedIconPreference == preference.rawValue
+                            ) {
+                                selectedIconPreference = preference.rawValue
+                                CandoaDockIconPreference.updateApplicationIcon()
+                            }
+                        }
+                    }
+                    .padding(18)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+
+                SettingsCard {
+                    SettingsRow(
+                        systemImage: "paintbrush",
+                        title: "Website appearance",
+                        subtitle: "Website theme controls are in General."
+                    ) {
+                        SettingsStatusPill(text: "General")
+                    }
                 }
             }
         }
@@ -827,13 +1043,59 @@ private struct SyncSettingsPane: View {
 private struct AdvancedSettingsPane: View {
     @AppStorage("CandoaEnableWebInspector") private var isWebInspectorEnabled = false
     @AppStorage(CandoaSettingsOption.disableDefaultShortcuts) private var disableDefaultShortcuts = false
+    @AppStorage(CandoaSettingsOption.strictTrackingProtection) private var strictTrackingProtection = true
+    @AppStorage(CandoaSettingsOption.clearCookiesOnQuit) private var clearCookiesOnQuit = false
+    @AppStorage(CandoaSettingsOption.blockPopups) private var blockPopups = true
+    @AppStorage(CandoaSettingsOption.askBeforeClosingMultipleTabs) private var askBeforeClosingMultipleTabs = false
+    @AppStorage(CandoaSettingsOption.browserLayout) private var browserLayout = "single"
+    @AppStorage(CandoaSettingsOption.enableCompactMode) private var enableCompactMode = false
+    @AppStorage(CandoaSettingsOption.hideTopToolbarInCompactMode) private var hideTopToolbarInCompactMode = false
 
     var body: some View {
         SettingsPane {
-            VStack(alignment: .leading, spacing: 18) {
-                SettingsSectionTitle("Keyboard")
+            VStack(alignment: .leading, spacing: 20) {
+                SettingsCard {
+                    SettingsPickerRow(
+                        systemImage: "sidebar.left",
+                        title: "Browser layout",
+                        subtitle: "Choose the chrome layout for browsing.",
+                        selection: $browserLayout,
+                        options: [
+                            SettingsPickerOption(id: "single", title: "Only Sidebar"),
+                            SettingsPickerOption(id: "multiple", title: "Sidebar and Top Toolbar"),
+                            SettingsPickerOption(id: "collapsed", title: "Collapsed Sidebar")
+                        ]
+                    )
+
+                    SettingsDivider()
+
+                    SettingsToggleRow(
+                        systemImage: "rectangle.compress.vertical",
+                        title: "Compact mode",
+                        subtitle: "Keep browser chrome minimized until you need it.",
+                        isOn: $enableCompactMode
+                    )
+
+                    SettingsDivider()
+
+                    SettingsToggleRow(
+                        systemImage: "toolbar",
+                        title: "Hide top toolbar in compact mode",
+                        subtitle: "Use the sidebar as the primary chrome.",
+                        isOn: $hideTopToolbarInCompactMode
+                    )
+                }
 
                 SettingsCard {
+                    SettingsToggleRow(
+                        systemImage: "exclamationmark.triangle",
+                        title: "Ask before closing multiple tabs",
+                        subtitle: "Confirm before closing several active tabs.",
+                        isOn: $askBeforeClosingMultipleTabs
+                    )
+
+                    SettingsDivider()
+
                     SettingsToggleRow(
                         systemImage: "keyboard.badge.ellipsis",
                         title: "Disable Candoa's default keyboard shortcuts",
@@ -842,7 +1104,32 @@ private struct AdvancedSettingsPane: View {
                     )
                 }
 
-                SettingsSectionTitle("Developer")
+                SettingsCard {
+                    SettingsToggleRow(
+                        systemImage: "hand.raised",
+                        title: "Strict tracking protection",
+                        subtitle: "Use WebKit content rules for tracker blocking.",
+                        isOn: $strictTrackingProtection
+                    )
+
+                    SettingsDivider()
+
+                    SettingsToggleRow(
+                        systemImage: "macwindow.badge.xmark",
+                        title: "Block pop-up windows",
+                        subtitle: "Prevent pages from opening unwanted windows.",
+                        isOn: $blockPopups
+                    )
+
+                    SettingsDivider()
+
+                    SettingsToggleRow(
+                        systemImage: "trash",
+                        title: "Clear cookies on quit",
+                        subtitle: "Remove site cookies and data when Candoa exits.",
+                        isOn: $clearCookiesOnQuit
+                    )
+                }
 
                 SettingsCard {
                     SettingsToggleRow(
@@ -891,39 +1178,45 @@ struct ShortcutSettingsView: View {
     }
 
     var body: some View {
-        VStack(spacing: 14) {
-            HStack(spacing: 8) {
-                Text("Search:")
-                    .font(.system(size: 13))
-                    .foregroundStyle(.secondary)
-                    .frame(width: 64, alignment: .trailing)
+        SettingsPane {
+            VStack(alignment: .leading, spacing: 20) {
+                SettingsCard {
+                    HStack(spacing: 10) {
+                        Image(systemName: "magnifyingglass")
+                            .font(.system(size: 15, weight: .medium))
+                            .foregroundStyle(.secondary)
 
-                TextField("Search shortcuts", text: $searchText)
-                    .textFieldStyle(.roundedBorder)
-                    .frame(width: 260)
+                        TextField("Type a feature name or shortcut", text: $searchText)
+                            .textFieldStyle(.plain)
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 13)
+                }
 
-                Spacer()
-            }
-            .padding(.horizontal, 10)
+                SettingsCard {
+                    if filteredDefinitions.isEmpty {
+                        Text("No shortcuts found.")
+                            .font(.system(size: 13))
+                            .foregroundStyle(.secondary)
+                            .padding(16)
+                    } else {
+                        ForEach(Array(filteredDefinitions.enumerated()), id: \.element.id) { index, definition in
+                            ShortcutSettingsRow(definition: definition)
 
-            ScrollView {
-                LazyVStack(spacing: 0) {
-                    ForEach(Array(filteredDefinitions.enumerated()), id: \.element.id) { index, definition in
-                        ShortcutSettingsRow(definition: definition)
-
-                        if index < filteredDefinitions.count - 1 {
-                            SettingsDivider()
-                                .padding(.leading, 64)
+                            if index < filteredDefinitions.count - 1 {
+                                SettingsDivider()
+                                    .padding(.leading, 58)
+                            }
                         }
                     }
                 }
-                .padding(.horizontal, 10)
+
+                Text("Custom shortcut capture is local to this Mac.")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 14)
             }
         }
-        .padding(.horizontal, 34)
-        .padding(.top, 24)
-        .padding(.bottom, 20)
-        .background(Color(nsColor: .windowBackgroundColor))
     }
 }
 
@@ -938,9 +1231,9 @@ private struct SettingsPane<Content: View>: View {
         ScrollView {
             content
                 .frame(maxWidth: 640)
-                .padding(.horizontal, 42)
-                .padding(.top, 26)
-                .padding(.bottom, 26)
+                .padding(.horizontal, 48)
+                .padding(.top, 28)
+                .padding(.bottom, 30)
                 .frame(maxWidth: .infinity)
         }
         .background(Color(nsColor: .windowBackgroundColor))
@@ -957,6 +1250,11 @@ private struct SettingsCard<Content: View>: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             content
+        }
+        .background(Color(nsColor: .controlBackgroundColor).opacity(0.42), in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 7, style: .continuous)
+                .stroke(Color.primary.opacity(0.11), lineWidth: 1)
         }
     }
 }
@@ -980,7 +1278,12 @@ private struct SettingsRow<Accessory: View>: View {
     }
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 12) {
+        HStack(alignment: .center, spacing: 14) {
+            Image(systemName: systemImage)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(.secondary)
+                .frame(width: 20)
+
             VStack(alignment: .leading, spacing: 4) {
                 Text(title)
                     .font(.system(size: 13))
@@ -996,8 +1299,8 @@ private struct SettingsRow<Accessory: View>: View {
 
             accessory
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 8)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 11)
     }
 }
 
@@ -1050,8 +1353,8 @@ private struct SettingsPickerRow: View {
                 }
             }
             .labelsHidden()
-            .controlSize(.regular)
-            .frame(width: 220)
+            .controlSize(.small)
+            .frame(width: 190)
         }
     }
 }
@@ -1278,7 +1581,8 @@ private struct ShortcutSettingsRow: View {
             .disabled(storedShortcut.isEmpty)
             .help("Reset to Default")
         }
-        .padding(.vertical, 8)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 9)
         .background {
             if isRecording {
                 ShortcutCaptureView { shortcut in
@@ -1479,8 +1783,8 @@ enum CandoaShortcutDefinition: String, CaseIterable, Identifiable {
         case .copyURLAsMarkdown: return "Option-Shift-Command-C"
         case .captureFullPage: return "None"
         case .pinOrUnpinTab: return "Command-D"
-        case .toggleSidebar: return "Command-B"
-        case .toggleAISidebar: return "Option-Command-B"
+        case .toggleSidebar: return "Command-S"
+        case .toggleAISidebar: return "Command-E"
         case .clearUnpinnedTabs: return "Shift-Command-K"
         case .goBack: return "Command-Left"
         case .goForward: return "Command-Right"

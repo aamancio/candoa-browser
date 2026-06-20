@@ -116,12 +116,13 @@ private struct BrowserCommands: Commands {
             Button(BrowserCommandTitles.toggleSidebar) {
                 actions?.toggleSidebar()
             }
+            .keyboardShortcut("s", modifiers: .command)
             .disabled(actions == nil)
 
             Button(BrowserCommandTitles.toggleAISidebar) {
                 actions?.toggleAISidebar()
             }
-            .keyboardShortcut("b", modifiers: [.command, .option])
+            .keyboardShortcut("e", modifiers: .command)
             .disabled(actions == nil)
 
             Divider()

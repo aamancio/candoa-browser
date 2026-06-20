@@ -35,10 +35,10 @@ final class CandoaUITests: XCTestCase {
         XCTAssertTrue(waitForState(in: app, containing: "find=true"), currentState(in: app))
         app.typeKey(.escape, modifierFlags: [])
 
-        app.typeKey("b", modifierFlags: .command)
+        app.typeKey("s", modifierFlags: .command)
         XCTAssertTrue(waitForState(in: app, containing: "sidebar=false"), currentState(in: app))
 
-        app.typeKey("b", modifierFlags: .command)
+        app.typeKey("s", modifierFlags: .command)
         XCTAssertTrue(waitForState(in: app, containing: "sidebar=true"), currentState(in: app))
     }
 
@@ -270,16 +270,16 @@ final class CandoaAskLiveUITests: XCTestCase {
 
     private func openAskSidebar(in app: XCUIApplication) {
         if !element("ask-sidebar", in: app).exists {
-            app.typeKey("b", modifierFlags: [.command, .option])
+            app.typeKey("e", modifierFlags: .command)
         }
         XCTAssertTrue(element("ask-sidebar", in: app).waitForExistence(timeout: 5), currentState(in: app))
         XCTAssertTrue(element("ask-ui-testing-state", in: app).waitForExistence(timeout: 8), currentState(in: app))
     }
 
     private func resetAskConversation(in app: XCUIApplication) {
-        app.typeKey("b", modifierFlags: [.command, .option])
+        app.typeKey("e", modifierFlags: .command)
         XCTAssertTrue(waitForState(in: app, containing: "sidebar=true", timeout: 5), currentState(in: app))
-        app.typeKey("b", modifierFlags: [.command, .option])
+        app.typeKey("e", modifierFlags: .command)
         XCTAssertTrue(element("ask-sidebar", in: app).waitForExistence(timeout: 5), currentState(in: app))
     }
 
