@@ -143,7 +143,7 @@ private enum CandoaSettingsTab: Hashable {
     }
 }
 
-private enum CandoaSettingsOption {
+enum CandoaSettingsOption {
     static let prefix = "Candoa.Settings.ZenOption."
 
     static let openPreviousWindowsAndTabs = prefix + "OpenPreviousWindowsAndTabs"

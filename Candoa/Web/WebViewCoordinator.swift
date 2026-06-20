@@ -184,6 +184,10 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         removeWebView(for: tabID, keepingHibernationData: false)
     }
 
+    func hasLoadedWebView(for tabID: UUID) -> Bool {
+        webViews[tabID] != nil
+    }
+
     private func removeWebView(for tabID: UUID, keepingHibernationData: Bool) {
         store?.setLoading(false, for: tabID)
         if !keepingHibernationData {

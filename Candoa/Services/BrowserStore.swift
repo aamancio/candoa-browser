@@ -68,6 +68,46 @@ private struct SidebarDroppedTabSource: Equatable {
     var placement: SidebarTabDropPlacement
 }
 
+private enum PinnedCloseShortcutBehavior: String {
+    case resetUnloadSwitch = "reset-unload-switch"
+    case unloadSwitch = "unload-switch"
+    case resetSwitch = "reset-switch"
+    case switchOnly = "switch"
+    case resetOnly = "reset"
+    case close = "close"
+
+    init(settingValue: String?) {
+        self = settingValue.flatMap(Self.init(rawValue:)) ?? .resetUnloadSwitch
+    }
+
+    var resetsURL: Bool {
+        switch self {
+        case .resetUnloadSwitch, .resetSwitch, .resetOnly:
+            return true
+        case .unloadSwitch, .switchOnly, .close:
+            return false
+        }
+    }
+
+    var unloadsWebView: Bool {
+        switch self {
+        case .resetUnloadSwitch, .unloadSwitch:
+            return true
+        case .resetSwitch, .switchOnly, .resetOnly, .close:
+            return false
+        }
+    }
+
+    var switchesToNextTab: Bool {
+        switch self {
+        case .resetUnloadSwitch, .unloadSwitch, .resetSwitch, .switchOnly:
+            return true
+        case .resetOnly, .close:
+            return false
+        }
+    }
+}
+
 @MainActor
 final class BrowserStore: ObservableObject {
     private struct ClosedTabSnapshot {
@@ -80,6 +120,31 @@ final class BrowserStore: ObservableObject {
     static let spaceNameCharacterLimit = 24
     static let splitViewMaxTabs = 4
     private static let sidebarDropSettleDelayNanoseconds: UInt64 = 480_000_000
+
+    private var ignoresPendingTabsWhenCycling: Bool {
+        boolSetting(CandoaSettingsOption.ignorePendingTabsWhenCycling, default: false)
+    }
+
+    private var scopesControlTabToCurrentGroup: Bool {
+        boolSetting(CandoaSettingsOption.ctrlTabCyclesWithinScope, default: false)
+    }
+
+    private var selectsRecentlyUsedTabOnClose: Bool {
+        boolSetting(CandoaSettingsOption.selectRecentlyUsedOnClose, default: true)
+    }
+
+    private var pinnedCloseShortcutBehavior: PinnedCloseShortcutBehavior {
+        PinnedCloseShortcutBehavior(
+            settingValue: UserDefaults.standard.string(forKey: CandoaSettingsOption.pinnedCloseShortcutBehavior)
+        )
+    }
+
+    private func boolSetting(_ key: String, default defaultValue: Bool) -> Bool {
+        guard let value = UserDefaults.standard.object(forKey: key) as? Bool else {
+            return defaultValue
+        }
+        return value
+    }
 
     @Published private(set) var spaces: [BrowserSpace]
     @Published private(set) var folders: [BrowserFolder]
@@ -370,7 +435,7 @@ final class BrowserStore: ObservableObject {
     }
 
     var visibleTabsForActiveSpace: [BrowserTab] {
-        favoriteTabsForActiveSpace + pinnedTabsForActiveSpace + folderedTabsForActiveSpace + regularTabsForActiveSpace
+        visibleTabs(in: activeSpaceID)
     }
 
     var favoriteTabsForActiveSpace: [BrowserTab] {
@@ -404,6 +469,26 @@ final class BrowserStore: ObservableObject {
         tabs
             .filter { $0.spaceID == activeSpaceID && $0.folderID == nil && !$0.isFavorite && !$0.isPinned }
             .sorted { $0.sortOrder < $1.sortOrder }
+    }
+
+    private func visibleTabs(in spaceID: UUID) -> [BrowserTab] {
+        let favorites = tabs
+            .filter { $0.spaceID == spaceID && $0.isFavorite }
+            .sorted { $0.sortOrder < $1.sortOrder }
+        let pinned = tabs
+            .filter { $0.spaceID == spaceID && $0.folderID == nil && $0.isPinned && !$0.isFavorite }
+            .sorted { $0.sortOrder < $1.sortOrder }
+        let foldered = folders
+            .filter { $0.spaceID == spaceID }
+            .sorted { $0.sortOrder < $1.sortOrder }
+            .flatMap { folder in
+                tabsInFolder(folder.id)
+            }
+        let regular = tabs
+            .filter { $0.spaceID == spaceID && $0.folderID == nil && !$0.isFavorite && !$0.isPinned }
+            .sorted { $0.sortOrder < $1.sortOrder }
+
+        return favorites + pinned + foldered + regular
     }
 
     func tabsInFolder(_ folderID: UUID) -> [BrowserTab] {
@@ -1070,6 +1155,9 @@ final class BrowserStore: ObservableObject {
 
     func closeCurrentTab() {
         guard let activeTabID else { return }
+        if performPinnedCloseShortcutIfNeeded(activeTabID) {
+            return
+        }
         closeTab(activeTabID)
     }
 
@@ -1078,6 +1166,7 @@ final class BrowserStore: ObservableObject {
         let previousSplitGroupIDs = splitGroupTabIDs()
         let wasSplitGroupTab = previousSplitGroupIDs.contains(id)
         let wasActiveTab = activeTabID == id
+        let replacementTabID = wasActiveTab ? replacementTabIDAfterClosing(id) : nil
         let closingTab = tabs[index]
         rememberClosedTab(closingTab)
         tabs.remove(at: index)
@@ -1101,12 +1190,100 @@ final class BrowserStore: ObservableObject {
             }
             updateNavigationState()
         } else if activeTabID == id {
-            let nextTab = tabs
-                .filter { $0.spaceID == activeSpaceID }
-                .sorted { $0.lastAccessedAt > $1.lastAccessedAt }
-                .first
-            activeTabID = nextTab?.id
+            activeTabID = replacementTabID
             updateNavigationState()
+        }
+    }
+
+    private func performPinnedCloseShortcutIfNeeded(_ id: UUID) -> Bool {
+        guard
+            let tab = tabs.first(where: { $0.id == id }),
+            tab.isPinned || tab.isFavorite
+        else {
+            return false
+        }
+
+        let behavior = pinnedCloseShortcutBehavior
+        guard behavior != .close else {
+            closeTab(id)
+            return true
+        }
+
+        let nextTabID = behavior.switchesToNextTab
+            ? replacementTabIDAfterClosing(id, prefersRecentlyUsed: false)
+            : nil
+
+        if behavior.resetsURL {
+            resetSavedURLIfAvailable(for: id, loadsWebView: !behavior.unloadsWebView)
+        }
+
+        if let nextTabID {
+            switchTab(to: nextTabID)
+        }
+
+        if behavior.unloadsWebView {
+            unloadWebView(for: id)
+        }
+
+        updateNavigationState()
+        return true
+    }
+
+    private func replacementTabIDAfterClosing(_ id: UUID, prefersRecentlyUsed: Bool? = nil) -> UUID? {
+        guard let closingTab = tabs.first(where: { $0.id == id }) else { return nil }
+        let candidates = tabs.filter { $0.id != id && $0.spaceID == closingTab.spaceID }
+        guard !candidates.isEmpty else { return nil }
+
+        if prefersRecentlyUsed ?? selectsRecentlyUsedTabOnClose {
+            return candidates
+                .sorted {
+                    if $0.lastAccessedAt == $1.lastAccessedAt {
+                        return $0.sortOrder < $1.sortOrder
+                    }
+                    return $0.lastAccessedAt > $1.lastAccessedAt
+                }
+                .first?.id
+        }
+
+        let orderedVisibleTabs = visibleTabs(in: closingTab.spaceID)
+        guard
+            let closingIndex = orderedVisibleTabs.firstIndex(where: { $0.id == id })
+        else {
+            return candidates
+                .sorted { $0.sortOrder < $1.sortOrder }
+                .first?.id
+        }
+
+        let remainingVisibleTabs = orderedVisibleTabs.filter { $0.id != id }
+        guard !remainingVisibleTabs.isEmpty else { return nil }
+
+        if closingIndex < remainingVisibleTabs.count {
+            return remainingVisibleTabs[closingIndex].id
+        }
+        return remainingVisibleTabs.last?.id
+    }
+
+    private func resetSavedURLIfAvailable(for tabID: UUID, loadsWebView: Bool) {
+        guard
+            let index = tabs.firstIndex(where: { $0.id == tabID }),
+            let savedURL = tabs[index].favoriteURL
+        else {
+            return
+        }
+
+        let title = tabs[index].favoriteDisplayTitle
+        setURL(savedURL, title: title, for: tabID)
+
+        if loadsWebView {
+            webCoordinator.load(savedURL, in: tabID)
+        }
+    }
+
+    private func unloadWebView(for tabID: UUID) {
+        webCoordinator.removeWebView(for: tabID)
+        mediaStates[tabID] = nil
+        if mediaControllerTabID == tabID {
+            mediaControllerTabID = nil
         }
     }
 
@@ -2650,14 +2827,29 @@ final class BrowserStore: ObservableObject {
     }
 
     private func recentTabsForActiveSpace() -> [BrowserTab] {
-        tabs
-            .filter { $0.spaceID == activeSpaceID }
+        var candidates = tabs.filter { $0.spaceID == activeSpaceID }
+
+        if scopesControlTabToCurrentGroup, let activeTab {
+            candidates = candidates.filter { tab in
+                activeTab.isFavorite ? tab.isFavorite : !tab.isFavorite
+            }
+        }
+
+        if ignoresPendingTabsWhenCycling {
+            candidates = candidates.filter { !isPendingTabForControlTab($0) }
+        }
+
+        return candidates
             .sorted {
                 if $0.lastAccessedAt == $1.lastAccessedAt {
                     return $0.sortOrder < $1.sortOrder
                 }
                 return $0.lastAccessedAt > $1.lastAccessedAt
             }
+    }
+
+    private func isPendingTabForControlTab(_ tab: BrowserTab) -> Bool {
+        tab.url == nil || tab.isLoading || !webCoordinator.hasLoadedWebView(for: tab.id)
     }
 
     private func tabSwitcherPreviewTabs(from candidates: [BrowserTab], selectedTabID: UUID?) -> [BrowserTab] {
