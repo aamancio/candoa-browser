@@ -384,6 +384,7 @@ private struct DeveloperToolbar: View {
     @State private var draftURL = ""
     @State private var hoveredControl: DeveloperToolbarControlKind?
     @State private var isHoveringControlMenu = false
+    @State private var isSiteInfoPresented = false
     @AppStorage(Self.storageKey) private var storedControlIDs = ""
     @FocusState private var isURLFieldFocused: Bool
 
@@ -418,6 +419,10 @@ private struct DeveloperToolbar: View {
     private var visibleControls: [DeveloperToolbarControlKind] {
         let ids = selectedControlIDSet
         return DeveloperToolbarControlKind.allCases.filter { ids.contains($0.id) }
+    }
+
+    private var currentURL: URL? {
+        URL(string: urlText)
     }
 
     var body: some View {
@@ -550,6 +555,19 @@ private struct DeveloperToolbar: View {
             hoveredControl = isHovering ? control : nil
         }
         .help(control.help(isSplitViewEnabled: isSplitViewEnabled))
+        .popover(
+            isPresented: Binding(
+                get: { control == .siteInfo && isSiteInfoPresented },
+                set: { isPresented in
+                    if control == .siteInfo {
+                        isSiteInfoPresented = isPresented
+                    }
+                }
+            ),
+            arrowEdge: .top
+        ) {
+            DeveloperSiteInfoPopover(url: currentURL, urlText: urlText)
+        }
     }
 
     private func shouldInsertSeparator(before index: Int) -> Bool {
@@ -565,7 +583,9 @@ private struct DeveloperToolbar: View {
             onCapturePage()
         case .splitView:
             onToggleSplitView()
-        case .easel, .developerTools, .siteInfo, .inspectElement, .extensions:
+        case .siteInfo:
+            isSiteInfoPresented = true
+        case .easel, .developerTools, .inspectElement, .extensions:
             break
         }
     }
@@ -584,6 +604,60 @@ private struct DeveloperToolbar: View {
         storedControlIDs = orderedIDs.isEmpty
             ? Self.noControlIDsValue
             : orderedIDs.joined(separator: ",")
+    }
+}
+
+private struct DeveloperSiteInfoPopover: View {
+    let url: URL?
+    let urlText: String
+
+    private var hostText: String {
+        url?.host(percentEncoded: false) ?? "Local page"
+    }
+
+    private var schemeText: String {
+        url?.scheme?.uppercased() ?? "Unknown"
+    }
+
+    private var portText: String {
+        guard let port = url?.port else { return "Default" }
+        return String(port)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Label(hostText, systemImage: "info.circle")
+                .font(.headline)
+
+            Divider()
+
+            DeveloperSiteInfoRow(title: "Address", value: urlText)
+            DeveloperSiteInfoRow(title: "Scheme", value: schemeText)
+            DeveloperSiteInfoRow(title: "Port", value: portText)
+            DeveloperSiteInfoRow(title: "Scope", value: "Local development")
+        }
+        .padding(14)
+        .frame(width: 300, alignment: .leading)
+    }
+}
+
+private struct DeveloperSiteInfoRow: View {
+    let title: String
+    let value: String
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 12) {
+            Text(title)
+                .font(.system(size: 12))
+                .foregroundStyle(.secondary)
+                .frame(width: 62, alignment: .leading)
+
+            Text(value)
+                .font(.system(size: 12, weight: .medium))
+                .lineLimit(3)
+                .textSelection(.enabled)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
     }
 }
 

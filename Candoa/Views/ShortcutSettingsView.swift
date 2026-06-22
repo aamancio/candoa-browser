@@ -71,6 +71,24 @@ struct CandoaSettingsView: View {
                 }
                 .tag(CandoaSettingsTab.links)
 
+            SearchSettingsPane()
+                .tabItem {
+                    Label(CandoaSettingsTab.search.title, systemImage: CandoaSettingsTab.search.symbolName)
+                }
+                .tag(CandoaSettingsTab.search)
+
+            PrivacySettingsPane()
+                .tabItem {
+                    Label(CandoaSettingsTab.privacy.title, systemImage: CandoaSettingsTab.privacy.symbolName)
+                }
+                .tag(CandoaSettingsTab.privacy)
+
+            SyncSettingsPane()
+                .tabItem {
+                    Label(CandoaSettingsTab.sync.title, systemImage: CandoaSettingsTab.sync.symbolName)
+                }
+                .tag(CandoaSettingsTab.sync)
+
             ShortcutSettingsView()
                 .tabItem {
                     Label(CandoaSettingsTab.shortcuts.title, systemImage: CandoaSettingsTab.shortcuts.symbolName)
@@ -90,7 +108,7 @@ struct CandoaSettingsView: View {
                 .tag(CandoaSettingsTab.advanced)
         }
         .tabViewStyle(.automatic)
-        .frame(width: 740, height: 560)
+        .frame(width: 780, height: 590)
     }
 }
 
@@ -98,6 +116,9 @@ private enum CandoaSettingsTab: Hashable {
     case general
     case spaces
     case links
+    case search
+    case privacy
+    case sync
     case shortcuts
     case icon
     case advanced
@@ -107,6 +128,9 @@ private enum CandoaSettingsTab: Hashable {
         case .general: return "General"
         case .spaces: return "Spaces"
         case .links: return "Links"
+        case .search: return "Search"
+        case .privacy: return "Privacy"
+        case .sync: return "Sync"
         case .shortcuts: return "Shortcuts"
         case .icon: return "Icon"
         case .advanced: return "Advanced"
@@ -118,6 +142,9 @@ private enum CandoaSettingsTab: Hashable {
         case .general: return "gearshape"
         case .spaces: return "square.grid.2x2"
         case .links: return "rectangle.on.rectangle"
+        case .search: return "magnifyingglass"
+        case .privacy: return "hand.raised"
+        case .sync: return "icloud"
         case .shortcuts: return "keyboard"
         case .icon: return "app.dashed"
         case .advanced: return "slider.horizontal.3"

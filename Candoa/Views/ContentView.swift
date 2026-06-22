@@ -62,6 +62,18 @@ struct ContentView: View {
         ZStack(alignment: .leading) {
             WebViewContainer(store: store)
                 .ignoresSafeArea(.container, edges: .top)
+                // A pinned sidebar (Cmd-S) pushes the content aside; the
+                // hover-reveal stays a pure overlay so a quick peek never
+                // resizes the page. The inset is intentionally not animated:
+                // animating it would resize the WKWebView frame every frame
+                // (battery cost), so the content reflows once while the
+                // sidebar slides into the reserved gap.
+                .padding(.leading, isSidebarVisible ? sidebarTotalWidth : 0)
+                // The Ask sidebar owns a right-side lane when mounted instead
+                // of covering the page. Use the mounted state, not the
+                // animated visible state, so the WKWebView resizes once on
+                // open/close rather than on every animation frame.
+                .padding(.trailing, isAISidebarMounted ? currentAISidebarWidth : 0)
 
             sidebarLayout
                 .offset(x: isSidebarPresented ? 0 : -sidebarTotalWidth)
@@ -70,7 +82,7 @@ struct ContentView: View {
                 .zIndex(2)
 
             if isAISidebarMounted {
-                aiSidebarOverlay(width: currentAISidebarWidth)
+                aiSidebarLayout(width: currentAISidebarWidth)
                     .zIndex(3)
             }
 
@@ -375,16 +387,11 @@ struct ContentView: View {
         }
     }
 
-    private func aiSidebarOverlay(width: CGFloat) -> some View {
-        GeometryReader { proxy in
-            aiSidebarPanel(width: width)
-                .frame(width: width, height: proxy.size.height)
-                .position(
-                    x: proxy.size.width - width / 2,
-                    y: proxy.size.height / 2
-                )
-                .offset(x: isAISidebarVisible ? 0 : width)
-        }
+    private func aiSidebarLayout(width: CGFloat) -> some View {
+        aiSidebarPanel(width: width)
+            .frame(width: width)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
+            .offset(x: isAISidebarVisible ? 0 : width)
         .ignoresSafeArea(.container, edges: .top)
         .allowsHitTesting(isAISidebarVisible)
         .accessibilityHidden(!isAISidebarVisible)
