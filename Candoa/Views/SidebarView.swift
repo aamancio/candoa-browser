@@ -295,8 +295,7 @@ struct SidebarView: View {
         EssentialTileView(
             tab: tab,
             isActive: tab.id == store.activeTabID &&
-                !store.isNewTabPaletteActive &&
-                (tab.favoriteURL == nil || store.activeTab?.url == tab.favoriteURL),
+                !store.isNewTabPaletteActive,
             accentColor: activeSpaceTint,
             placement: .favorite,
             onSelect: { store.activateFavorite(tab.id) },

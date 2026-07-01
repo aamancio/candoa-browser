@@ -63,22 +63,6 @@ struct AISidebarView: View {
     }
 
     private var tabMentionOptions: [AISidebarMentionOption] {
-        let allOpenTabsOption: [AISidebarMentionOption]
-        if trimmedMentionQuery.isEmpty, !mentionedContext.contains(.allOpenTabs) {
-            allOpenTabsOption = [
-                AISidebarMentionOption(
-                    id: "all-open-tabs",
-                    title: "All open tabs",
-                    detail: "\(store.visibleTabsForActiveSpace.count)",
-                    symbolName: "rectangle.stack",
-                    faviconData: nil,
-                    action: .mention(.allOpenTabs)
-                )
-            ]
-        } else {
-            allOpenTabsOption = []
-        }
-
         let tabOptions = availableTabMentions.prefix(6).map { tab in
             AISidebarMentionOption(
                 id: "tab-\(tab.id.uuidString)",
@@ -90,7 +74,7 @@ struct AISidebarView: View {
             )
         }
 
-        return allOpenTabsOption + tabOptions + historyMentionOptions
+        return tabOptions + historyMentionOptions
     }
 
     private var historyMentionOptions: [AISidebarMentionOption] {
@@ -742,12 +726,6 @@ struct AISidebarView: View {
 
         for mention in mentions {
             switch mention {
-            case .allOpenTabs:
-                let tabLines = store.visibleTabsForActiveSpace.map { tab in
-                    let title = tab.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Untitled" : tab.title
-                    return "- \(title): \(tab.url?.absoluteString ?? "No URL")"
-                }
-                sections.append("All open tabs:\n\(tabLines.joined(separator: "\n"))")
             case .tab(let tabID):
                 guard tabID != currentPageTabID else { continue }
                 let tabContext = await store.aiPageContext(for: tabID)
@@ -877,15 +855,6 @@ struct AISidebarView: View {
 
     private func chip(for mention: AISidebarContextMention) -> AISidebarContextChip {
         switch mention {
-        case .allOpenTabs:
-            return AISidebarContextChip(
-                id: "all-open-tabs",
-                title: "All open tabs",
-                subtitle: "\(store.visibleTabsForActiveSpace.count) tabs",
-                symbolName: "rectangle.stack",
-                faviconData: nil,
-                isRemovable: true
-            )
         case .tab(let id):
             let tab = store.tabs.first { $0.id == id }
             let tabTitle = tab?.title.trimmingCharacters(in: .whitespacesAndNewlines)

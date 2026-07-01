@@ -634,7 +634,6 @@ struct AISidebarContextChip: Identifiable, Equatable {
 }
 
 enum AISidebarContextMention: Equatable {
-    case allOpenTabs
     case tab(UUID)
     case history(AISidebarHistoryContext)
     case file(AISidebarFileContext)

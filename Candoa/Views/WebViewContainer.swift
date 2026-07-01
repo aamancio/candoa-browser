@@ -59,18 +59,26 @@ struct WebViewContainer: View {
                                 )
                             }
 
-                            ActiveWebViewHost(tab: tab, store: store)
+                            if tab.url == nil {
+                                EmptyTabSurface {
+                                    store.openNewTabCommandPalette()
+                                }
                                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                                 .background(CandoaChromeStyle.surfaceFill.opacity(0.72))
-                                .overlay(alignment: .top) {
-                                    PageLoadingPill(
-                                        isLoading: tab.isLoading,
-                                        tint: spaceTint,
-                                        themeIsDark: themeIsDarkChrome
-                                    )
-                                    .padding(.top, 2)
-                                    .id(tab.id)
-                                }
+                            } else {
+                                ActiveWebViewHost(tab: tab, store: store)
+                                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                    .background(CandoaChromeStyle.surfaceFill.opacity(0.72))
+                                    .overlay(alignment: .top) {
+                                        PageLoadingPill(
+                                            isLoading: tab.isLoading,
+                                            tint: spaceTint,
+                                            themeIsDark: themeIsDarkChrome
+                                        )
+                                        .padding(.top, 2)
+                                        .id(tab.id)
+                                    }
+                            }
                         }
                     }
                     .padding(surfacePadding)
@@ -218,6 +226,20 @@ struct WebViewContainer: View {
                 .padding(.top, 2)
                 .id(tab.id)
             }
+    }
+}
+
+private struct EmptyTabSurface: View {
+    let openCommandBar: () -> Void
+
+    var body: some View {
+        Color.clear
+            .contentShape(Rectangle())
+            .onTapGesture(perform: openCommandBar)
+        .help(BrowserDefaults.addressPlaceholder)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .accessibilityLabel(BrowserDefaults.addressPlaceholder)
+        .accessibilityIdentifier("empty-tab-surface")
     }
 }
 

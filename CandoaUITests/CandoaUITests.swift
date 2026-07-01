@@ -73,10 +73,27 @@ final class CandoaUITests: XCTestCase {
         XCTAssertTrue(waitForState(in: app, containing: "find=true"), currentState(in: app))
     }
 
-    private func launchApp() -> XCUIApplication {
+    func testCommandPaletteDoesNotSwitchToMatchingTabInAnotherSpace() throws {
+        let app = launchApp(fixture: "cross-space-duplicate-url")
+
+        XCTAssertTrue(waitForState(in: app, containing: "space=TestingBot"), currentState(in: app))
+        XCTAssertTrue(waitForState(in: app, containing: "tabs=Apple"), currentState(in: app))
+
+        app.typeKey("t", modifierFlags: .command)
+        XCTAssertTrue(waitForState(in: app, containing: "newTabPalette=true"), currentState(in: app))
+        submitCommandPaletteText("google.com", in: app)
+
+        XCTAssertTrue(waitForState(in: app, containing: "space=TestingBot", timeout: 10), currentState(in: app))
+        XCTAssertTrue(waitForState(in: app, containing: "url=https://www.google.com/?hl=en&gl=us", timeout: 10), currentState(in: app))
+    }
+
+    private func launchApp(fixture: String? = nil) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchEnvironment["CANDOA_UI_TESTING"] = "1"
         app.launchEnvironment["CANDOA_UI_TESTING_STORE_ID"] = "TestingBot"
+        if let fixture {
+            app.launchEnvironment["CANDOA_UI_TESTING_FIXTURE"] = fixture
+        }
 
         app.launch()
         return app

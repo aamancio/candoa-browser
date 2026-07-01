@@ -593,7 +593,61 @@ final class BrowserStore: ObservableObject {
             return testingBotFixtureState(includesSeedTabs: false)
         }
 
+        if fixture == "cross-space-duplicate-url" {
+            return crossSpaceDuplicateURLFixtureState()
+        }
+
         return testingBotFixtureState(includesSeedTabs: true)
+    }
+
+    private static func crossSpaceDuplicateURLFixtureState() -> BrowserWindowState {
+        let inactiveSpaceID = UUID(uuidString: "12121212-1212-1212-1212-121212121212")!
+        let activeSpaceID = UUID(uuidString: "22222222-2222-2222-2222-222222222222")!
+        let inactiveGoogleTabID = UUID(uuidString: "23232323-2323-2323-2323-232323232323")!
+        let activeStartTabID = UUID(uuidString: "24242424-2424-2424-2424-242424242424")!
+        let fixtureDate = Date(timeIntervalSince1970: 1_800_000_000)
+
+        let inactiveSpace = BrowserSpace(
+            id: inactiveSpaceID,
+            name: "Reference",
+            symbolName: "book.closed",
+            themeAppearance: BrowserSpace.defaultThemeAppearance
+        )
+        let activeSpace = BrowserSpace(
+            id: activeSpaceID,
+            name: "TestingBot",
+            symbolName: "sparkles",
+            themeColorHex: "#6E8BFF",
+            themeAppearance: BrowserSpace.defaultThemeAppearance
+        )
+        let tabs = [
+            BrowserTab(
+                id: inactiveGoogleTabID,
+                title: "Google",
+                url: URL(string: "https://www.google.com")!,
+                faviconSymbol: "magnifyingglass",
+                spaceID: inactiveSpaceID,
+                sortOrder: 0,
+                lastAccessedAt: fixtureDate.addingTimeInterval(-120)
+            ),
+            BrowserTab(
+                id: activeStartTabID,
+                title: "Apple",
+                url: URL(string: "https://www.apple.com")!,
+                faviconSymbol: "apple.logo",
+                spaceID: activeSpaceID,
+                sortOrder: 0,
+                lastAccessedAt: fixtureDate
+            )
+        ]
+
+        return BrowserWindowState(
+            spaces: [inactiveSpace, activeSpace],
+            folders: [],
+            tabs: tabs,
+            activeSpaceID: activeSpaceID,
+            activeTabID: activeStartTabID
+        )
     }
 
     private static func testingBotFixtureState(includesSeedTabs: Bool) -> BrowserWindowState {
@@ -1385,20 +1439,7 @@ final class BrowserStore: ObservableObject {
     }
 
     func activateFavorite(_ id: UUID) {
-        guard let index = tabs.firstIndex(where: { $0.id == id }), tabs[index].isFavorite else {
-            switchTab(to: id)
-            return
-        }
-
-        let savedURL = tabs[index].favoriteURL ?? tabs[index].url
         switchTab(to: id)
-
-        guard let savedURL, tabs[index].url != savedURL else {
-            return
-        }
-
-        setURL(savedURL, title: tabs[index].favoriteDisplayTitle, for: id)
-        webCoordinator.load(savedURL, in: id)
     }
 
     @discardableResult

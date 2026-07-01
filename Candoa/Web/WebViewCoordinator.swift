@@ -62,8 +62,6 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
             webView.interactionState = interactionState
         } else if let url = tab.url {
             load(url, in: tab.id)
-        } else {
-            webView.loadHTMLString(newTabHTML, baseURL: nil)
         }
 
         return webView
@@ -134,12 +132,7 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         // the URL mismatch below is expected while the restore is in flight.
         guard !restoringTabIDs.contains(tab.id) else { return }
 
-        guard let expectedURL = tab.url else {
-            if webView.url == nil {
-                webView.loadHTMLString(newTabHTML, baseURL: nil)
-            }
-            return
-        }
+        guard let expectedURL = tab.url else { return }
 
         if webView.url?.absoluteString != expectedURL.absoluteString {
             load(expectedURL, in: tab.id)
@@ -1868,38 +1861,6 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         return String(arrayLiteral.dropFirst().dropLast())
     }
 
-    private var newTabHTML: String {
-        """
-        <!doctype html>
-        <html>
-        <head>
-          <meta name="viewport" content="width=device-width, initial-scale=1">
-          <style>
-            :root { color-scheme: light dark; }
-            body {
-              align-items: center;
-              background: Canvas;
-              color: CanvasText;
-              display: flex;
-              font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-              height: 100vh;
-              justify-content: center;
-              margin: 0;
-            }
-            main { max-width: 520px; padding: 32px; text-align: center; }
-            h1 { font-size: 30px; font-weight: 650; letter-spacing: 0; margin: 0 0 8px; }
-            p { color: color-mix(in srgb, CanvasText 68%, transparent); font-size: 15px; line-height: 1.45; margin: 0; }
-          </style>
-        </head>
-        <body>
-          <main>
-            <h1>Candoa</h1>
-            <p>Search or enter a URL from the address bar.</p>
-          </main>
-        </body>
-        </html>
-        """
-    }
 }
 
 // In an extension to avoid a spurious near-match warning against the

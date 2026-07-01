@@ -296,6 +296,7 @@ struct CommandPaletteView: View {
     private func openTab(matching url: URL) -> BrowserTab? {
         let key = normalizedURLKey(url.absoluteString)
         return store.tabs.first {
+            guard $0.spaceID == store.activeSpaceID else { return false }
             guard let tabURL = $0.url else { return false }
             return normalizedURLKey(tabURL.absoluteString) == key
         }
@@ -308,7 +309,11 @@ struct CommandPaletteView: View {
     private func openTab(onSiteOf provider: SearchProvider) -> BrowserTab? {
         guard let providerHost = normalizedHost(provider.homeURL) else { return nil }
         return store.tabs
-            .filter { $0.id != store.activeTabID && normalizedHost($0.url) == providerHost }
+            .filter {
+                $0.spaceID == store.activeSpaceID &&
+                    $0.id != store.activeTabID &&
+                    normalizedHost($0.url) == providerHost
+            }
             .max { $0.lastAccessedAt < $1.lastAccessedAt }
     }
 
@@ -335,6 +340,7 @@ struct CommandPaletteView: View {
         }
 
         return store.tabs.first { tab in
+            guard tab.spaceID == store.activeSpaceID else { return false }
             guard let tabURL = tab.url else { return false }
             return tab.title.lowercased() == title
                 && tabURL.host(percentEncoded: false)?.lowercased() == host
@@ -760,6 +766,7 @@ struct CommandPaletteView: View {
 
     private var tabCommands: [PaletteCommand] {
         store.tabs
+            .filter { $0.spaceID == store.activeSpaceID }
             .sorted {
                 if $0.lastAccessedAt == $1.lastAccessedAt {
                     return $0.sortOrder < $1.sortOrder

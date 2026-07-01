@@ -105,8 +105,10 @@ struct ContentView: View {
             if let mediaTab = store.floatingMiniPlayerTab,
                let mediaState = store.floatingMiniPlayerState {
                 GeometryReader { proxy in
+                    let leadingInset = isSidebarVisible ? sidebarTotalWidth : 0
+                    let trailingInset = isAISidebarMounted ? currentAISidebarWidth : 0
                     let availableSize = CGSize(
-                        width: proxy.size.width,
+                        width: max(1, proxy.size.width - leadingInset - trailingInset),
                         height: proxy.size.height
                     )
 
@@ -119,7 +121,8 @@ struct ContentView: View {
                         origin: $miniPlayerOrigin,
                         expandedSize: $miniPlayerExpandedSize
                     )
-                    .frame(width: proxy.size.width, height: proxy.size.height, alignment: .topLeading)
+                    .frame(width: availableSize.width, height: availableSize.height, alignment: .topLeading)
+                    .offset(x: leadingInset)
                 }
                 .ignoresSafeArea(.container, edges: .top)
                 .transition(.scale(scale: 0.98, anchor: .bottomLeading).combined(with: .opacity))
