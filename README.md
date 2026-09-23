@@ -1,12 +1,20 @@
 # Candoa Browser
 
+> **Archived, September 2026.** Candoa Browser is no longer developed or
+> maintained. The source stays here under the MPL-2.0 for anyone who wants to
+> build it or fork it under their own name. The last public build is
+> [v0.38.0](https://github.com/aamancio/candoa-browser/releases/tag/v0.38.0).
+> Its update checker, account sign-in, and What's New page pointed at
+> candoa.app, which now hosts unrelated software, so those features no longer
+> work in that build.
+
 A lightweight browser workspace for macOS.
 
 Candoa Browser is an open-source Mac browser workspace for people who live in tabs, move
 between projects, and want browsing to stay native, quiet, and
 battery-conscious.
 
-[Website](https://candoa.app) · [Discussions](https://github.com/aamancio/candoa-browser/discussions)
+[Releases](https://github.com/aamancio/candoa-browser/releases) · [Discussions](https://github.com/aamancio/candoa-browser/discussions)
 
 ## Why Candoa Browser
 
@@ -29,11 +37,9 @@ Candoa Browser is built independently with native Apple technologies and WebKit.
 
 ## Status
 
-Candoa Browser is in beta and updates most days. See
-[Releases](https://github.com/aamancio/candoa-browser/releases) for the current
-version.
+Development stopped in September 2026 and the repository is archived.
 
-Working today: Spaces with iCloud sync, vertical and pinned tabs, split view,
+What the last build (v0.38.0) does: Spaces with iCloud sync, vertical and pinned tabs, split view,
 a quick search that targets a site directly, an assistant that asks before it
 acts, ad and tracker blocking with no extension needed, extensions installed
 straight from the Chrome Web Store, a floating mini player that takes a video
@@ -43,20 +49,14 @@ address, and automatic updates through Sparkle.
 Not there yet: an equivalent of Arc's peek window. DRM playback is unverified,
 so assume some streaming services may not work until proven otherwise.
 
-Expect rough edges. Battery efficiency and native macOS behavior are treated as
-product features rather than implementation details.
+Battery efficiency and native macOS behavior were treated as product features
+rather than implementation details.
 
 ## Download
 
-Get the latest public build from the website:
-
-[candoa.app](https://candoa.app)
-
-## Related
-
-- Website: [candoa.app](https://candoa.app)
-- App source: [aamancio/candoa-browser](https://github.com/aamancio/candoa-browser)
-- Website and cloud source: [aamancio/candoa-cloud](https://github.com/aamancio/candoa-cloud)
+The last public build is on the
+[Releases](https://github.com/aamancio/candoa-browser/releases) page. It is
+signed and notarized but will not receive updates.
 
 ## Build From Source
 
@@ -70,7 +70,7 @@ Open `Candoa.xcodeproj`, select the `Candoa` scheme, then build and run.
 From Terminal:
 
 ```sh
-cd ~/Projects/Candoa/CandoaBrowser
+cd candoa-browser
 xcodebuild -project "Candoa.xcodeproj" -scheme "Candoa" -configuration Debug -derivedDataPath build/DerivedData build
 open "build/DerivedData/Build/Products/Debug/Candoa.app"
 ```
@@ -136,18 +136,16 @@ Architecture decisions:
 
 - [Sign in with Apple and Developer ID distribution](docs/sign-in-with-apple-distribution.md)
 
-Contributions are welcome, especially around native Mac behavior,
-keyboard-first browsing, WebKit lifecycle, and battery efficiency.
-
-Please keep changes aligned with the project principles above. In particular,
-do not introduce another browser engine, do not add idle polling, and do not
-copy another browser's branding, icons, assets, or exact UI.
+The repository is archived and does not take pull requests. Fork it if you
+want to continue the work. The project principles above are a description of
+how it was built, not a rule for your fork, except for the trademark note
+below.
 
 ## Releases
 
-Release builds are packaged as a drag-to-Applications DMG. The GitHub workflow
-on `main` publishes the signed DMG, `latest.json`, and Sparkle `appcast.xml` to
-the Candoa Cloud repository.
+Release builds were packaged as a drag-to-Applications DMG and published with
+a Sparkle appcast. The publishing workflow has been removed; the last DMG is
+attached to the v0.38.0 release.
 
 Because that DMG uses Developer ID distribution, account authentication must
 follow the tracked [Sign in with Apple distribution decision](docs/sign-in-with-apple-distribution.md).
@@ -168,6 +166,7 @@ Candoa is open source under the Mozilla Public License 2.0. See `LICENSE`.
 ## Trademark
 
 The Candoa name, icon, and app identity are not covered by the source-code
-license. Forks and modified builds should use a different name and identity.
+license, and the Candoa name is now used for other software by the same
+author. Forks and modified builds must use a different name and identity.
 
 See `TRADEMARKS.md` for the project trademark policy.
