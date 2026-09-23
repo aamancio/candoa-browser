@@ -28,30 +28,36 @@ if (( failures != 0 )); then
 fi
 
 echo "Checking for merge conflict markers..."
-if rg -n '^(<<<<<<<|=======|>>>>>>>)' Candoa CandoaUITests Scripts .github; then
+if rg -n '^(<<<<<<<|=======|>>>>>>>)' Talos TalosUITests Scripts .github; then
   report_failure "Merge conflict marker found."
 fi
 
 echo "Checking for debug logging in app sources..."
-if rg -n '\b(print|debugPrint|dump)\s*\(' Candoa --glob '*.swift'; then
+if rg -n '\b(print|debugPrint|dump)\s*\(' Talos --glob '*.swift'; then
   report_failure "Debug logging found in app sources. Use structured UI/state instead of print-style logging."
 fi
 
 echo "Checking for unsafe Swift shortcuts..."
-if rg -n '\b(try!|as!)\b|fatalError\s*\(' Candoa --glob '*.swift'; then
+if rg -n '\b(try!|as!)\b|fatalError\s*\(' Talos --glob '*.swift'; then
   report_failure "Unsafe Swift shortcut found in app sources."
 fi
 
 echo "Checking entitlement policy..."
 # Sign in with Apple ships via the web flow (ASWebAuthenticationSession);
-# the native capability must never enter any signing path. The browser
-# passkey entitlement stays out until Apple assigns the managed capability
-# (#14 flips it to required after assignment).
-for forbidden in \
-  com.apple.developer.applesignin \
-  com.apple.developer.web-browser.public-key-credential; do
-  if rg -n --fixed-strings "$forbidden" Candoa/Resources/*.entitlements; then
-    report_failure "Forbidden entitlement $forbidden found in an entitlements file."
+# the native capability must never enter any signing path.
+if rg -n --fixed-strings com.apple.developer.applesignin Talos/Resources/*.entitlements; then
+  report_failure "Forbidden entitlement com.apple.developer.applesignin found in an entitlements file."
+fi
+# Apple granted the managed browser passkey capability to app.candoa.browser
+# in September 2026. Only the release signing path may carry it: CI holds the
+# key, and a debug or ad-hoc build carrying it is killed at launch.
+passkey=com.apple.developer.web-browser.public-key-credential
+if ! rg -q --fixed-strings "$passkey" Talos/Resources/TalosRelease.entitlements; then
+  report_failure "Release entitlements are missing $passkey."
+fi
+for f in Talos/Resources/Talos.entitlements Talos/Resources/TalosCITesting.entitlements; do
+  if rg -n --fixed-strings "$passkey" "$f"; then
+    report_failure "$passkey must stay out of $f (release signing only)."
   fi
 done
 
@@ -64,7 +70,7 @@ fi
 
 echo "Reporting repeated Swift implementation lines..."
 duplicate_report="$(
-  find Candoa -name '*.swift' -print0 |
+  find Talos -name '*.swift' -print0 |
     xargs -0 awk '
       function trim(value) {
         gsub(/^[[:space:]]+|[[:space:]]+$/, "", value)
