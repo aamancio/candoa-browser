@@ -1,0 +1,393 @@
+import AppKit
+import SwiftUI
+
+extension Notification.Name {
+    static let focusHistorySearch = Notification.Name("Talos.FocusHistorySearch")
+}
+
+struct HistoryView: View {
+    @StateObject private var store: HistoryStore
+    let clearScope: ClearBrowsingDataPrompt.CurrentSpace?
+    let onOpen: (HistoryVisit) -> Void
+    let onOpenInNewTab: (HistoryVisit) -> Void
+    let onCopyAddress: (HistoryVisit) -> Void
+    let onDismiss: () -> Void
+
+    @State private var tableSelection: Set<HistoryTableNode.ID> = []
+    @State private var expandedDates: Set<Date> = []
+    @State private var isSearchFocused = false
+
+    init(
+        repository: any HistoryRepository,
+        spaceID: UUID,
+        clearScope: ClearBrowsingDataPrompt.CurrentSpace?,
+        onOpen: @escaping (HistoryVisit) -> Void,
+        onOpenInNewTab: @escaping (HistoryVisit) -> Void,
+        onCopyAddress: @escaping (HistoryVisit) -> Void,
+        onDismiss: @escaping () -> Void
+    ) {
+        _store = StateObject(wrappedValue: HistoryStore(repository: repository, spaceID: spaceID))
+        self.clearScope = clearScope
+        self.onOpen = onOpen
+        self.onOpenInNewTab = onOpenInNewTab
+        self.onCopyAddress = onCopyAddress
+        self.onDismiss = onDismiss
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            historyHeader
+
+            if store.visits.isEmpty, !store.isLoading {
+                ContentUnavailableView {
+                    Label(
+                        store.searchText.isEmpty ? "No History" : "No Results",
+                        systemImage: store.searchText.isEmpty ? "clock" : "magnifyingglass"
+                    )
+                } description: {
+                    Text(
+                        store.searchText.isEmpty
+                            ? "Pages you visit will appear here."
+                            : "No history matches your search."
+                    )
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                historyOutline
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color(nsColor: .controlBackgroundColor))
+        .task {
+            expandedDates = [Calendar.current.startOfDay(for: Date())]
+            store.load()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: PersistenceService.remoteStoreDidChange)) { _ in
+            store.reload()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: BrowsingDataService.browsingDataDidClear)) { _ in
+            store.reload()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .focusHistorySearch)) { _ in
+            isSearchFocused = true
+        }
+        .onChange(of: tableSelection) { _, selection in
+            let visitSelection = Set(selection.compactMap(\.visitID))
+            store.selection = visitSelection
+
+            let selectableRows = Set(visitSelection.map(HistoryTableNode.ID.visit))
+            if tableSelection != selectableRows {
+                tableSelection = selectableRows
+            }
+        }
+        .onChange(of: store.selection) { _, selection in
+            let visitSelection = Set(selection.map(HistoryTableNode.ID.visit))
+            if tableSelection != visitSelection {
+                tableSelection = visitSelection
+            }
+        }
+        .onDeleteCommand {
+            store.deleteSelection()
+        }
+        .onExitCommand(perform: onDismiss)
+        .alert(
+            "History Couldn’t Be Updated",
+            isPresented: Binding(
+                get: { store.errorMessage != nil },
+                set: { isPresented in
+                    if !isPresented {
+                        store.errorMessage = nil
+                    }
+                }
+            )
+        ) {
+            Button("OK", role: .cancel) {
+                store.errorMessage = nil
+            }
+        } message: {
+            Text(store.errorMessage ?? "")
+        }
+        .accessibilityIdentifier("history-view")
+    }
+
+    private var historyHeader: some View {
+        HStack(alignment: .center, spacing: 10) {
+            Text("History")
+                .font(.largeTitle)
+                .fontWeight(.bold)
+
+            Spacer(minLength: 24)
+
+            // Private windows browse an ephemeral Space with no persisted
+            // history or website data, so there is nothing for them to clear.
+            if let clearScope {
+                Button("Clear History…") {
+                    ClearBrowsingDataPrompt.present(currentSpace: clearScope)
+                }
+                .buttonTreatment(.secondary)
+                .tint(.primary)
+                .disabled(store.isLoading)
+                .accessibilityIdentifier("history-clear-button")
+            }
+
+            HistorySearchField(
+                text: $store.searchText,
+                isFocused: $isSearchFocused
+            )
+                .frame(width: 180)
+                .accessibilityLabel("Search History")
+        }
+        .padding(.horizontal, 20)
+        .padding(.top, 16)
+        .padding(.bottom, 14)
+    }
+
+    private var historyOutline: some View {
+        VStack(spacing: 0) {
+            Table(of: HistoryTableNode.self, selection: $tableSelection) {
+                TableColumn("Website") { node in
+                    websiteCell(for: node)
+                }
+                .width(min: 260, ideal: 560)
+
+                TableColumn("Address") { node in
+                    addressCell(for: node)
+                }
+                .width(min: 240, ideal: 760)
+            } rows: {
+                if store.searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    ForEach(historySections) { section in
+                        DisclosureTableRow(
+                            HistoryTableNode(section: section),
+                            isExpanded: expansionBinding(for: section.date)
+                        ) {
+                            ForEach(section.visits.map(HistoryTableNode.init(visit:))) { node in
+                                TableRow(node)
+                            }
+                        }
+                    }
+                } else {
+                    ForEach(store.visits.map(HistoryTableNode.init(visit:))) { node in
+                        TableRow(node)
+                    }
+                }
+
+                if store.canLoadMore {
+                    TableRow(HistoryTableNode(loadMoreAfter: store.visits.count))
+                }
+            }
+            .alternatingRowBackgrounds(.disabled)
+            .scrollContentBackground(.hidden)
+            .contextMenu(forSelectionType: HistoryTableNode.ID.self) { selection in
+                historyContextMenu(for: selection)
+            } primaryAction: { selection in
+                guard let visit = selectedVisits(for: selection).first else { return }
+                onOpen(visit)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func websiteCell(for node: HistoryTableNode) -> some View {
+        switch node.content {
+        case .day(_, let title, _):
+            Label(title, systemImage: "clock")
+                .font(.system(size: 13))
+                .fontWeight(.semibold)
+        case .visit(let visit):
+            Label(visit.title, systemImage: "globe")
+                .font(.system(size: 13))
+                .lineLimit(1)
+                .accessibilityLabel("\(visit.title), \(visit.url.absoluteString)")
+                .accessibilityValue(visit.visitedAt.formatted(date: .abbreviated, time: .shortened))
+        case .pagination:
+            ProgressView()
+                .controlSize(.small)
+                .frame(maxWidth: .infinity, alignment: .center)
+                .accessibilityLabel("Loading more history")
+                .onAppear {
+                    store.loadMore()
+                }
+        }
+    }
+
+    @ViewBuilder
+    private func addressCell(for node: HistoryTableNode) -> some View {
+        switch node.content {
+        case .day(_, _, let count):
+            Text("\(count) items")
+                .font(.system(size: 13))
+        case .visit(let visit):
+            Text(visit.url.absoluteString)
+                .font(.system(size: 13))
+                .lineLimit(1)
+                .truncationMode(.middle)
+                .foregroundStyle(.secondary)
+        case .pagination:
+            EmptyView()
+        }
+    }
+
+    @ViewBuilder
+    private func historyContextMenu(for selection: Set<HistoryTableNode.ID>) -> some View {
+        let visits = selectedVisits(for: selection)
+
+        if let visit = visits.first {
+            Button("Open") {
+                onOpen(visit)
+            }
+            Button("Open in New Tab") {
+                onOpenInNewTab(visit)
+            }
+            Button("Copy Address") {
+                onCopyAddress(visit)
+            }
+            Divider()
+        }
+
+        Button("Delete \(visits.count) Items", role: .destructive) {
+            store.selection = Set(visits.map(\.id))
+            store.deleteSelection()
+        }
+        .disabled(visits.isEmpty)
+    }
+
+    private var historySections: [HistorySection] {
+        let calendar = Calendar.current
+        let grouped = Dictionary(grouping: store.visits) { visit in
+            calendar.startOfDay(for: visit.visitedAt)
+        }
+
+        return grouped.keys.sorted(by: >).map { date in
+            HistorySection(
+                date: date,
+                title: sectionTitle(for: date, calendar: calendar),
+                visits: grouped[date] ?? []
+            )
+        }
+    }
+
+    private func expansionBinding(for date: Date) -> Binding<Bool> {
+        Binding(
+            get: { expandedDates.contains(date) },
+            set: { isExpanded in
+                if isExpanded {
+                    expandedDates.insert(date)
+                } else {
+                    expandedDates.remove(date)
+                }
+            }
+        )
+    }
+
+    private func selectedVisits(for selection: Set<HistoryTableNode.ID>) -> [HistoryVisit] {
+        let selectedIDs = Set(selection.compactMap(\.visitID))
+        return store.visits.filter { selectedIDs.contains($0.id) }
+    }
+
+    private func sectionTitle(for date: Date, calendar: Calendar) -> String {
+        if calendar.isDateInToday(date) {
+            return "Last Visited Today"
+        }
+        return date.formatted(.dateTime.weekday(.wide).month(.wide).day().year())
+    }
+
+}
+
+private struct HistorySection: Identifiable {
+    let date: Date
+    let title: String
+    let visits: [HistoryVisit]
+
+    var id: Date { date }
+}
+
+private struct HistoryTableNode: Identifiable {
+    enum ID: Hashable {
+        case day(Date)
+        case visit(UUID)
+        case pagination(Int)
+
+        var visitID: UUID? {
+            guard case .visit(let id) = self else { return nil }
+            return id
+        }
+    }
+
+    enum Content {
+        case day(Date, String, Int)
+        case visit(HistoryVisit)
+        case pagination
+    }
+
+    let id: ID
+    let content: Content
+    init(section: HistorySection) {
+        id = .day(section.date)
+        content = .day(section.date, section.title, section.visits.count)
+    }
+
+    init(visit: HistoryVisit) {
+        id = .visit(visit.id)
+        content = .visit(visit)
+    }
+
+    init(loadMoreAfter visitCount: Int) {
+        id = .pagination(visitCount)
+        content = .pagination
+    }
+}
+
+private struct HistorySearchField: NSViewRepresentable {
+    @Binding var text: String
+    @Binding var isFocused: Bool
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(text: $text, isFocused: $isFocused)
+    }
+
+    func makeNSView(context: Context) -> NSSearchField {
+        let searchField = NSSearchField()
+        searchField.placeholderString = "Search"
+        searchField.sendsSearchStringImmediately = true
+        searchField.delegate = context.coordinator
+        return searchField
+    }
+
+    func updateNSView(_ searchField: NSSearchField, context: Context) {
+        if searchField.stringValue != text {
+            searchField.stringValue = text
+        }
+
+        guard isFocused, searchField.window?.firstResponder !== searchField.currentEditor() else {
+            return
+        }
+
+        DispatchQueue.main.async {
+            searchField.window?.makeFirstResponder(searchField)
+        }
+    }
+
+    final class Coordinator: NSObject, NSSearchFieldDelegate {
+        @Binding private var text: String
+        @Binding private var isFocused: Bool
+
+        init(text: Binding<String>, isFocused: Binding<Bool>) {
+            _text = text
+            _isFocused = isFocused
+        }
+
+        func controlTextDidChange(_ notification: Notification) {
+            guard let searchField = notification.object as? NSSearchField else { return }
+            text = searchField.stringValue
+        }
+
+        func controlTextDidBeginEditing(_ notification: Notification) {
+            isFocused = true
+        }
+
+        func controlTextDidEndEditing(_ notification: Notification) {
+            isFocused = false
+        }
+    }
+}

@@ -8,7 +8,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Thanks for reporting a Candoa bug. Please include enough detail for someone else to reproduce it.
+        Thanks for reporting a Talos bug. Please include enough detail for someone else to reproduce it.
   - type: textarea
     id: summary
     attributes:
@@ -23,7 +23,7 @@ body:
       label: Steps to reproduce
       description: Exact steps are best.
       placeholder: |
-        1. Open Candoa
+        1. Open Talos
         2. ...
         3. ...
     validations:
@@ -45,7 +45,7 @@ body:
   - type: input
     id: version
     attributes:
-      label: Candoa version
+      label: Talos version
       placeholder: 0.1.1, commit SHA, or build number
     validations:
       required: false

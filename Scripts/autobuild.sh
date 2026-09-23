@@ -1,5 +1,5 @@
 #!/bin/bash
-# Watches Candoa's Swift sources and rebuilds on every change.
+# Watches Talos's Swift sources and rebuilds on every change.
 #
 #   Scripts/autobuild.sh          # build on change
 #   Scripts/autobuild.sh --run    # build on change, then relaunch the app
@@ -10,13 +10,13 @@
 set -uo pipefail
 
 PROJECT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-SOURCE_DIR="$PROJECT_DIR/Candoa"
+SOURCE_DIR="$PROJECT_DIR/Talos"
 DERIVED_DATA="$PROJECT_DIR/build/DerivedData"
-APP_PATH="$DERIVED_DATA/Build/Products/Debug/Candoa.app"
+APP_PATH="$DERIVED_DATA/Build/Products/Debug/Talos.app"
 RELAUNCH=false
 FSWATCH_BIN="$(command -v fswatch 2>/dev/null || true)"
-CANDOA_PROCESS_NAME="Candoa"
-LOCK_DIR="/tmp/candoa-autobuild.lock"
+TALOS_PROCESS_NAME="Talos"
+LOCK_DIR="/tmp/talos-autobuild.lock"
 
 acquire_lock() {
     if mkdir "$LOCK_DIR" 2>/dev/null; then
@@ -28,7 +28,7 @@ acquire_lock() {
     local existing_pid
     existing_pid="$(cat "$LOCK_DIR/pid" 2>/dev/null || true)"
     if [[ -n "$existing_pid" ]] && kill -0 "$existing_pid" 2>/dev/null; then
-        echo "Candoa autobuild is already running (pid $existing_pid)"
+        echo "Talos autobuild is already running (pid $existing_pid)"
         exit 0
     fi
 
@@ -50,33 +50,33 @@ fi
 
 acquire_lock
 
-is_candoa_running() {
-    pgrep -x "$CANDOA_PROCESS_NAME" >/dev/null 2>&1
+is_talos_running() {
+    pgrep -x "$TALOS_PROCESS_NAME" >/dev/null 2>&1
 }
 
-quit_candoa() {
-    if ! is_candoa_running; then
+quit_talos() {
+    if ! is_talos_running; then
         return 0
     fi
 
-    osascript -e 'tell application "Candoa" to quit' 2>/dev/null || true
+    osascript -e 'tell application "Talos" to quit' 2>/dev/null || true
 
     for _ in {1..40}; do
-        if ! is_candoa_running; then
+        if ! is_talos_running; then
             return 0
         fi
         sleep 0.25
     done
 
-    echo "✗ Candoa is still running; skipping relaunch to avoid duplicate app instances"
+    echo "✗ Talos is still running; skipping relaunch to avoid duplicate app instances"
     return 1
 }
 
-open_candoa() {
+open_talos() {
     for _ in {1..20}; do
         if open "$APP_PATH" >/dev/null 2>&1; then
             for _ in {1..20}; do
-                if is_candoa_running; then
+                if is_talos_running; then
                     return 0
                 fi
                 sleep 0.25
@@ -85,7 +85,7 @@ open_candoa() {
         sleep 0.25
     done
 
-    echo "✗ Failed to reopen Candoa after build"
+    echo "✗ Failed to reopen Talos after build"
     return 1
 }
 
@@ -95,7 +95,7 @@ build() {
     # Branch on xcodebuild's own exit code: piping straight into grep under
     # pipefail reports the build's failure status even when grep matched,
     # which inverted success/failure here.
-    if output=$(xcodebuild -project "$PROJECT_DIR/Candoa.xcodeproj" -scheme Candoa \
+    if output=$(xcodebuild -project "$PROJECT_DIR/Talos.xcodeproj" -scheme Talos \
         -configuration Debug -derivedDataPath "$DERIVED_DATA" build 2>&1); then
         echo "✓ Build succeeded $(date +%H:%M:%S)"
     else
@@ -107,8 +107,8 @@ build() {
     if $RELAUNCH; then
         # Quit cleanly so the session flushes. If the old app is still
         # exiting, do not open a second copy of the rebuilt app.
-        if quit_candoa; then
-            open_candoa
+        if quit_talos; then
+            open_talos
         fi
     fi
 }

@@ -1,0 +1,826 @@
+import AppKit
+import AuthenticationServices
+import Foundation
+import SwiftUI
+
+@MainActor
+final class UserStore: ObservableObject {
+    @Published private(set) var status: AccountStatus?
+    /// When the current `status` was last fetched from Talos Cloud, so the
+    /// subscription surface can state how fresh its usage numbers are.
+    @Published private(set) var statusLastUpdated: Date?
+    @Published private(set) var isWorking = false
+    @Published private(set) var isStartingSubscription = false
+    @Published private(set) var isAwaitingSubscriptionActivation = false
+    @Published private(set) var isReconcilingSubscription = false
+    @Published private(set) var isSigningInWithApple = false
+    @Published private(set) var errorMessage: String?
+    @Published private(set) var subscriptionErrorMessage: String?
+    @Published private(set) var accountMessage: String?
+    @Published private(set) var isSignedIn: Bool
+    @Published private(set) var hasCloudSession: Bool
+    @Published private(set) var isLocalOnly: Bool
+    @Published private(set) var hasCompletedAccountChoice: Bool
+    @Published private(set) var signOutGeneration = 0
+    /// Hosted model catalog for the signed-in account, fetched on demand when
+    /// the Ask settings surface appears; empty when Cloud is unreachable.
+    @Published private(set) var hostedModels: [AIModel] = []
+
+    private let accountService: AccountService
+    private let appleSignInService: AppleSignInService
+    private var unauthorizedObserver: NotificationToken?
+    var hasActiveSubscription: Bool { status?.hasActiveSubscription == true }
+
+    /// Owns a block-based NotificationCenter registration and unregisters it
+    /// when released, so a MainActor class can drop the observation from its
+    /// nonisolated deinit via plain ARC.
+    private final class NotificationToken {
+        private let token: any NSObjectProtocol
+
+        init(_ token: any NSObjectProtocol) {
+            self.token = token
+        }
+
+        deinit {
+            NotificationCenter.default.removeObserver(token)
+        }
+    }
+
+    static var hasStoredAccountChoice: Bool {
+#if DEBUG
+        if isUITesting { return uiTestingAccountChoice }
+#endif
+        return UserDefaults.standard.bool(forKey: accountChoiceKey)
+    }
+
+    /// Whether this Mac already has an account decision (a stored Cloud
+    /// session or an explicit local-only choice). Lets callers avoid reading
+    /// the account keychain directly.
+    static var hasStoredAccountDecision: Bool {
+        AccountKeychain.accessToken != nil || hasStoredAccountChoice
+    }
+
+    private static let accountChoiceKey = "Talos.HasCompletedAccountChoice"
+    /// Whether the stored Cloud session belonged to an Apple-linked account.
+    /// The token itself cannot answer that after the server rejects it, and
+    /// the distinction decides how an expired session recovers: an anonymous
+    /// session is quietly re-minted, an Apple-linked one must ask the person
+    /// to sign back in.
+    private static let appleLinkedSessionKey = "Talos.HasAppleLinkedSession"
+
+#if DEBUG
+    // UI tests must not read or write the real defaults domain: a choice made
+    // by the person using this Mac (or leaked from an earlier test) would
+    // change which onboarding steps appear. Per-launch state keeps each test
+    // process clean.
+    private static var uiTestingAccountChoice = false
+#endif
+
+    // UI-testing fixtures are compiled out of release builds so the shipping
+    // binary cannot be nudged into a fake account state via the environment.
+    private static var isUITesting: Bool {
+#if DEBUG
+        ProcessInfo.processInfo.environment["TALOS_UI_TESTING"] == "1"
+#else
+        false
+#endif
+    }
+
+    private static func uiTestingFlag(_ key: String) -> Bool {
+#if DEBUG
+        ProcessInfo.processInfo.environment[key] == "1"
+#else
+        false
+#endif
+    }
+
+    private static var uiTestingFixture: String? {
+#if DEBUG
+        guard isUITesting else { return nil }
+        return ProcessInfo.processInfo.environment["TALOS_UI_TESTING_FIXTURE"]
+#else
+        return nil
+#endif
+    }
+
+    /// Deterministic subscription states for UI tests: a healthy plan with
+    /// partial usage, and one that needs attention (past due, scheduled to
+    /// cancel, out of credits).
+    private static var subscriptionFixtureStatus: AccountStatus? {
+        let periodEnd = Date(timeIntervalSinceNow: 9 * 24 * 60 * 60)
+        switch uiTestingFixture {
+        case "subscription-usage":
+            return AccountStatus(
+                hasAppleAccount: true,
+                planID: "pro",
+                allowedModelIDs: ["openai/gpt-5"],
+                credits: AccountCredits(
+                    monthlyAllowance: 6_000,
+                    availableCredits: 1_900,
+                    periodEnd: periodEnd
+                ),
+                subscription: AccountSubscription(
+                    status: "active",
+                    currentPeriodEnd: periodEnd
+                )
+            )
+        case "subscription-attention":
+            return AccountStatus(
+                hasAppleAccount: true,
+                planID: "pro",
+                allowedModelIDs: ["openai/gpt-5"],
+                credits: AccountCredits(
+                    monthlyAllowance: 6_000,
+                    availableCredits: 0,
+                    periodEnd: periodEnd
+                ),
+                subscription: AccountSubscription(
+                    status: "past_due",
+                    currentPeriodEnd: periodEnd,
+                    cancelAtPeriodEnd: true
+                )
+            )
+        default:
+            return nil
+        }
+    }
+
+    init(
+        accountService: AccountService = AccountService(),
+        appleSignInService: AppleSignInService = AppleSignInService()
+    ) {
+        self.accountService = accountService
+        self.appleSignInService = appleSignInService
+        let hasStoredToken = accountService.accessToken != nil
+        isSignedIn = false
+        hasCloudSession = hasStoredToken
+        isLocalOnly = false
+        hasCompletedAccountChoice = Self.isUITesting
+            ? false
+            : hasStoredToken || Self.hasStoredAccountChoice
+        isWorking = Self.isUITesting ? false : hasStoredToken
+
+        // Eli chat and the browser agent talk to Cloud without a reference to
+        // this store; a 401 there posts this signal. Re-validate the stored
+        // session against the server rather than trusting the post, so a
+        // spurious notification cannot sign anyone out. Cloud can answer off
+        // the main thread, so the observation marshals onto the main queue.
+        unauthorizedObserver = NotificationToken(
+            NotificationCenter.default.addObserver(
+                forName: .cloudSessionUnauthorized,
+                object: nil,
+                queue: .main
+            ) { [weak self] _ in
+                MainActor.assumeIsolated {
+                    guard let self, !self.isWorking else { return }
+                    Task {
+                        await self.refresh()
+                    }
+                }
+            }
+        )
+    }
+
+    func restoreSessionIfNeeded() async {
+        guard !Self.isUITesting else { return }
+        guard accountService.accessToken != nil else {
+            isWorking = false
+            isSignedIn = false
+            hasCloudSession = false
+            if Self.hadAppleLinkedSession {
+                // The Apple-linked token is gone (keychain reset or an expiry
+                // handled without persisting the choice reset). Ask the
+                // person to sign back in rather than silently replacing
+                // their account with a fresh anonymous one.
+                Self.setAppleLinkedSession(false)
+                clearAccountChoice()
+                isLocalOnly = false
+                errorMessage = String(
+                    localized: "Your Talos session has expired. Sign in with Apple to restore your account."
+                )
+                return
+            }
+            isLocalOnly = hasCompletedAccountChoice
+            if hasCompletedAccountChoice {
+                await createAnonymousSession()
+            }
+            return
+        }
+        await refresh()
+    }
+
+    func continueOnThisMac() {
+        Task {
+            await createAnonymousSession()
+        }
+    }
+
+    func signInWithApple() {
+        Task {
+            await authenticateWithApple()
+        }
+    }
+
+    func handleAppleSignInCallback(_ url: URL) -> Bool {
+        appleSignInService.handleCallbackURL(url)
+    }
+
+    func refresh() async {
+        if let fixtureStatus = Self.subscriptionFixtureStatus {
+            status = fixtureStatus
+            statusLastUpdated = Date()
+            isWorking = false
+            isSignedIn = true
+            hasCloudSession = true
+            isLocalOnly = false
+            errorMessage = nil
+            return
+        }
+        if Self.uiTestingFixture == "account-session-expired" {
+            // Deterministic expired-Apple-session state: the server rejected
+            // the stored token, so the account gate is owed a return visit
+            // and settings must offer sign-in rather than a doomed retry.
+            status = nil
+            statusLastUpdated = nil
+            isWorking = false
+            isSignedIn = false
+            hasCloudSession = false
+            isLocalOnly = false
+            clearAccountChoice()
+            errorMessage = String(
+                localized: "Your Talos session has expired. Sign in with Apple to restore your account."
+            )
+            return
+        }
+        if Self.uiTestingFixture == "ask-cloud-unavailable" {
+            status = nil
+            isWorking = false
+            isSignedIn = false
+            hasCloudSession = true
+            isLocalOnly = false
+            errorMessage = String(localized: "Could not connect to the local Talos Cloud.")
+            return
+        }
+
+        // Returning from ASWebAuthenticationSession activates the app before
+        // the Apple code exchange has necessarily finished. Ignore that scene
+        // refresh so it cannot overwrite the in-flight sign-in state.
+        guard !isSigningInWithApple else { return }
+        guard let accessToken = accountService.accessToken else {
+            status = nil
+            isSignedIn = false
+            hasCloudSession = false
+            return
+        }
+
+        isWorking = true
+        defer {
+            if !isSigningInWithApple {
+                isWorking = false
+            }
+        }
+        do {
+            let session = try await accountService.session(accessToken: accessToken)
+            let refreshedStatus = try await accountService.accountStatus(
+                accessToken: accessToken
+            )
+            guard !isSigningInWithApple,
+                  accountService.accessToken == accessToken else {
+                return
+            }
+            apply(session: session)
+            status = refreshedStatus
+            statusLastUpdated = Date()
+            errorMessage = nil
+        } catch {
+            guard !isSigningInWithApple,
+                  accountService.accessToken == accessToken else {
+                return
+            }
+            if (error as? AccountError)?.isAuthenticationFailure == true {
+                handleAuthenticationFailure()
+                return
+            }
+            // A network or server blip is not a sign-out: keep the last known
+            // account status so the session stays usable, and surface a
+            // retryable error instead.
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    /// The server rejected the stored token, so the session is expired or
+    /// revoked — not a blip. What recovery looks like depends on whose
+    /// session it was: an anonymous session is re-minted quietly (it carries
+    /// no identity worth interrupting anyone over), while an Apple-linked
+    /// account mirrors sign-out so the person is told and the next launch
+    /// returns to the account gate instead of silently downgrading them to a
+    /// fresh anonymous user with no subscription.
+    private func handleAuthenticationFailure() {
+        status = nil
+        statusLastUpdated = nil
+        try? accountService.removeAccessToken()
+        isSignedIn = false
+        hasCloudSession = false
+
+        if Self.hadAppleLinkedSession {
+            Self.setAppleLinkedSession(false)
+            clearAccountChoice()
+            isLocalOnly = false
+            errorMessage = String(
+                localized: "Your Talos session has expired. Sign in with Apple to restore your account."
+            )
+            return
+        }
+
+        isLocalOnly = hasCompletedAccountChoice
+        errorMessage = nil
+        if hasCompletedAccountChoice {
+            // Deferred so createAnonymousSession's isWorking guard sees the
+            // refresh that called us fully unwound.
+            Task {
+                await self.createAnonymousSession()
+            }
+        }
+    }
+
+    /// Retries a session refresh that previously failed without touching a
+    /// healthy session. Called from user-visible activation points (app
+    /// becoming active, settings retry) — never from a timer. Keyed on the
+    /// stored token, not `hasCloudSession`: a failed refresh may already have
+    /// dropped the published flag while the token is still worth retrying.
+    func recoverSessionIfNeeded() async {
+        guard status == nil, !isWorking,
+              accountService.accessToken != nil else {
+            return
+        }
+        await refresh()
+    }
+
+    func refreshHostedModels() async {
+        if Self.isUITesting {
+#if DEBUG
+            // Deterministic hosted catalog (with credit costs) for UI tests,
+            // mirroring TALOS_UI_TESTING_DIRECT_MODELS for the BYOK picker.
+            if let json = ProcessInfo.processInfo
+                .environment["TALOS_UI_TESTING_HOSTED_MODELS"],
+               let data = json.data(using: .utf8),
+               let models = try? JSONDecoder().decode([AIModel].self, from: data) {
+                hostedModels = models
+                return
+            }
+#endif
+            hostedModels = (status?.allowedModelIDs ?? []).map {
+                AIModelCatalog.hostedModel(id: $0, providerID: "", displayName: $0)
+            }
+            return
+        }
+        guard let accessToken = accountService.accessToken else {
+            hostedModels = []
+            return
+        }
+        if let models = try? await accountService.hostedAIModels(accessToken: accessToken) {
+            hostedModels = models
+        }
+    }
+
+    func startProCheckout() async {
+        guard !isStartingSubscription else { return }
+
+        isStartingSubscription = true
+        defer { isStartingSubscription = false }
+        subscriptionErrorMessage = nil
+
+        if Self.uiTestingFlag("TALOS_UI_TESTING_CHECKOUT_FAILURE") {
+            isWorking = true
+            await Task.yield()
+            isWorking = false
+            subscriptionErrorMessage = String(localized: "Talos checkout is temporarily unavailable.")
+            return
+        }
+        if Self.uiTestingFlag("TALOS_UI_TESTING_CHECKOUT_SUCCESS") {
+            isAwaitingSubscriptionActivation = true
+            isReconcilingSubscription = true
+            await Task.yield()
+            try? await Task.sleep(for: .seconds(2))
+            status = AccountStatus(
+                hasAppleAccount: true,
+                planID: "pro",
+                allowedModelIDs: ["openai/gpt-5"]
+            )
+            statusLastUpdated = Date()
+            isSignedIn = true
+            hasCloudSession = true
+            isLocalOnly = false
+            isAwaitingSubscriptionActivation = false
+            isReconcilingSubscription = false
+            accountMessage = String(localized: "Your Talos subscription is active.")
+            return
+        }
+
+        if status?.hasAppleAccount != true {
+            await authenticateWithApple()
+        }
+        guard isSignedIn, status?.hasAppleAccount == true else {
+            subscriptionErrorMessage = errorMessage
+                ?? String(localized: "Sign in with Apple before subscribing.")
+            return
+        }
+
+        await refresh()
+        guard isSignedIn, status?.hasAppleAccount == true else {
+            subscriptionErrorMessage = errorMessage
+                ?? String(localized: "Talos couldn’t verify your account before checkout.")
+            return
+        }
+        if hasActiveSubscription {
+            isAwaitingSubscriptionActivation = false
+            accountMessage = String(localized: "Your Talos subscription is active.")
+            return
+        }
+
+        let didOpenCheckout = await openBillingURL(
+            failureMessage: String(localized: "Talos couldn’t open checkout. Please try again.")
+        ) { accessToken in
+            try await accountService.proCheckoutURL(accessToken: accessToken)
+        }
+        if didOpenCheckout {
+            isAwaitingSubscriptionActivation = true
+            return
+        }
+
+        // The server may have accepted Stripe's webhook after the preflight
+        // refresh but before this Checkout request. Reconcile once so a stale
+        // Subscribe action becomes the active plan instead of an error.
+        await refresh()
+        if hasActiveSubscription {
+            isAwaitingSubscriptionActivation = false
+            subscriptionErrorMessage = nil
+            accountMessage = String(localized: "Your Talos subscription is active.")
+        }
+    }
+
+    func openBillingPortal() async {
+        _ = await openBillingURL { accessToken in
+            try await accountService.billingPortalURL(accessToken: accessToken)
+        }
+    }
+
+    func reconcilePendingSubscriptionIfNeeded(for url: URL? = nil) async {
+        guard isAwaitingSubscriptionActivation, !isReconcilingSubscription else { return }
+
+        if let url, Self.isBillingCancellationURL(url) {
+            isAwaitingSubscriptionActivation = false
+            subscriptionErrorMessage = nil
+            return
+        }
+
+        if url == nil {
+            // Becoming active after opening Checkout usually means the person
+            // returned to Talos or closed the payment page. Check once for a
+            // webhook that already arrived, then restore the Subscribe action
+            // instead of showing a long confirmation loop for a canceled flow.
+            isReconcilingSubscription = true
+            defer { isReconcilingSubscription = false }
+            subscriptionErrorMessage = nil
+            await refresh()
+            if hasActiveSubscription {
+                isAwaitingSubscriptionActivation = false
+                accountMessage = String(localized: "Your Talos subscription is active.")
+            } else {
+                isAwaitingSubscriptionActivation = false
+            }
+            return
+        }
+
+        guard let url, Self.isBillingSuccessURL(url) else {
+            return
+        }
+
+        isReconcilingSubscription = true
+        defer { isReconcilingSubscription = false }
+        subscriptionErrorMessage = nil
+
+        // Stripe redirects before its signed webhook is guaranteed to have
+        // reached Cloud. Retry only for this pending checkout and then stop.
+        for delay in [0, 1, 2, 4, 8, 15] {
+            if delay > 0 {
+                do {
+                    try await Task.sleep(nanoseconds: UInt64(delay) * 1_000_000_000)
+                } catch {
+                    return
+                }
+            }
+
+            await refresh()
+            if hasActiveSubscription {
+                isAwaitingSubscriptionActivation = false
+                subscriptionErrorMessage = nil
+                accountMessage = String(localized: "Your Talos subscription is active.")
+                return
+            }
+        }
+
+        subscriptionErrorMessage =
+            String(localized: "Talos is still confirming your subscription. Try again in a moment.")
+    }
+
+    func signOut() {
+        let accessToken = accountService.accessToken
+        try? accountService.removeAccessToken()
+        isSignedIn = false
+        hasCloudSession = false
+        isLocalOnly = false
+        isAwaitingSubscriptionActivation = false
+        isReconcilingSubscription = false
+        Self.setAppleLinkedSession(false)
+        clearAccountChoice()
+        status = nil
+        statusLastUpdated = nil
+        errorMessage = nil
+        subscriptionErrorMessage = nil
+        accountMessage = nil
+        signOutGeneration &+= 1
+        if let accessToken {
+            Task {
+                try? await accountService.signOut(accessToken: accessToken)
+            }
+        }
+    }
+
+    private func openBillingURL(
+        failureMessage: String? = nil,
+        _ operation: (String) async throws -> URL
+    ) async -> Bool {
+        guard hasCloudSession, let accessToken = accountService.accessToken else {
+            errorMessage = String(localized: "Talos couldn’t find your account on this Mac.")
+            subscriptionErrorMessage = failureMessage ?? errorMessage
+            return false
+        }
+
+        isWorking = true
+        do {
+            let billingURL = try await operation(accessToken)
+            isWorking = false
+            errorMessage = nil
+            subscriptionErrorMessage = nil
+            openInDefaultBrowser(billingURL)
+            return true
+        } catch {
+            isWorking = false
+            errorMessage = error.localizedDescription
+            subscriptionErrorMessage = failureMessage
+            return false
+        }
+    }
+
+    private func openInDefaultBrowser(_ url: URL) {
+        DispatchQueue.global(qos: .userInitiated).async {
+            let configuration = NSWorkspace.OpenConfiguration()
+            configuration.activates = true
+            NSWorkspace.shared.open(url, configuration: configuration)
+        }
+    }
+
+    private func createAnonymousSession() async {
+        guard !isWorking else { return }
+
+        if Self.isUITesting {
+            markAccountChoiceCompleted()
+            isSignedIn = false
+            isLocalOnly = true
+            errorMessage = nil
+            return
+        }
+
+        isWorking = true
+        errorMessage = nil
+        defer { isWorking = false }
+
+        do {
+            if let accessToken = accountService.accessToken {
+                try await loadSession(accessToken: accessToken)
+                guard hasCloudSession, isLocalOnly else {
+                    throw AccountError.invalidResponse
+                }
+                markAccountChoiceCompleted()
+                return
+            }
+            let accessToken = try await accountService.signInAnonymously()
+            try accountService.saveAccessToken(accessToken)
+            try await loadSession(accessToken: accessToken)
+            guard hasCloudSession, isLocalOnly, !isSignedIn else {
+                throw AccountError.invalidResponse
+            }
+            markAccountChoiceCompleted()
+        } catch {
+            try? accountService.removeAccessToken()
+            hasCloudSession = false
+            isSignedIn = false
+            // "Not Now" is a decision, not a request: an offline first run
+            // must not stay stuck on the blocking account step because the
+            // anonymous sign-in couldn't reach the server. Record the
+            // local-only choice and advance; the next launch quietly retries
+            // the anonymous session (start() recreates it whenever a choice
+            // exists without a stored token).
+            isLocalOnly = true
+            errorMessage = nil
+            markAccountChoiceCompleted()
+        }
+    }
+
+    private func authenticateWithApple() async {
+        guard !isSigningInWithApple, !isWorking else { return }
+
+        if Self.uiTestingFlag("TALOS_UI_TESTING_APPLE_SUCCESS") {
+            isSignedIn = true
+            isLocalOnly = false
+            hasCloudSession = true
+            Self.setAppleLinkedSession(true)
+            status = AccountStatus(
+                hasAppleAccount: true,
+                planID: status?.planID ?? "free",
+                allowedModelIDs: status?.allowedModelIDs ?? []
+            )
+            statusLastUpdated = Date()
+            markAccountChoiceCompleted()
+            errorMessage = nil
+            accountMessage = String(localized: "You’re signed in with Apple.")
+            return
+        }
+
+        isSigningInWithApple = true
+        isWorking = true
+        errorMessage = nil
+        accountMessage = nil
+        let previousAccessToken = accountService.accessToken
+        defer {
+            isSigningInWithApple = false
+            isWorking = false
+        }
+
+        do {
+            // A local-only account is still an authenticated Better Auth
+            // session. Preserve that account (and any subscription attached to
+            // it) by explicitly linking Apple whenever a session token exists.
+            let shouldLinkExistingAccount = previousAccessToken != nil
+            let code = try await appleAuthorizationCode(
+                linkingAccessToken: shouldLinkExistingAccount ? previousAccessToken : nil
+            )
+            let accessToken = try await accountService.exchangeAppleSignInCode(code)
+            let session: CloudSession
+            let refreshedStatus: AccountStatus
+            do {
+                session = try await accountService.session(accessToken: accessToken)
+                refreshedStatus = try await accountService.accountStatus(
+                    accessToken: accessToken
+                )
+                guard !session.user.isAnonymous, refreshedStatus.hasAppleAccount else {
+                    throw AccountError.invalidResponse
+                }
+            } catch {
+                // The exchange already created a server session. Revoke it so
+                // a failed validation doesn't strand a live session this Mac
+                // holds no token for.
+                try? await accountService.signOut(accessToken: accessToken)
+                throw error
+            }
+
+            if let previousAccessToken, previousAccessToken != accessToken {
+                try? await accountService.signOut(accessToken: previousAccessToken)
+            }
+            try accountService.saveAccessToken(accessToken)
+            apply(session: session)
+            status = refreshedStatus
+            statusLastUpdated = Date()
+
+            markAccountChoiceCompleted()
+            errorMessage = nil
+            accountMessage = hasActiveSubscription
+                ? String(localized: "Your Talos subscription has been restored.")
+                : String(localized: "You’re signed in with Apple.")
+        } catch {
+            if Self.isAppleSignInCancellation(error) {
+                errorMessage = nil
+            } else {
+                errorMessage = error.localizedDescription
+            }
+        }
+    }
+
+    private func appleAuthorizationCode(
+        linkingAccessToken: String?
+    ) async throws -> String {
+        let authorizationURL = try await accountService.appleSignInURL(
+            accessToken: linkingAccessToken
+        )
+        do {
+            return try await appleSignInService.authenticate(at: authorizationURL)
+        } catch AccountError.appleAccountAlreadyLinked
+            where linkingAccessToken != nil {
+            // The temporary local account cannot claim an Apple identity that
+            // already belongs to a Talos account. Restore that existing
+            // account instead, then discard the superseded anonymous session.
+            let signInURL = try await accountService.appleSignInURL(accessToken: nil)
+            return try await appleSignInService.authenticate(at: signInURL)
+        }
+    }
+
+    private func loadSession(accessToken: String) async throws {
+        let session = try await accountService.session(accessToken: accessToken)
+        apply(session: session)
+    }
+
+    private func apply(session: CloudSession) {
+        hasCloudSession = true
+        isLocalOnly = session.user.isAnonymous
+        isSignedIn = !session.user.isAnonymous
+        Self.setAppleLinkedSession(!session.user.isAnonymous)
+    }
+
+    private func refreshAccountStatus(accessToken: String) async throws {
+        status = try await accountService.accountStatus(accessToken: accessToken)
+    }
+
+    private func markAccountChoiceCompleted() {
+#if DEBUG
+        if Self.isUITesting {
+            Self.uiTestingAccountChoice = true
+            hasCompletedAccountChoice = true
+            return
+        }
+#endif
+        UserDefaults.standard.set(true, forKey: Self.accountChoiceKey)
+        hasCompletedAccountChoice = true
+    }
+
+    private func clearAccountChoice() {
+        hasCompletedAccountChoice = false
+#if DEBUG
+        if Self.isUITesting {
+            Self.uiTestingAccountChoice = false
+            return
+        }
+#endif
+        UserDefaults.standard.removeObject(forKey: Self.accountChoiceKey)
+    }
+
+    private static var hadAppleLinkedSession: Bool {
+#if DEBUG
+        if isUITesting { return uiTestingAppleLinkedSession }
+#endif
+        return UserDefaults.standard.bool(forKey: appleLinkedSessionKey)
+    }
+
+    private static func setAppleLinkedSession(_ isAppleLinked: Bool) {
+#if DEBUG
+        if isUITesting {
+            uiTestingAppleLinkedSession = isAppleLinked
+            return
+        }
+#endif
+        if isAppleLinked {
+            UserDefaults.standard.set(true, forKey: appleLinkedSessionKey)
+        } else {
+            UserDefaults.standard.removeObject(forKey: appleLinkedSessionKey)
+        }
+    }
+
+#if DEBUG
+    private static var uiTestingAppleLinkedSession = false
+#endif
+
+    private static func isBillingSuccessURL(_ url: URL) -> Bool {
+        guard url.path == "/billing/success" else { return false }
+        switch url.host(percentEncoded: false)?.lowercased() {
+        case "talos-browser.app", "talos-browser.app", "localhost", "127.0.0.1":
+            return true
+        default:
+            return false
+        }
+    }
+
+    private static func isBillingCancellationURL(_ url: URL) -> Bool {
+        guard let components = URLComponents(
+            url: url,
+            resolvingAgainstBaseURL: false
+        ),
+        components.queryItems?.contains(where: {
+            $0.name == "billing" && $0.value == "cancelled"
+        }) == true else {
+            return false
+        }
+
+        switch url.host(percentEncoded: false)?.lowercased() {
+        case "talos-browser.app", "talos-browser.app", "localhost", "127.0.0.1":
+            return true
+        default:
+            return false
+        }
+    }
+
+    private static func isAppleSignInCancellation(_ error: any Error) -> Bool {
+        let error = error as NSError
+        return error.domain == ASWebAuthenticationSessionError.errorDomain
+            && error.code == ASWebAuthenticationSessionError.canceledLogin.rawValue
+    }
+}

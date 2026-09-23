@@ -1,0 +1,220 @@
+import AppKit
+import Foundation
+import SwiftUI
+
+extension BrowserStore {
+    func focusAddressBar() {
+        guard !isInitialOnboardingBlockingBrowsing else { return }
+
+        if isCommandPalettePresented {
+            dismissCommandPalette()
+            return
+        }
+
+        let activeURL = activeTab?.url
+        commandPaletteInitialText = activeURL?.absoluteString ?? ""
+        commandPaletteResumeQuery = activeURL.flatMap(navigationService.searchQuery(from:)) ?? ""
+        commandPaletteSessionID = UUID()
+        commandPalettePrefersCurrentTabNavigation = true
+        commandPaletteOpensNewTab = false
+        presentCommandPalette()
+        addressFocusRequestID = UUID()
+    }
+
+    /// The palette for a freshly opened split pane: empty, and committed to
+    /// the active pane rather than a new tab, so the pick lands in the pane
+    /// that was just made instead of replacing what the person was reading.
+    func openCommandPaletteForActivePane() {
+        guard !isInitialOnboardingBlockingBrowsing else { return }
+
+        commandPaletteInitialText = ""
+        commandPaletteResumeQuery = ""
+        commandPaletteSessionID = UUID()
+        commandPalettePrefersCurrentTabNavigation = true
+        commandPaletteOpensNewTab = false
+        presentCommandPalette()
+        addressFocusRequestID = UUID()
+    }
+
+    /// Split With…: the keyboard route to what dragging a sidebar tab onto
+    /// the page does. The palette lists the Space's other tabs; picking one
+    /// adds it beside the focused pane, and a typed address opens in a new
+    /// pane instead. Nothing to split from (no active tab) means nothing to
+    /// offer, so the palette stays closed.
+    func openSplitWithCommandPalette() {
+        guard !isInitialOnboardingBlockingBrowsing, activeTabID != nil else { return }
+
+        commandPaletteInitialText = ""
+        commandPaletteResumeQuery = ""
+        commandPaletteSessionID = UUID()
+        commandPalettePrefersCurrentTabNavigation = false
+        commandPaletteOpensNewTab = false
+        commandPaletteSplitsWithSelection = true
+        presentCommandPalette()
+        addressFocusRequestID = UUID()
+    }
+
+    /// Splits with a typed address: a fresh pane beside the focused one,
+    /// loading the entry — the same two steps ⌘\ then typing would take.
+    func splitActivePane(navigatingTo input: String) {
+        guard let previousActiveID = activeTabID else { return }
+        openSplitView(with: nil)
+        guard
+            isSplitViewDisplayed,
+            let blankID = splitGroupTabIDs().last,
+            blankID != previousActiveID
+        else { return }
+        applySplitGroup(splitGroupTabIDs(), activeID: blankID)
+        updateNavigationState()
+        navigateActiveTab(to: input)
+    }
+
+    func requestAISidebarToggle() {
+        aiSidebarToggleRequestID = UUID()
+    }
+
+    func focusSidebarAddressBar() {
+        guard !isInitialOnboardingBlockingBrowsing else { return }
+
+        if isCommandPalettePresented {
+            dismissCommandPalette()
+            return
+        }
+
+        let activeURL = activeTab?.url
+        commandPaletteInitialText = activeURL?.absoluteString ?? ""
+        commandPaletteResumeQuery = activeURL.flatMap(navigationService.searchQuery(from:)) ?? ""
+        commandPaletteSessionID = UUID()
+        commandPalettePrefersCurrentTabNavigation = true
+        commandPaletteOpensNewTab = false
+        presentCommandPalette()
+        addressFocusRequestID = UUID()
+    }
+
+    func setDeveloperMode(_ isEnabled: Bool, for url: URL) {
+        DeveloperModeConfiguration.setEnabled(isEnabled, for: url)
+    }
+
+    func setSitePermission(
+        _ decision: SitePermissionDecision,
+        for permission: SitePermission,
+        url: URL
+    ) {
+        SitePermissionConfiguration.setDecision(decision, for: permission, url: url)
+    }
+
+    func resetSitePermissions(for url: URL) {
+        SitePermissionConfiguration.resetDecisions(for: url)
+    }
+
+    func siteSecuritySummary(for tabID: UUID?) -> SiteSecuritySummary? {
+        guard let tabID else { return nil }
+        return webCoordinator.siteSecuritySummary(forTabID: tabID)
+    }
+
+    func openCommandPalette() {
+        guard !isInitialOnboardingBlockingBrowsing else { return }
+
+        // Same toggle the address-bar shortcut uses: the key that opened the
+        // palette closes it again.
+        if isCommandPalettePresented {
+            dismissCommandPalette()
+            return
+        }
+
+        commandPaletteInitialText = ""
+        commandPaletteResumeQuery = ""
+        commandPaletteSessionID = UUID()
+        commandPalettePrefersCurrentTabNavigation = false
+        commandPaletteOpensNewTab = false
+        presentCommandPalette()
+    }
+
+    /// The new-tab gesture (⌘T, the sidebar's New Tab affordances),
+    /// honoring the General pane's "New tabs open with" choice. The command
+    /// bar is Talos's native flow and the default; Homepage and Empty Page
+    /// are the Safari behaviors that make sense without a tab bar.
+    func openNewTab() {
+        guard !isInitialOnboardingBlockingBrowsing else { return }
+
+        switch NewTabPreference.current {
+        case .commandBar:
+            openNewTabCommandPalette()
+        case .homepage:
+            guard let url = HomepagePreference.url else {
+                openNewTabCommandPalette()
+                return
+            }
+            _ = newTab(url: url)
+        case .emptyPage:
+            newEmptyTab()
+        }
+    }
+
+    /// A private window opens on its explainer card with nothing loaded, so
+    /// it starts the way Safari's does: command bar up, ready for the first
+    /// address. Only for the empty window it opened with — a private window
+    /// that already has tabs is left as the person left it.
+    func openPrivateWindowCommandBarIfNeeded() {
+        guard isPrivate, tabs.isEmpty, !isCommandPalettePresented else { return }
+        openNewTabCommandPalette()
+    }
+
+    func openNewTabCommandPalette() {
+        guard !isInitialOnboardingBlockingBrowsing else { return }
+
+        commandPaletteInitialText = ""
+        commandPaletteResumeQuery = ""
+        commandPaletteSessionID = UUID()
+        commandPalettePrefersCurrentTabNavigation = false
+        commandPaletteOpensNewTab = true
+        presentCommandPalette()
+    }
+
+    /// Presentation animates; dismissal deliberately does not. An animated
+    /// removal keeps the palette in the hierarchy for the transition's
+    /// duration, and a committed command's web view swap landing in that
+    /// window interrupts the transition — stranding an invisible palette
+    /// that swallows every mouse click until ⌘T is pressed again.
+    func presentCommandPalette() {
+        guard !isCommandPalettePresented else { return }
+
+        withAnimation(.easeOut(duration: 0.14)) {
+            isCommandPalettePresented = true
+        }
+    }
+
+    func dismissCommandPalette() {
+        isCommandPalettePresented = false
+        commandPalettePrefersCurrentTabNavigation = false
+        commandPaletteOpensNewTab = false
+        commandPaletteSplitsWithSelection = false
+
+        // The palette's TextField unmounts while the window's field editor is
+        // still bound to it. Without an explicit hand-back the orphaned field
+        // editor stays first responder and the window drops mouse events.
+        if let window = NSApp.keyWindow {
+            window.endEditing(for: nil)
+            window.makeFirstResponder(nil)
+        }
+
+        // Hand the page keyboard focus once the palette's TextField has actually
+        // unmounted — claiming it here would be undone by that unmount.
+        DispatchQueue.main.async { [weak self] in
+            self?.webCoordinator.focusActiveWebViewIfIdle()
+        }
+    }
+
+    /// Arc-style ⌘T: no tab exists yet — the sidebar's New Tab button takes
+    /// the selection highlight while the palette is open, and the real tab is
+    /// only created when a result is picked.
+    var isNewTabPaletteActive: Bool {
+        isCommandPalettePresented && commandPaletteOpensNewTab
+    }
+
+    func consumeCommandPaletteNewTabIntent() -> Bool {
+        let opensNewTab = commandPaletteOpensNewTab
+        commandPaletteOpensNewTab = false
+        return opensNewTab
+    }
+}

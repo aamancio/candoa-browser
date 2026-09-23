@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """Verify string-catalog coverage for compiler-extracted localizable strings.
 
-The Candoa app target builds with SWIFT_EMIT_LOC_STRINGS, so every string
+The Talos app target builds with SWIFT_EMIT_LOC_STRINGS, so every string
 literal the compiler treats as localizable (Text, Label, Button,
 String(localized:), ...) is written to a .stringsdata file in DerivedData.
 This check fails when any extracted string is missing from
-Candoa/Resources/Localizable.xcstrings, which is how uncataloged user-facing
+Talos/Resources/Localizable.xcstrings, which is how uncataloged user-facing
 copy would otherwise ship.
 
 Usage: check-localization.py [--fix] [derived-data-path]
@@ -26,8 +26,8 @@ import pathlib
 import sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-CATALOG = ROOT / "Candoa" / "Resources" / "Localizable.xcstrings"
-APP_BUILD_DIR_NAME = "Candoa.build"
+CATALOG = ROOT / "Talos" / "Resources" / "Localizable.xcstrings"
+APP_BUILD_DIR_NAME = "Talos.build"
 
 # The MVP ships these translations (issue #27); en is the source language.
 MVP_LOCALES = ["es", "fr", "de", "ja", "zh-Hans", "pt-BR"]
@@ -91,7 +91,7 @@ def main() -> int:
     for table in sorted(unknown_tables):
         fail(
             f"Strings were extracted into unexpected table {table!r}; "
-            "Candoa catalogs all user-facing copy in Localizable.xcstrings."
+            "Talos catalogs all user-facing copy in Localizable.xcstrings."
         )
 
     stale = catalog_keys - extracted_keys

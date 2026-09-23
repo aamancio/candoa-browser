@@ -4,7 +4,7 @@
 # Usage: ./open-tabs.sh "Brave Browser"
 #        ./open-tabs.sh Arc
 #
-# Note: if a browser is not registered as an http(s) handler (early Candoa
+# Note: if a browser is not registered as an http(s) handler (early Talos
 # builds may not be), open the URLs manually instead — what matters is that
 # every browser ends up with the identical tab set.
 set -euo pipefail

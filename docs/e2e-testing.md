@@ -1,6 +1,6 @@
 # E2E Testing: the Manual Native macOS Lane
 
-How the `CandoaUITests` XCTest UI suite runs in CI, and the environment
+How the `TalosUITests` XCTest UI suite runs in CI, and the environment
 quirks that make tests pass locally but fail on runners (or vice versa).
 Issue #85 tracks the lane's hardening history.
 
@@ -11,22 +11,22 @@ Issue #85 tracks the lane's hardening history.
   so regressions surface without anyone remembering to dispatch it.
 - **Targeted reruns**: dispatch with the `only_testing` input set to
   comma-separated specs (e.g.
-  `CandoaUITests/CandoaUITests/testName`). Targeted dispatches skip the
+  `TalosUITests/TalosUITests/testName`). Targeted dispatches skip the
   quality and build jobs to keep the iteration loop tight.
-- **Locally**: `Scripts/e2e-test.sh`, with `CANDOA_E2E_ONLY_TESTING` for a
-  subset. Note it terminates any running Candoa instance, including an
+- **Locally**: `Scripts/e2e-test.sh`, with `TALOS_E2E_ONLY_TESTING` for a
+  subset. Note it terminates any running Talos instance, including an
   Xcode debug session.
 - **Failure diagnosis**: `Scripts/e2e-failure-summary.sh` prints every
   failure with its message at the end of the CI job log, because tail-based
   log fetching can't reach mid-run failures. The `.xcresult` bundle is also
-  uploaded as the `candoa-e2e-xcresult` artifact.
+  uploaded as the `talos-e2e-xcresult` artifact.
 
 ## Signing on CI
 
 Ad-hoc-signed apps carrying restricted entitlements (iCloud, associated
 domains) are killed by macOS at launch. The CI lane sets
-`CANDOA_E2E_ADHOC_SIGNING=1`, which signs the app against the stripped
-`CandoaCITesting.entitlements` via the `CANDOA_APP_ENTITLEMENTS`
+`TALOS_E2E_ADHOC_SIGNING=1`, which signs the app against the stripped
+`TalosCITesting.entitlements` via the `TALOS_APP_ENTITLEMENTS`
 indirection — overriding `CODE_SIGN_ENTITLEMENTS` directly would also
 sandbox the UI test runner and break XCUITest automation.
 
@@ -48,8 +48,8 @@ first.
   helpers, which verify the palette actually opened and retry.
 - **Outside network.** `testWebsiteAppearanceRendersYouTubeInDarkMode`
   depends on reaching youtube.com from the runner. Everything else uses
-  `https://fixture.candoa.test/...` pages served from
-  `CANDOA_UI_TESTING_PAGE_HTML`, which need no network.
+  `https://fixture.talos.test/...` pages served from
+  `TALOS_UI_TESTING_PAGE_HTML`, which need no network.
 - **Native drag tests are timing-sensitive.** Drags drive a real
   `NSDraggingSession` from synthesized events; press duration, drag
   velocity, and drop-zone settle all matter, and

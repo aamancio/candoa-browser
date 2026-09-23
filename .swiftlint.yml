@@ -1,6 +1,6 @@
 included:
-  - Candoa
-  - CandoaUITests
+  - Talos
+  - TalosUITests
 
 only_rules:
   - colon

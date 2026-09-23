@@ -1,0 +1,1486 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		010000000000000000000101 /* TalosApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000001 /* TalosApp.swift */; };
+		CA76F499B99AC76B2B4EEC0D /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAD04797D6D34FF9826511EF /* AppDelegate.swift */; };
+		CAFD575F360E8589004DC60F /* DevelopMenuStyler.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA2AF3D9CCD4D72BC545D831 /* DevelopMenuStyler.swift */; };
+		CA63E9922D9485412624D82C /* MenuAlternateInstaller.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAFAA465A491152257AB4070 /* MenuAlternateInstaller.swift */; };
+		CA707FE182A25F8B71DC6124 /* BrowserCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = CADA316C62011C0193B77884 /* BrowserCommands.swift */; };
+		CA6FB3CB6C01320443DD3E01 /* BrowserCommandActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAA348F0E336BC80041CE635 /* BrowserCommandActions.swift */; };
+		010000000000000000000102 /* BrowserTab.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000002 /* BrowserTab.swift */; };
+		010000000000000000000103 /* BrowserSpace.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000003 /* BrowserSpace.swift */; };
+		010000000000000000000104 /* BrowserWindowState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000004 /* BrowserWindowState.swift */; };
+		010000000000000000000105 /* BrowserStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000005 /* BrowserStore.swift */; };
+		010000000000000000000106 /* NavigationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000006 /* NavigationService.swift */; };
+		CB00000000000000000000C2 /* CommandBarSelectionMemory.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB00000000000000000000C1 /* CommandBarSelectionMemory.swift */; };
+		010000000000000000000107 /* PersistenceService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000007 /* PersistenceService.swift */; };
+		010000000000000000000108 /* FaviconService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000008 /* FaviconService.swift */; };
+		010000000000000000000109 /* WKWebViewRepresentable.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000009 /* WKWebViewRepresentable.swift */; };
+		010000000000000000000110 /* WebViewCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000010 /* WebViewCoordinator.swift */; };
+		AE00000000000000000001A3 /* WebExtensionInstaller.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE00000000000000000000A3 /* WebExtensionInstaller.swift */; };
+		AE00000000000000000001A2 /* WebExtensionAdapters.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE00000000000000000000A2 /* WebExtensionAdapters.swift */; };
+		AE00000000000000000001A1 /* WebExtensionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE00000000000000000000A1 /* WebExtensionManager.swift */; };
+		010000000000000000000111 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000011 /* ContentView.swift */; };
+		010000000000000000000169 /* QuickNoteActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000069 /* QuickNoteActivity.swift */; };
+		010000000000000000000112 /* SidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000012 /* SidebarView.swift */; };
+		010000000000000000000113 /* BrowserInterfaceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000013 /* BrowserInterfaceView.swift */; };
+		010000000000000000000114 /* WebViewContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000014 /* WebViewContainer.swift */; };
+		5B0000000000000000000101 /* SplitPaneChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B0000000000000000000001 /* SplitPaneChrome.swift */; };
+		5B0000000000000000000102 /* BrowserInterfaceMask.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B0000000000000000000002 /* BrowserInterfaceMask.swift */; };
+		5B0000000000000000000103 /* SplitPaneDropTargets.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B0000000000000000000003 /* SplitPaneDropTargets.swift */; };
+		5B0000000000000000000104 /* DeveloperToolbar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B0000000000000000000004 /* DeveloperToolbar.swift */; };
+		5B0000000000000000000105 /* PageLoadingPill.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B0000000000000000000005 /* PageLoadingPill.swift */; };
+		5B0000000000000000000106 /* SpaceSetupCanvas.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B0000000000000000000006 /* SpaceSetupCanvas.swift */; };
+		010000000000000000000115 /* CommandPaletteView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000015 /* CommandPaletteView.swift */; };
+		010000000000000000000116 /* TabRowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000016 /* TabRowView.swift */; };
+		010000000000000000000117 /* SpaceSwitcherView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000017 /* SpaceSwitcherView.swift */; };
+		010000000000000000000118 /* TabSwitcherOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01000000000000000000001B /* TabSwitcherOverlay.swift */; };
+		010000000000000000000119 /* AppConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01000000000000000000001C /* AppConfiguration.swift */; };
+		010000000000000000000120 /* AppUpdateService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01000000000000000000001D /* AppUpdateService.swift */; };
+		010000000000000000000121 /* KeyboardShortcutMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000031 /* KeyboardShortcutMonitor.swift */; };
+		010000000000000000000122 /* SidebarRevealMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000032 /* SidebarRevealMonitor.swift */; };
+		010000000000000000000123 /* WindowInteractionConfigurator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000033 /* WindowInteractionConfigurator.swift */; };
+		010000000000000000000124 /* FloatingMiniPlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000034 /* FloatingMiniPlayer.swift */; };
+		CAC7EAB7B7187201DFEAC713 /* MiniPlayerControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA94F84A914141F7A72E9C5F /* MiniPlayerControls.swift */; };
+		CA6D108AF7262D97F46E57E8 /* MiniPlayerResize.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAC1C3175517372EC2ABC97D /* MiniPlayerResize.swift */; };
+		CA34D03CADD2319E49A981FD /* CursorHover.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA0C0142FC7B480E54DDD4C9 /* CursorHover.swift */; };
+		010000000000000000000125 /* ShortcutSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000035 /* ShortcutSettingsView.swift */; };
+		010000000000000000000140 /* ContentBlockerService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000040 /* ContentBlockerService.swift */; };
+		010000000000000000000141 /* CopiedURLToastView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000041 /* CopiedURLToastView.swift */; };
+		010000000000000000000142 /* EliService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000042 /* EliService.swift */; };
+		010000000000000000000513 /* EliSuggestionCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000413 /* EliSuggestionCatalog.swift */; };
+		010000000000000000000514 /* EliSuggestionPersonalizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000414 /* EliSuggestionPersonalizer.swift */; };
+		010000000000000000000143 /* EliPromptPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000043 /* EliPromptPolicy.swift */; };
+		010000000000000000000144 /* EliContextSections.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000044 /* EliContextSections.swift */; };
+		010000000000000000000145 /* EliSidebarResizeHandle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000045 /* EliSidebarResizeHandle.swift */; };
+		010000000000000000000146 /* EliSidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000046 /* EliSidebarView.swift */; };
+		010000000000000000000192 /* SharePicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0100000000000000000000f3 /* SharePicker.swift */; };
+		010000000000000000000147 /* EliSidebarComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000047 /* EliSidebarComponents.swift */; };
+		CAC24A9A2DCF844B5373F5FE /* EliSidebarModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA1142A4C6D5C3C0EBDE94EB /* EliSidebarModels.swift */; };
+		CA8D5B1A3D140BF781AF92CD /* EliSidebarComposerControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAE98823C224BDA9444C5F27 /* EliSidebarComposerControls.swift */; };
+		CAD9C2BABF8535AF265B143E /* EliSpeechController.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA2C95A9705ADAE39AA992AF /* EliSpeechController.swift */; };
+		CA4D3730DB4BB9718D9FCC8C /* EliSidebarMessageRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA5F3FB977B0F8216E742318 /* EliSidebarMessageRow.swift */; };
+		CAE61EACC3D987AEDC725F72 /* EliSubscriptionGate.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA82A432C86FEBD1DFF7E0FA /* EliSubscriptionGate.swift */; };
+		010000000000000000000148 /* EliContextCompactor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000048 /* EliContextCompactor.swift */; };
+		010000000000000000000150 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000050 /* Assets.xcassets */; };
+		010000000000000000000151 /* HistoryVisit.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000051 /* HistoryVisit.swift */; };
+		CA00000000000000000A0102 /* HomepagePreference.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA00000000000000000A0002 /* HomepagePreference.swift */; };
+		CA00000000000000000A0104 /* GeneralSettingsPreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA00000000000000000A0004 /* GeneralSettingsPreferences.swift */; };
+		CA00000000000000000A0105 /* HistoryRetentionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA00000000000000000A0005 /* HistoryRetentionService.swift */; };
+		010000000000000000000152 /* WorkspaceRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000052 /* WorkspaceRepository.swift */; };
+		010000000000000000000153 /* HistoryRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000053 /* HistoryRepository.swift */; };
+		010000000000000000000154 /* BrowserStore+Eli.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000054 /* BrowserStore+Eli.swift */; };
+		010000000000000000000155 /* BrowserStore+Media.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000055 /* BrowserStore+Media.swift */; };
+		010000000000000000000160 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 010000000000000000000161 /* Sparkle */; };
+		010000000000000000000170 /* TalosUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000060 /* TalosUITests.swift */; };
+		CA48EDA59BBFD035A2B7D09A /* TalosUITests+SplitView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAB2EE54E68D89DC9ED47404 /* TalosUITests+SplitView.swift */; };
+		CA21A09E269885B46E97DF53 /* TalosUITests+BrowsingAndPrivacy.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA450046AA6C329AA66E8865 /* TalosUITests+BrowsingAndPrivacy.swift */; };
+		CAF45EF99A22A31025D458FD /* TalosUITests+DownloadsAndImport.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAFDC2087C832B20BA2346BA /* TalosUITests+DownloadsAndImport.swift */; };
+		CAD4D39797CE3AEF87CEE2EF /* TalosUITests+OnboardingAndSpaces.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA57C4F1F5DF752BC2F2AB23 /* TalosUITests+OnboardingAndSpaces.swift */; };
+		CA885253E521D36DCBAE87E6 /* TalosUITests+AccountAndEliSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAFE386717AB000E10CE39BD /* TalosUITests+AccountAndEliSettings.swift */; };
+		CAC6116435D9DBFD2E0CE900 /* TalosUITests+TabsAndShortcuts.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA86FCF8660ECC4D43248FE3 /* TalosUITests+TabsAndShortcuts.swift */; };
+		CAEC3052673F91852A97A428 /* TalosUITests+Eli.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAC68FE38CF9BF7A3AB991C0 /* TalosUITests+Eli.swift */; };
+		CAB573E05533D50E07BE276A /* TalosUITests+MenusAndSiteInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA81D81865A1D95E1295B6CC /* TalosUITests+MenusAndSiteInfo.swift */; };
+		CAB1CFB99C461C914657EA83 /* TalosUITests+Support.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAF278299DA0EB114F46C013 /* TalosUITests+Support.swift */; };
+		CACE45550886BB1174F97E32 /* EliLiveUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAD4C986355B52C75DFAB112 /* EliLiveUITests.swift */; };
+		010000000000000000000171 /* CommandPaletteView+Layout.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000061 /* CommandPaletteView+Layout.swift */; };
+		010000000000000000000172 /* CommandPaletteView+Commands.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000062 /* CommandPaletteView+Commands.swift */; };
+		010000000000000000000174 /* CommandPaletteComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000064 /* CommandPaletteComponents.swift */; };
+		010000000000000000000175 /* CommandPaletteModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000065 /* CommandPaletteModels.swift */; };
+		010000000000000000000176 /* AccountService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000066 /* AccountService.swift */; };
+		010000000000000000000177 /* InitialOnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000067 /* InitialOnboardingView.swift */; };
+		CAAD787CB7D5F6DA28D5F9AE /* InitialTourPopover.swift in Sources */ = {isa = PBXBuildFile; fileRef = CACDAD113937BAC24AD303F7 /* InitialTourPopover.swift */; };
+		CA831C5CF1B3C52269454FD6 /* WelcomeOnboardingStep.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA32C11AB2DF59CB6F2E0C29 /* WelcomeOnboardingStep.swift */; };
+		CA5CD1CEDC2BB77D9409136B /* AccountOnboardingStep.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA139C67763972BACFF942E1 /* AccountOnboardingStep.swift */; };
+		CA7D01270A89293BEF495AB9 /* ImportOnboardingStep.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA11F57C54EA4B3C2E92E664 /* ImportOnboardingStep.swift */; };
+		CA5C84236DDFAB6F3E879D3F /* SpaceOnboardingStep.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAA1C25325B51B5980638C31 /* SpaceOnboardingStep.swift */; };
+		CA1CA0DBB49EDB9286201C0A /* AddressBarOnboardingStep.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAB929FF1E5C2C645379B1A3 /* AddressBarOnboardingStep.swift */; };
+		CA2FD9F554C2ECB4DF65A93E /* OnboardingSurface.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA29A81E4BDD612B972B0989 /* OnboardingSurface.swift */; };
+		010000000000000000000178 /* BrowserImportService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000068 /* BrowserImportService.swift */; };
+		A1B2C3D4E5F60718293A4B5C /* CommandPaletteSearch.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1C2D3E4F5A60718293A4B5C /* CommandPaletteSearch.swift */; };
+		A1B2C3D4E5F60718293A4B5E /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A4B5D /* Localizable.xcstrings */; };
+		DE0000000000000000000107 /* Credits.rtf in Resources */ = {isa = PBXBuildFile; fileRef = DE0000000000000000000007 /* Credits.rtf */; };
+		A90000000000000000000101 /* HistoryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A90000000000000000000001 /* HistoryStore.swift */; };
+		A90000000000000000000102 /* HistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A90000000000000000000002 /* HistoryView.swift */; };
+		CA00000000000000000A0103 /* ClearBrowsingDataSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA00000000000000000A0003 /* ClearBrowsingDataSheet.swift */; };
+		CA00000000000000000A0F04 /* ManageWebsiteDataSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA00000000000000000A0FA4 /* ManageWebsiteDataSheet.swift */; };
+		CA00000000000000000A0101 /* BrowserMenuController.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA00000000000000000A0001 /* BrowserMenuController.swift */; };
+		AA0000000000000000000101 /* UserStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000001 /* UserStore.swift */; };
+		AA0000000000000000000102 /* BrowserStore+Testing.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000002 /* BrowserStore+Testing.swift */; };
+		AA0000000000000000000103 /* BrowserStore+CommandPalette.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000003 /* BrowserStore+CommandPalette.swift */; };
+		AA0000000000000000000104 /* BrowserStore+Onboarding.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000004 /* BrowserStore+Onboarding.swift */; };
+		AA0000000000000000000105 /* BrowserStore+Spaces.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000005 /* BrowserStore+Spaces.swift */; };
+		AA0000000000000000000106 /* BrowserStore+TabsFolders.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000006 /* BrowserStore+TabsFolders.swift */; };
+		AA0000000000000000000107 /* BrowserStore+BrowserActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000007 /* BrowserStore+BrowserActions.swift */; };
+		AAFC00000000000000000101 /* BrowserStore+FileCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAFC00000000000000000001 /* BrowserStore+FileCommands.swift */; };
+		AA0000000000000000000108 /* BrowserStore+TabSwitching.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000008 /* BrowserStore+TabSwitching.swift */; };
+		AA0000000000000000000109 /* BrowserStore+SplitViewDragDrop.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000009 /* BrowserStore+SplitViewDragDrop.swift */; };
+		AA000000000000000000010A /* BrowserStore+NavigationHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000000000000000000000A /* BrowserStore+NavigationHistory.swift */; };
+		AA000000000000000000010B /* BrowserStore+Persistence.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000000000000000000000B /* BrowserStore+Persistence.swift */; };
+		AA000000000000000000010C /* BrowserStore+SessionRepair.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000000000000000000000C /* BrowserStore+SessionRepair.swift */; };
+		AA000000000000000000010D /* ImageTextRecognizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000000000000000000000D /* ImageTextRecognizer.swift */; };
+		AB1000000000000000000101 /* WebsiteAppearanceService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB1000000000000000000001 /* WebsiteAppearanceService.swift */; };
+		AB10000000000000000BD101 /* BrowsingDataService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB10000000000000000BD001 /* BrowsingDataService.swift */; };
+		AB10000000000000000BD103 /* WebsiteDataInventory.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB10000000000000000BD003 /* WebsiteDataInventory.swift */; };
+		AB10000000000000000BD104 /* ExternalSchemeHandoff.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB10000000000000000BD004 /* ExternalSchemeHandoff.swift */; };
+		DE0000000000000000000105 /* AcknowledgmentsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE0000000000000000000005 /* AcknowledgmentsView.swift */; };
+		DE0000000000000000000106 /* BrowserStore+TabArrangement.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE0000000000000000000006 /* BrowserStore+TabArrangement.swift */; };
+		DE0000000000000000000101 /* WebViewCoordinator+Inspector.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE0000000000000000000001 /* WebViewCoordinator+Inspector.swift */; };
+		DE0000000000000000000108 /* BrowserWebView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE0000000000000000000008 /* BrowserWebView.swift */; };
+		DE0000000000000000000102 /* ExternalBrowserService.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE0000000000000000000002 /* ExternalBrowserService.swift */; };
+		DE0000000000000000000103 /* UserAgentConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE0000000000000000000003 /* UserAgentConfiguration.swift */; };
+		DE0000000000000000000104 /* BrowserStore+DevelopMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE0000000000000000000004 /* BrowserStore+DevelopMenu.swift */; };
+		AB1200000000000000000101 /* WhatsNewBanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB1200000000000000000001 /* WhatsNewBanner.swift */; };
+		AB1200000000000000000102 /* WhatsNewService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB1200000000000000000002 /* WhatsNewService.swift */; };
+		CA1100000000000000000101 /* ProblemReport.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA1100000000000000000001 /* ProblemReport.swift */; };
+		CA1100000000000000000102 /* ProblemReportService.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA1100000000000000000002 /* ProblemReportService.swift */; };
+		CA1100000000000000000103 /* ReportProblemView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA1100000000000000000003 /* ReportProblemView.swift */; };
+		AB1300000000000000000102 /* ProviderModelDirectory.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB1300000000000000000002 /* ProviderModelDirectory.swift */; };
+		AB7700000000000000000101 /* WebAuthenticationSessionHostService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB7700000000000000000001 /* WebAuthenticationSessionHostService.swift */; };
+		BA0000000000000000000101 /* BrowserAgentDriver.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA0000000000000000000001 /* BrowserAgentDriver.swift */; };
+		BA0000000000000000000102 /* BrowserAgent in Resources */ = {isa = PBXBuildFile; fileRef = BA0000000000000000000002 /* BrowserAgent */; };
+		BB0000000000000000000101 /* BrowserPasskeyAuthorizationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000000001 /* BrowserPasskeyAuthorizationService.swift */; };
+		C1A2B3D4E5F60718293A4B5C /* SidebarSpaceComposer.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1A2B3C4E5F60718293A4B5C /* SidebarSpaceComposer.swift */; };
+		C2A2B3D4E5F60718293A4B5C /* SidebarTabSections.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2A2B3C4E5F60718293A4B5C /* SidebarTabSections.swift */; };
+		C3A2B3D4E5F60718293A4B5C /* SidebarWindowControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3A2B3C4E5F60718293A4B5C /* SidebarWindowControls.swift */; };
+		C4A2B3D4E5F60718293A4B5C /* SidebarDragDrop.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4A2B3C4E5F60718293A4B5C /* SidebarDragDrop.swift */; };
+		CD0000000000000000000002 /* DownloadsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD0000000000000000000001 /* DownloadsStore.swift */; };
+		DB00000000000000000000B1 /* DefaultBrowserService.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB00000000000000000000A1 /* DefaultBrowserService.swift */; };
+		DD0000000000000000000101 /* AppleSignInService.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD0000000000000000000001 /* AppleSignInService.swift */; };
+		E1A2B3D4F5C60718293A4B5C /* SettingsPanes.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1A2B3C4D5E60718293A4B5C /* SettingsPanes.swift */; };
+		AE00000000000000000001A4 /* ExtensionsSettingsPane.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE00000000000000000000A4 /* ExtensionsSettingsPane.swift */; };
+		AE00000000000000000001A5 /* ExtensionActionsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE00000000000000000000A5 /* ExtensionActionsView.swift */; };
+		E2A2B3D4F5C60718293A4B5C /* EliSettingsPane.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2A2B3C4D5E60718293A4B5C /* EliSettingsPane.swift */; };
+		E3A2B3D4F5C60718293A4B5C /* ShortcutSettingsComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3A2B3C4D5E60718293A4B5C /* ShortcutSettingsComponents.swift */; };
+		E50000000000000000000101 /* AppUpdateBanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = E50000000000000000000001 /* AppUpdateBanner.swift */; };
+		E50000000000000000000102 /* InterfaceStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = E50000000000000000000002 /* InterfaceStyle.swift */; };
+		E50000000000000000000103 /* SpaceThemeBackdrop.swift in Sources */ = {isa = PBXBuildFile; fileRef = E50000000000000000000003 /* SpaceThemeBackdrop.swift */; };
+		E50000000000000000000104 /* SidebarDropIndicators.swift in Sources */ = {isa = PBXBuildFile; fileRef = E50000000000000000000004 /* SidebarDropIndicators.swift */; };
+		E50000000000000000000105 /* SpaceIconPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = E50000000000000000000005 /* SpaceIconPicker.swift */; };
+		E50000000000000000000106 /* SpaceThemePanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E50000000000000000000006 /* SpaceThemePanel.swift */; };
+		E50000000000000000000107 /* SpaceThemeControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = E50000000000000000000007 /* SpaceThemeControls.swift */; };
+		E50000000000000000000108 /* SpaceComposerModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = E50000000000000000000008 /* SpaceComposerModels.swift */; };
+		E60000000000000000000101 /* SpaceSwipeTransition.swift in Sources */ = {isa = PBXBuildFile; fileRef = E60000000000000000000001 /* SpaceSwipeTransition.swift */; };
+		EF0000000000000000000101 /* EliModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF0000000000000000000001 /* EliModels.swift */; };
+		EF0000000000000000000102 /* EliCredentials.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF0000000000000000000002 /* EliCredentials.swift */; };
+		EF0000000000000000000103 /* BrowserAgent.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF0000000000000000000003 /* BrowserAgent.swift */; };
+		EF00000000000000000001A3 /* BrowserAgentTrace.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF00000000000000000000A3 /* BrowserAgentTrace.swift */; };
+		EF0000000000000000000104 /* PageActionProposal.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF0000000000000000000004 /* PageActionProposal.swift */; };
+		EF0000000000000000000105 /* WebPageScripts.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF0000000000000000000005 /* WebPageScripts.swift */; };
+		WN0000000000000000000101 /* WebNotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = WN0000000000000000000001 /* WebNotificationService.swift */; };
+		PK0000000000000000000101 /* PasskeyCeremony.swift in Sources */ = {isa = PBXBuildFile; fileRef = PK0000000000000000000001 /* PasskeyCeremony.swift */; };
+		PK0000000000000000000102 /* PasskeyCredentialStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = PK0000000000000000000002 /* PasskeyCredentialStore.swift */; };
+		PK0000000000000000000103 /* WebViewCoordinator+Passkeys.swift in Sources */ = {isa = PBXBuildFile; fileRef = PK0000000000000000000003 /* WebViewCoordinator+Passkeys.swift */; };
+		EF0000000000000000000106 /* EliSidebarSupportingViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF0000000000000000000006 /* EliSidebarSupportingViews.swift */; };
+		EF0000000000000000000107 /* WebViewCoordinator+Permissions.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF0000000000000000000007 /* WebViewCoordinator+Permissions.swift */; };
+		EF0000000000000000000108 /* WebViewCoordinator+Hosting.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF0000000000000000000008 /* WebViewCoordinator+Hosting.swift */; };
+		EF0000000000000000000109 /* WebViewCoordinator+Hibernation.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF0000000000000000000009 /* WebViewCoordinator+Hibernation.swift */; };
+		EF000000000000000000010F /* TopAddressBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF000000000000000000000F /* TopAddressBar.swift */; };
+		EF000000000000000000010E /* WebViewCoordinator+PreviewWarmup.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF000000000000000000000E /* WebViewCoordinator+PreviewWarmup.swift */; };
+		EF000000000000000000010A /* WebViewCoordinator+Media.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF000000000000000000000A /* WebViewCoordinator+Media.swift */; };
+		EF000000000000000000010B /* WebViewCoordinator+Delegates.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF000000000000000000000B /* WebViewCoordinator+Delegates.swift */; };
+		EF000000000000000000010C /* WebViewCoordinator+Downloads.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF000000000000000000000C /* WebViewCoordinator+Downloads.swift */; };
+		CW0000000000000000000101 /* ChromeWebStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = CW0000000000000000000001 /* ChromeWebStore.swift */; };
+		CW0000000000000000000103 /* WebExtensionPermissionCopy.swift in Sources */ = {isa = PBXBuildFile; fileRef = CW0000000000000000000003 /* WebExtensionPermissionCopy.swift */; };
+		CW0000000000000000000102 /* WebViewCoordinator+WebStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = CW0000000000000000000002 /* WebViewCoordinator+WebStore.swift */; };
+		EF000000000000000000010D /* WebViewCoordinator+PageIntegration.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF000000000000000000000D /* WebViewCoordinator+PageIntegration.swift */; };
+		EF0000000000000000000110 /* AIModelCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF0000000000000000000010 /* AIModelCatalog.swift */; };
+		F60000000000000000000101 /* ButtonTreatment.swift in Sources */ = {isa = PBXBuildFile; fileRef = F60000000000000000000001 /* ButtonTreatment.swift */; };
+		F60000000000000000000102 /* ShortcutTooltip.swift in Sources */ = {isa = PBXBuildFile; fileRef = F60000000000000000000002 /* ShortcutTooltip.swift */; };
+		LH00000000000000000000B1 /* LinkHoverPreviewPill.swift in Sources */ = {isa = PBXBuildFile; fileRef = LH00000000000000000000A1 /* LinkHoverPreviewPill.swift */; };
+		SI00000000000000000000B1 /* SitePermissions.swift in Sources */ = {isa = PBXBuildFile; fileRef = SI00000000000000000000A1 /* SitePermissions.swift */; };
+		SI00000000000000000000B2 /* SiteInfoView.swift in Sources */ = {isa = PBXBuildFile; fileRef = SI00000000000000000000A2 /* SiteInfoView.swift */; };
+		PV00000000000000000000B1 /* PrivacyReportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = PV00000000000000000000A1 /* PrivacyReportView.swift */; };
+		RD00000000000000000000B1 /* ReaderMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = RD00000000000000000000A1 /* ReaderMode.swift */; };
+		RD00000000000000000000B2 /* WebViewCoordinator+Reader.swift in Sources */ = {isa = PBXBuildFile; fileRef = RD00000000000000000000A2 /* WebViewCoordinator+Reader.swift */; };
+		RD00000000000000000000B3 /* BrowserStore+Reader.swift in Sources */ = {isa = PBXBuildFile; fileRef = RD00000000000000000000A3 /* BrowserStore+Reader.swift */; };
+		TF00000000000000000000B1 /* TabLoadFailure.swift in Sources */ = {isa = PBXBuildFile; fileRef = TF00000000000000000000A1 /* TabLoadFailure.swift */; };
+		TR00000000000000000000B1 /* TabRecoveryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = TR00000000000000000000A1 /* TabRecoveryView.swift */; };
+		TS00000000000000000000B1 /* TabSnapshotStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = TS00000000000000000000A1 /* TabSnapshotStore.swift */; };
+		UT00000000000000000000B1 /* TalosTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = UT00000000000000000000A1 /* TalosTests.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		010000000000000000000270 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 010000000000000000000300 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 010000000000000000000200;
+			remoteInfo = Talos;
+		};
+		UT00000000000000000000E2 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 010000000000000000000300 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 010000000000000000000200;
+			remoteInfo = Talos;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		010000000000000000000001 /* TalosApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TalosApp.swift; sourceTree = "<group>"; };
+		CAD04797D6D34FF9826511EF /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		CA2AF3D9CCD4D72BC545D831 /* DevelopMenuStyler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DevelopMenuStyler.swift; sourceTree = "<group>"; };
+		CAFAA465A491152257AB4070 /* MenuAlternateInstaller.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuAlternateInstaller.swift; sourceTree = "<group>"; };
+		CADA316C62011C0193B77884 /* BrowserCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserCommands.swift; sourceTree = "<group>"; };
+		CAA348F0E336BC80041CE635 /* BrowserCommandActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserCommandActions.swift; sourceTree = "<group>"; };
+		010000000000000000000002 /* BrowserTab.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserTab.swift; sourceTree = "<group>"; };
+		010000000000000000000003 /* BrowserSpace.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserSpace.swift; sourceTree = "<group>"; };
+		010000000000000000000004 /* BrowserWindowState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserWindowState.swift; sourceTree = "<group>"; };
+		010000000000000000000005 /* BrowserStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserStore.swift; sourceTree = "<group>"; };
+		010000000000000000000006 /* NavigationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NavigationService.swift; sourceTree = "<group>"; };
+		CB00000000000000000000C1 /* CommandBarSelectionMemory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommandBarSelectionMemory.swift; sourceTree = "<group>"; };
+		010000000000000000000007 /* PersistenceService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersistenceService.swift; sourceTree = "<group>"; };
+		010000000000000000000008 /* FaviconService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FaviconService.swift; sourceTree = "<group>"; };
+		010000000000000000000009 /* WKWebViewRepresentable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WKWebViewRepresentable.swift; sourceTree = "<group>"; };
+		010000000000000000000010 /* WebViewCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebViewCoordinator.swift; sourceTree = "<group>"; };
+		AE00000000000000000000A3 /* WebExtensionInstaller.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebExtensionInstaller.swift; sourceTree = "<group>"; };
+		AE00000000000000000000A2 /* WebExtensionAdapters.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebExtensionAdapters.swift; sourceTree = "<group>"; };
+		AE00000000000000000000A1 /* WebExtensionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebExtensionManager.swift; sourceTree = "<group>"; };
+		010000000000000000000011 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		010000000000000000000069 /* QuickNoteActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickNoteActivity.swift; sourceTree = "<group>"; };
+		010000000000000000000012 /* SidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarView.swift; sourceTree = "<group>"; };
+		010000000000000000000013 /* BrowserInterfaceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserInterfaceView.swift; sourceTree = "<group>"; };
+		010000000000000000000014 /* WebViewContainer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebViewContainer.swift; sourceTree = "<group>"; };
+		5B0000000000000000000001 /* SplitPaneChrome.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplitPaneChrome.swift; sourceTree = "<group>"; };
+		5B0000000000000000000002 /* BrowserInterfaceMask.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserInterfaceMask.swift; sourceTree = "<group>"; };
+		5B0000000000000000000003 /* SplitPaneDropTargets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplitPaneDropTargets.swift; sourceTree = "<group>"; };
+		5B0000000000000000000004 /* DeveloperToolbar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeveloperToolbar.swift; sourceTree = "<group>"; };
+		5B0000000000000000000005 /* PageLoadingPill.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PageLoadingPill.swift; sourceTree = "<group>"; };
+		5B0000000000000000000006 /* SpaceSetupCanvas.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpaceSetupCanvas.swift; sourceTree = "<group>"; };
+		010000000000000000000015 /* CommandPaletteView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommandPaletteView.swift; sourceTree = "<group>"; };
+		010000000000000000000016 /* TabRowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabRowView.swift; sourceTree = "<group>"; };
+		010000000000000000000017 /* SpaceSwitcherView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpaceSwitcherView.swift; sourceTree = "<group>"; };
+		010000000000000000000018 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		010000000000000000000019 /* Talos.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Talos.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		01000000000000000000001A /* Talos.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Talos.entitlements; sourceTree = "<group>"; };
+		01000000000000000000001B /* TabSwitcherOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabSwitcherOverlay.swift; sourceTree = "<group>"; };
+		01000000000000000000001C /* AppConfiguration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppConfiguration.swift; sourceTree = "<group>"; };
+		01000000000000000000001D /* AppUpdateService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppUpdateService.swift; sourceTree = "<group>"; };
+		010000000000000000000031 /* KeyboardShortcutMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardShortcutMonitor.swift; sourceTree = "<group>"; };
+		010000000000000000000032 /* SidebarRevealMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarRevealMonitor.swift; sourceTree = "<group>"; };
+		010000000000000000000033 /* WindowInteractionConfigurator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowInteractionConfigurator.swift; sourceTree = "<group>"; };
+		010000000000000000000034 /* FloatingMiniPlayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FloatingMiniPlayer.swift; sourceTree = "<group>"; };
+		CA94F84A914141F7A72E9C5F /* MiniPlayerControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiniPlayerControls.swift; sourceTree = "<group>"; };
+		CAC1C3175517372EC2ABC97D /* MiniPlayerResize.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiniPlayerResize.swift; sourceTree = "<group>"; };
+		CA0C0142FC7B480E54DDD4C9 /* CursorHover.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CursorHover.swift; sourceTree = "<group>"; };
+		010000000000000000000035 /* ShortcutSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShortcutSettingsView.swift; sourceTree = "<group>"; };
+		010000000000000000000040 /* ContentBlockerService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentBlockerService.swift; sourceTree = "<group>"; };
+		010000000000000000000041 /* CopiedURLToastView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CopiedURLToastView.swift; sourceTree = "<group>"; };
+		010000000000000000000042 /* EliService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EliService.swift; sourceTree = "<group>"; };
+		010000000000000000000413 /* EliSuggestionCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EliSuggestionCatalog.swift; sourceTree = "<group>"; };
+		010000000000000000000414 /* EliSuggestionPersonalizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EliSuggestionPersonalizer.swift; sourceTree = "<group>"; };
+		010000000000000000000043 /* EliPromptPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EliPromptPolicy.swift; sourceTree = "<group>"; };
+		010000000000000000000044 /* EliContextSections.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EliContextSections.swift; sourceTree = "<group>"; };
+		010000000000000000000045 /* EliSidebarResizeHandle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EliSidebarResizeHandle.swift; sourceTree = "<group>"; };
+		010000000000000000000046 /* EliSidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EliSidebarView.swift; sourceTree = "<group>"; };
+		0100000000000000000000f3 /* SharePicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharePicker.swift; sourceTree = "<group>"; };
+		010000000000000000000047 /* EliSidebarComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EliSidebarComponents.swift; sourceTree = "<group>"; };
+		CA1142A4C6D5C3C0EBDE94EB /* EliSidebarModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EliSidebarModels.swift; sourceTree = "<group>"; };
+		CAE98823C224BDA9444C5F27 /* EliSidebarComposerControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EliSidebarComposerControls.swift; sourceTree = "<group>"; };
+		CA2C95A9705ADAE39AA992AF /* EliSpeechController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EliSpeechController.swift; sourceTree = "<group>"; };
+		CA5F3FB977B0F8216E742318 /* EliSidebarMessageRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EliSidebarMessageRow.swift; sourceTree = "<group>"; };
+		CA82A432C86FEBD1DFF7E0FA /* EliSubscriptionGate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EliSubscriptionGate.swift; sourceTree = "<group>"; };
+		010000000000000000000048 /* EliContextCompactor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EliContextCompactor.swift; sourceTree = "<group>"; };
+		010000000000000000000050 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		010000000000000000000051 /* HistoryVisit.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryVisit.swift; sourceTree = "<group>"; };
+		CA00000000000000000A0002 /* HomepagePreference.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomepagePreference.swift; sourceTree = "<group>"; };
+		CA00000000000000000A0004 /* GeneralSettingsPreferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeneralSettingsPreferences.swift; sourceTree = "<group>"; };
+		CA00000000000000000A0005 /* HistoryRetentionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryRetentionService.swift; sourceTree = "<group>"; };
+		010000000000000000000052 /* WorkspaceRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceRepository.swift; sourceTree = "<group>"; };
+		010000000000000000000053 /* HistoryRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryRepository.swift; sourceTree = "<group>"; };
+		010000000000000000000054 /* BrowserStore+Eli.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BrowserStore+Eli.swift"; sourceTree = "<group>"; };
+		010000000000000000000055 /* BrowserStore+Media.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BrowserStore+Media.swift"; sourceTree = "<group>"; };
+		010000000000000000000060 /* TalosUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TalosUITests.swift; sourceTree = "<group>"; };
+		CAB2EE54E68D89DC9ED47404 /* TalosUITests+SplitView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TalosUITests+SplitView.swift"; sourceTree = "<group>"; };
+		CA450046AA6C329AA66E8865 /* TalosUITests+BrowsingAndPrivacy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TalosUITests+BrowsingAndPrivacy.swift"; sourceTree = "<group>"; };
+		CAFDC2087C832B20BA2346BA /* TalosUITests+DownloadsAndImport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TalosUITests+DownloadsAndImport.swift"; sourceTree = "<group>"; };
+		CA57C4F1F5DF752BC2F2AB23 /* TalosUITests+OnboardingAndSpaces.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TalosUITests+OnboardingAndSpaces.swift"; sourceTree = "<group>"; };
+		CAFE386717AB000E10CE39BD /* TalosUITests+AccountAndEliSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TalosUITests+AccountAndEliSettings.swift"; sourceTree = "<group>"; };
+		CA86FCF8660ECC4D43248FE3 /* TalosUITests+TabsAndShortcuts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TalosUITests+TabsAndShortcuts.swift"; sourceTree = "<group>"; };
+		CAC68FE38CF9BF7A3AB991C0 /* TalosUITests+Eli.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TalosUITests+Eli.swift"; sourceTree = "<group>"; };
+		CA81D81865A1D95E1295B6CC /* TalosUITests+MenusAndSiteInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TalosUITests+MenusAndSiteInfo.swift"; sourceTree = "<group>"; };
+		CAF278299DA0EB114F46C013 /* TalosUITests+Support.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TalosUITests+Support.swift"; sourceTree = "<group>"; };
+		CAD4C986355B52C75DFAB112 /* EliLiveUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EliLiveUITests.swift; sourceTree = "<group>"; };
+		010000000000000000000061 /* CommandPaletteView+Layout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CommandPaletteView+Layout.swift"; sourceTree = "<group>"; };
+		010000000000000000000062 /* CommandPaletteView+Commands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CommandPaletteView+Commands.swift"; sourceTree = "<group>"; };
+		010000000000000000000063 /* TalosUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = TalosUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		010000000000000000000064 /* CommandPaletteComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommandPaletteComponents.swift; sourceTree = "<group>"; };
+		010000000000000000000065 /* CommandPaletteModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommandPaletteModels.swift; sourceTree = "<group>"; };
+		010000000000000000000066 /* AccountService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountService.swift; sourceTree = "<group>"; };
+		010000000000000000000067 /* InitialOnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InitialOnboardingView.swift; sourceTree = "<group>"; };
+		CACDAD113937BAC24AD303F7 /* InitialTourPopover.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InitialTourPopover.swift; sourceTree = "<group>"; };
+		CA32C11AB2DF59CB6F2E0C29 /* WelcomeOnboardingStep.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WelcomeOnboardingStep.swift; sourceTree = "<group>"; };
+		CA139C67763972BACFF942E1 /* AccountOnboardingStep.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountOnboardingStep.swift; sourceTree = "<group>"; };
+		CA11F57C54EA4B3C2E92E664 /* ImportOnboardingStep.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportOnboardingStep.swift; sourceTree = "<group>"; };
+		CAA1C25325B51B5980638C31 /* SpaceOnboardingStep.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpaceOnboardingStep.swift; sourceTree = "<group>"; };
+		CAB929FF1E5C2C645379B1A3 /* AddressBarOnboardingStep.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddressBarOnboardingStep.swift; sourceTree = "<group>"; };
+		CA29A81E4BDD612B972B0989 /* OnboardingSurface.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingSurface.swift; sourceTree = "<group>"; };
+		010000000000000000000068 /* BrowserImportService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserImportService.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F60718293A4B5D /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
+		DE0000000000000000000007 /* Credits.rtf */ = {isa = PBXFileReference; lastKnownFileType = text.rtf; path = Credits.rtf; sourceTree = "<group>"; };
+		A90000000000000000000001 /* HistoryStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryStore.swift; sourceTree = "<group>"; };
+		A90000000000000000000002 /* HistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryView.swift; sourceTree = "<group>"; };
+		CA00000000000000000A0003 /* ClearBrowsingDataSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClearBrowsingDataSheet.swift; sourceTree = "<group>"; };
+		CA00000000000000000A0FA4 /* ManageWebsiteDataSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ManageWebsiteDataSheet.swift; sourceTree = "<group>"; };
+		CA00000000000000000A0001 /* BrowserMenuController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserMenuController.swift; sourceTree = "<group>"; };
+		AA0000000000000000000001 /* UserStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserStore.swift; sourceTree = "<group>"; };
+		AA0000000000000000000002 /* BrowserStore+Testing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BrowserStore+Testing.swift"; sourceTree = "<group>"; };
+		AA0000000000000000000003 /* BrowserStore+CommandPalette.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BrowserStore+CommandPalette.swift"; sourceTree = "<group>"; };
+		AA0000000000000000000004 /* BrowserStore+Onboarding.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BrowserStore+Onboarding.swift"; sourceTree = "<group>"; };
+		AA0000000000000000000005 /* BrowserStore+Spaces.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BrowserStore+Spaces.swift"; sourceTree = "<group>"; };
+		AA0000000000000000000006 /* BrowserStore+TabsFolders.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BrowserStore+TabsFolders.swift"; sourceTree = "<group>"; };
+		AA0000000000000000000007 /* BrowserStore+BrowserActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BrowserStore+BrowserActions.swift"; sourceTree = "<group>"; };
+		AAFC00000000000000000001 /* BrowserStore+FileCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BrowserStore+FileCommands.swift"; sourceTree = "<group>"; };
+		AA0000000000000000000008 /* BrowserStore+TabSwitching.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BrowserStore+TabSwitching.swift"; sourceTree = "<group>"; };
+		AA0000000000000000000009 /* BrowserStore+SplitViewDragDrop.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BrowserStore+SplitViewDragDrop.swift"; sourceTree = "<group>"; };
+		AA000000000000000000000A /* BrowserStore+NavigationHistory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BrowserStore+NavigationHistory.swift"; sourceTree = "<group>"; };
+		AA000000000000000000000B /* BrowserStore+Persistence.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BrowserStore+Persistence.swift"; sourceTree = "<group>"; };
+		AA000000000000000000000C /* BrowserStore+SessionRepair.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BrowserStore+SessionRepair.swift"; sourceTree = "<group>"; };
+		AA000000000000000000000D /* ImageTextRecognizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageTextRecognizer.swift; sourceTree = "<group>"; };
+		AB1000000000000000000001 /* WebsiteAppearanceService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebsiteAppearanceService.swift; sourceTree = "<group>"; };
+		AB10000000000000000BD001 /* BrowsingDataService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowsingDataService.swift; sourceTree = "<group>"; };
+		AB10000000000000000BD003 /* WebsiteDataInventory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebsiteDataInventory.swift; sourceTree = "<group>"; };
+		AB10000000000000000BD004 /* ExternalSchemeHandoff.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExternalSchemeHandoff.swift; sourceTree = "<group>"; };
+		DE0000000000000000000005 /* AcknowledgmentsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AcknowledgmentsView.swift"; sourceTree = "<group>"; };
+		DE0000000000000000000006 /* BrowserStore+TabArrangement.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BrowserStore+TabArrangement.swift"; sourceTree = "<group>"; };
+		DE0000000000000000000001 /* WebViewCoordinator+Inspector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "WebViewCoordinator+Inspector.swift"; sourceTree = "<group>"; };
+		DE0000000000000000000008 /* BrowserWebView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserWebView.swift; sourceTree = "<group>"; };
+		DE0000000000000000000002 /* ExternalBrowserService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ExternalBrowserService.swift"; sourceTree = "<group>"; };
+		DE0000000000000000000003 /* UserAgentConfiguration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "UserAgentConfiguration.swift"; sourceTree = "<group>"; };
+		DE0000000000000000000004 /* BrowserStore+DevelopMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BrowserStore+DevelopMenu.swift"; sourceTree = "<group>"; };
+		AB1200000000000000000001 /* WhatsNewBanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WhatsNewBanner.swift; sourceTree = "<group>"; };
+		AB1200000000000000000002 /* WhatsNewService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WhatsNewService.swift; sourceTree = "<group>"; };
+		CA1100000000000000000001 /* ProblemReport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProblemReport.swift; sourceTree = "<group>"; };
+		CA1100000000000000000002 /* ProblemReportService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProblemReportService.swift; sourceTree = "<group>"; };
+		CA1100000000000000000003 /* ReportProblemView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportProblemView.swift; sourceTree = "<group>"; };
+		AB1300000000000000000002 /* ProviderModelDirectory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderModelDirectory.swift; sourceTree = "<group>"; };
+		AB7700000000000000000001 /* WebAuthenticationSessionHostService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebAuthenticationSessionHostService.swift; sourceTree = "<group>"; };
+		B1C2D3E4F5A60718293A4B5C /* CommandPaletteSearch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommandPaletteSearch.swift; sourceTree = "<group>"; };
+		BA0000000000000000000001 /* BrowserAgentDriver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserAgentDriver.swift; sourceTree = "<group>"; };
+		BA0000000000000000000002 /* BrowserAgent */ = {isa = PBXFileReference; lastKnownFileType = folder; path = BrowserAgent; sourceTree = "<group>"; };
+		BB0000000000000000000001 /* BrowserPasskeyAuthorizationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserPasskeyAuthorizationService.swift; sourceTree = "<group>"; };
+		CD0000000000000000000001 /* DownloadsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DownloadsStore.swift; sourceTree = "<group>"; };
+		D1A2B3C4E5F60718293A4B5C /* SidebarSpaceComposer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarSpaceComposer.swift; sourceTree = "<group>"; };
+		D2A2B3C4E5F60718293A4B5C /* SidebarTabSections.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarTabSections.swift; sourceTree = "<group>"; };
+		D3A2B3C4E5F60718293A4B5C /* SidebarWindowControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarWindowControls.swift; sourceTree = "<group>"; };
+		D4A2B3C4E5F60718293A4B5C /* SidebarDragDrop.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarDragDrop.swift; sourceTree = "<group>"; };
+		DB00000000000000000000A1 /* DefaultBrowserService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DefaultBrowserService.swift; sourceTree = "<group>"; };
+		DD0000000000000000000001 /* AppleSignInService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleSignInService.swift; sourceTree = "<group>"; };
+		E50000000000000000000001 /* AppUpdateBanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppUpdateBanner.swift; sourceTree = "<group>"; };
+		E50000000000000000000002 /* InterfaceStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InterfaceStyle.swift; sourceTree = "<group>"; };
+		E50000000000000000000003 /* SpaceThemeBackdrop.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpaceThemeBackdrop.swift; sourceTree = "<group>"; };
+		E50000000000000000000004 /* SidebarDropIndicators.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarDropIndicators.swift; sourceTree = "<group>"; };
+		E50000000000000000000005 /* SpaceIconPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpaceIconPicker.swift; sourceTree = "<group>"; };
+		E50000000000000000000006 /* SpaceThemePanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpaceThemePanel.swift; sourceTree = "<group>"; };
+		E50000000000000000000007 /* SpaceThemeControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpaceThemeControls.swift; sourceTree = "<group>"; };
+		E50000000000000000000008 /* SpaceComposerModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpaceComposerModels.swift; sourceTree = "<group>"; };
+		E60000000000000000000001 /* SpaceSwipeTransition.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpaceSwipeTransition.swift; sourceTree = "<group>"; };
+		EF0000000000000000000001 /* EliModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EliModels.swift; sourceTree = "<group>"; };
+		EF0000000000000000000002 /* EliCredentials.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EliCredentials.swift; sourceTree = "<group>"; };
+		EF0000000000000000000003 /* BrowserAgent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserAgent.swift; sourceTree = "<group>"; };
+		EF00000000000000000000A3 /* BrowserAgentTrace.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserAgentTrace.swift; sourceTree = "<group>"; };
+		EF0000000000000000000004 /* PageActionProposal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PageActionProposal.swift; sourceTree = "<group>"; };
+		EF0000000000000000000005 /* WebPageScripts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebPageScripts.swift; sourceTree = "<group>"; };
+		WN0000000000000000000001 /* WebNotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebNotificationService.swift; sourceTree = "<group>"; };
+		PK0000000000000000000001 /* PasskeyCeremony.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "PasskeyCeremony.swift"; sourceTree = "<group>"; };
+		PK0000000000000000000002 /* PasskeyCredentialStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "PasskeyCredentialStore.swift"; sourceTree = "<group>"; };
+		PK0000000000000000000003 /* WebViewCoordinator+Passkeys.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "WebViewCoordinator+Passkeys.swift"; sourceTree = "<group>"; };
+		EF0000000000000000000006 /* EliSidebarSupportingViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EliSidebarSupportingViews.swift; sourceTree = "<group>"; };
+		EF0000000000000000000007 /* WebViewCoordinator+Permissions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "WebViewCoordinator+Permissions.swift"; sourceTree = "<group>"; };
+		EF0000000000000000000008 /* WebViewCoordinator+Hosting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "WebViewCoordinator+Hosting.swift"; sourceTree = "<group>"; };
+		EF0000000000000000000009 /* WebViewCoordinator+Hibernation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "WebViewCoordinator+Hibernation.swift"; sourceTree = "<group>"; };
+		EF000000000000000000000F /* TopAddressBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TopAddressBar.swift; sourceTree = "<group>"; };
+		EF000000000000000000000E /* WebViewCoordinator+PreviewWarmup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "WebViewCoordinator+PreviewWarmup.swift"; sourceTree = "<group>"; };
+		EF000000000000000000000A /* WebViewCoordinator+Media.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "WebViewCoordinator+Media.swift"; sourceTree = "<group>"; };
+		EF000000000000000000000B /* WebViewCoordinator+Delegates.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "WebViewCoordinator+Delegates.swift"; sourceTree = "<group>"; };
+		EF000000000000000000000C /* WebViewCoordinator+Downloads.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "WebViewCoordinator+Downloads.swift"; sourceTree = "<group>"; };
+		CW0000000000000000000001 /* ChromeWebStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ChromeWebStore.swift"; sourceTree = "<group>"; };
+		CW0000000000000000000003 /* WebExtensionPermissionCopy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "WebExtensionPermissionCopy.swift"; sourceTree = "<group>"; };
+		CW0000000000000000000002 /* WebViewCoordinator+WebStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "WebViewCoordinator+WebStore.swift"; sourceTree = "<group>"; };
+		EF000000000000000000000D /* WebViewCoordinator+PageIntegration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "WebViewCoordinator+PageIntegration.swift"; sourceTree = "<group>"; };
+		EF0000000000000000000010 /* AIModelCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIModelCatalog.swift; sourceTree = "<group>"; };
+		F1A2B3C4D5E60718293A4B5C /* SettingsPanes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsPanes.swift; sourceTree = "<group>"; };
+		AE00000000000000000000A4 /* ExtensionsSettingsPane.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionsSettingsPane.swift; sourceTree = "<group>"; };
+		AE00000000000000000000A5 /* ExtensionActionsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionActionsView.swift; sourceTree = "<group>"; };
+		F2A2B3C4D5E60718293A4B5C /* EliSettingsPane.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EliSettingsPane.swift; sourceTree = "<group>"; };
+		F3A2B3C4D5E60718293A4B5C /* ShortcutSettingsComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShortcutSettingsComponents.swift; sourceTree = "<group>"; };
+		F60000000000000000000001 /* ButtonTreatment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ButtonTreatment.swift; sourceTree = "<group>"; };
+		F60000000000000000000002 /* ShortcutTooltip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShortcutTooltip.swift; sourceTree = "<group>"; };
+		LH00000000000000000000A1 /* LinkHoverPreviewPill.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LinkHoverPreviewPill.swift; sourceTree = "<group>"; };
+		SI00000000000000000000A1 /* SitePermissions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SitePermissions.swift; sourceTree = "<group>"; };
+		SI00000000000000000000A2 /* SiteInfoView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SiteInfoView.swift; sourceTree = "<group>"; };
+		PV00000000000000000000A1 /* PrivacyReportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrivacyReportView.swift; sourceTree = "<group>"; };
+		RD00000000000000000000A1 /* ReaderMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReaderMode.swift; sourceTree = "<group>"; };
+		RD00000000000000000000A2 /* WebViewCoordinator+Reader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "WebViewCoordinator+Reader.swift"; sourceTree = "<group>"; };
+		RD00000000000000000000A3 /* BrowserStore+Reader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BrowserStore+Reader.swift"; sourceTree = "<group>"; };
+		TF00000000000000000000A1 /* TabLoadFailure.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabLoadFailure.swift; sourceTree = "<group>"; };
+		TR00000000000000000000A1 /* TabRecoveryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabRecoveryView.swift; sourceTree = "<group>"; };
+		TS00000000000000000000A1 /* TabSnapshotStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabSnapshotStore.swift; sourceTree = "<group>"; };
+		UT00000000000000000000A1 /* TalosTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TalosTests.swift; sourceTree = "<group>"; };
+		UT00000000000000000000A2 /* TalosTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = TalosTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		010000000000000000000210 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				010000000000000000000160 /* Sparkle in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		010000000000000000000250 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		UT00000000000000000000D2 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		010000000000000000000020 = {
+			isa = PBXGroup;
+			children = (
+				010000000000000000000021 /* Talos */,
+				010000000000000000000028 /* TalosUITests */,
+				UT00000000000000000000C1 /* TalosTests */,
+				010000000000000000000030 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		010000000000000000000021 /* Talos */ = {
+			isa = PBXGroup;
+			children = (
+				010000000000000000000022 /* App */,
+				010000000000000000000023 /* Models */,
+				010000000000000000000024 /* Views */,
+				01000000000000000000002A /* Stores */,
+				010000000000000000000025 /* Services */,
+				010000000000000000000029 /* Repositories */,
+				010000000000000000000026 /* Web */,
+				010000000000000000000027 /* Resources */,
+				010000000000000000000050 /* Assets.xcassets */,
+			);
+			path = Talos;
+			sourceTree = "<group>";
+		};
+		010000000000000000000022 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				010000000000000000000001 /* TalosApp.swift */,
+				CAD04797D6D34FF9826511EF /* AppDelegate.swift */,
+				CA2AF3D9CCD4D72BC545D831 /* DevelopMenuStyler.swift */,
+				CAFAA465A491152257AB4070 /* MenuAlternateInstaller.swift */,
+				CADA316C62011C0193B77884 /* BrowserCommands.swift */,
+				CAA348F0E336BC80041CE635 /* BrowserCommandActions.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		010000000000000000000023 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				CA1100000000000000000001 /* ProblemReport.swift */,
+				010000000000000000000002 /* BrowserTab.swift */,
+				010000000000000000000003 /* BrowserSpace.swift */,
+				010000000000000000000004 /* BrowserWindowState.swift */,
+				01000000000000000000001C /* AppConfiguration.swift */,
+				DE0000000000000000000003 /* UserAgentConfiguration.swift */,
+				TF00000000000000000000A1 /* TabLoadFailure.swift */,
+				SI00000000000000000000A1 /* SitePermissions.swift */,
+				010000000000000000000051 /* HistoryVisit.swift */,
+				CA00000000000000000A0002 /* HomepagePreference.swift */,
+				CA00000000000000000A0004 /* GeneralSettingsPreferences.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		010000000000000000000024 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				CA1100000000000000000003 /* ReportProblemView.swift */,
+				F60000000000000000000201 /* UI */,
+				010000000000000000000011 /* ContentView.swift */,
+				010000000000000000000069 /* QuickNoteActivity.swift */,
+				A90000000000000000000002 /* HistoryView.swift */,
+				CA00000000000000000A0003 /* ClearBrowsingDataSheet.swift */,
+				CA00000000000000000A0FA4 /* ManageWebsiteDataSheet.swift */,
+				CA00000000000000000A0001 /* BrowserMenuController.swift */,
+				010000000000000000000067 /* InitialOnboardingView.swift */,
+				CACDAD113937BAC24AD303F7 /* InitialTourPopover.swift */,
+				CA32C11AB2DF59CB6F2E0C29 /* WelcomeOnboardingStep.swift */,
+				CA139C67763972BACFF942E1 /* AccountOnboardingStep.swift */,
+				CA11F57C54EA4B3C2E92E664 /* ImportOnboardingStep.swift */,
+				CAA1C25325B51B5980638C31 /* SpaceOnboardingStep.swift */,
+				CAB929FF1E5C2C645379B1A3 /* AddressBarOnboardingStep.swift */,
+				CA29A81E4BDD612B972B0989 /* OnboardingSurface.swift */,
+				010000000000000000000045 /* EliSidebarResizeHandle.swift */,
+				010000000000000000000046 /* EliSidebarView.swift */,
+				EF0000000000000000000006 /* EliSidebarSupportingViews.swift */,
+				0100000000000000000000f3 /* SharePicker.swift */,
+				010000000000000000000047 /* EliSidebarComponents.swift */,
+				CA1142A4C6D5C3C0EBDE94EB /* EliSidebarModels.swift */,
+				CAE98823C224BDA9444C5F27 /* EliSidebarComposerControls.swift */,
+				CA2C95A9705ADAE39AA992AF /* EliSpeechController.swift */,
+				CA5F3FB977B0F8216E742318 /* EliSidebarMessageRow.swift */,
+				CA82A432C86FEBD1DFF7E0FA /* EliSubscriptionGate.swift */,
+				010000000000000000000012 /* SidebarView.swift */,
+				SI00000000000000000000A2 /* SiteInfoView.swift */,
+				EF000000000000000000000F /* TopAddressBar.swift */,
+				PV00000000000000000000A1 /* PrivacyReportView.swift */,
+				E50000000000000000000001 /* AppUpdateBanner.swift */,
+				AB1200000000000000000001 /* WhatsNewBanner.swift */,
+				D1A2B3C4E5F60718293A4B5C /* SidebarSpaceComposer.swift */,
+				E50000000000000000000005 /* SpaceIconPicker.swift */,
+				E50000000000000000000006 /* SpaceThemePanel.swift */,
+				E50000000000000000000007 /* SpaceThemeControls.swift */,
+				E50000000000000000000008 /* SpaceComposerModels.swift */,
+				D2A2B3C4E5F60718293A4B5C /* SidebarTabSections.swift */,
+				D3A2B3C4E5F60718293A4B5C /* SidebarWindowControls.swift */,
+				E50000000000000000000002 /* InterfaceStyle.swift */,
+				E50000000000000000000003 /* SpaceThemeBackdrop.swift */,
+				E50000000000000000000004 /* SidebarDropIndicators.swift */,
+				D4A2B3C4E5F60718293A4B5C /* SidebarDragDrop.swift */,
+				010000000000000000000013 /* BrowserInterfaceView.swift */,
+				010000000000000000000014 /* WebViewContainer.swift */,
+				5B0000000000000000000001 /* SplitPaneChrome.swift */,
+				5B0000000000000000000002 /* BrowserInterfaceMask.swift */,
+				5B0000000000000000000003 /* SplitPaneDropTargets.swift */,
+				5B0000000000000000000004 /* DeveloperToolbar.swift */,
+				5B0000000000000000000005 /* PageLoadingPill.swift */,
+				5B0000000000000000000006 /* SpaceSetupCanvas.swift */,
+				010000000000000000000015 /* CommandPaletteView.swift */,
+				010000000000000000000061 /* CommandPaletteView+Layout.swift */,
+				010000000000000000000062 /* CommandPaletteView+Commands.swift */,
+				B1C2D3E4F5A60718293A4B5C /* CommandPaletteSearch.swift */,
+				010000000000000000000064 /* CommandPaletteComponents.swift */,
+				010000000000000000000065 /* CommandPaletteModels.swift */,
+				010000000000000000000016 /* TabRowView.swift */,
+				DE0000000000000000000005 /* AcknowledgmentsView.swift */,
+				010000000000000000000017 /* SpaceSwitcherView.swift */,
+				E60000000000000000000001 /* SpaceSwipeTransition.swift */,
+				01000000000000000000001B /* TabSwitcherOverlay.swift */,
+				TR00000000000000000000A1 /* TabRecoveryView.swift */,
+				LH00000000000000000000A1 /* LinkHoverPreviewPill.swift */,
+				010000000000000000000031 /* KeyboardShortcutMonitor.swift */,
+				010000000000000000000032 /* SidebarRevealMonitor.swift */,
+				010000000000000000000033 /* WindowInteractionConfigurator.swift */,
+				010000000000000000000034 /* FloatingMiniPlayer.swift */,
+				CA94F84A914141F7A72E9C5F /* MiniPlayerControls.swift */,
+				CAC1C3175517372EC2ABC97D /* MiniPlayerResize.swift */,
+				CA0C0142FC7B480E54DDD4C9 /* CursorHover.swift */,
+				010000000000000000000035 /* ShortcutSettingsView.swift */,
+				F1A2B3C4D5E60718293A4B5C /* SettingsPanes.swift */,
+				AE00000000000000000000A4 /* ExtensionsSettingsPane.swift */,
+				AE00000000000000000000A5 /* ExtensionActionsView.swift */,
+				F2A2B3C4D5E60718293A4B5C /* EliSettingsPane.swift */,
+				F3A2B3C4D5E60718293A4B5C /* ShortcutSettingsComponents.swift */,
+				010000000000000000000041 /* CopiedURLToastView.swift */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		010000000000000000000025 /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				CA1100000000000000000002 /* ProblemReportService.swift */,
+				010000000000000000000006 /* NavigationService.swift */,
+				CB00000000000000000000C1 /* CommandBarSelectionMemory.swift */,
+				010000000000000000000007 /* PersistenceService.swift */,
+				CA00000000000000000A0005 /* HistoryRetentionService.swift */,
+				010000000000000000000008 /* FaviconService.swift */,
+				DB00000000000000000000A1 /* DefaultBrowserService.swift */,
+				TS00000000000000000000A1 /* TabSnapshotStore.swift */,
+				010000000000000000000040 /* ContentBlockerService.swift */,
+				AB1000000000000000000001 /* WebsiteAppearanceService.swift */,
+				AB10000000000000000BD001 /* BrowsingDataService.swift */,
+				AB10000000000000000BD003 /* WebsiteDataInventory.swift */,
+				AB10000000000000000BD004 /* ExternalSchemeHandoff.swift */,
+				DE0000000000000000000002 /* ExternalBrowserService.swift */,
+				01000000000000000000001D /* AppUpdateService.swift */,
+				AB1200000000000000000002 /* WhatsNewService.swift */,
+				AB1300000000000000000002 /* ProviderModelDirectory.swift */,
+				010000000000000000000042 /* EliService.swift */,
+				EF0000000000000000000001 /* EliModels.swift */,
+				EF0000000000000000000002 /* EliCredentials.swift */,
+				EF0000000000000000000010 /* AIModelCatalog.swift */,
+				EF0000000000000000000003 /* BrowserAgent.swift */,
+				EF00000000000000000000A3 /* BrowserAgentTrace.swift */,
+				EF0000000000000000000004 /* PageActionProposal.swift */,
+				010000000000000000000066 /* AccountService.swift */,
+				DD0000000000000000000001 /* AppleSignInService.swift */,
+				AB7700000000000000000001 /* WebAuthenticationSessionHostService.swift */,
+				010000000000000000000068 /* BrowserImportService.swift */,
+				BB0000000000000000000001 /* BrowserPasskeyAuthorizationService.swift */,
+				010000000000000000000413 /* EliSuggestionCatalog.swift */,
+				010000000000000000000414 /* EliSuggestionPersonalizer.swift */,
+				010000000000000000000043 /* EliPromptPolicy.swift */,
+				010000000000000000000044 /* EliContextSections.swift */,
+				010000000000000000000048 /* EliContextCompactor.swift */,
+				AA000000000000000000000D /* ImageTextRecognizer.swift */,
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
+		010000000000000000000026 /* Web */ = {
+			isa = PBXGroup;
+			children = (
+				010000000000000000000009 /* WKWebViewRepresentable.swift */,
+				010000000000000000000010 /* WebViewCoordinator.swift */,
+				AE00000000000000000000A3 /* WebExtensionInstaller.swift */,
+				AE00000000000000000000A2 /* WebExtensionAdapters.swift */,
+				AE00000000000000000000A1 /* WebExtensionManager.swift */,
+				BA0000000000000000000001 /* BrowserAgentDriver.swift */,
+				EF0000000000000000000005 /* WebPageScripts.swift */,
+				WN0000000000000000000001 /* WebNotificationService.swift */,
+				PK0000000000000000000001 /* PasskeyCeremony.swift */,
+				PK0000000000000000000002 /* PasskeyCredentialStore.swift */,
+				PK0000000000000000000003 /* WebViewCoordinator+Passkeys.swift */,
+				EF0000000000000000000007 /* WebViewCoordinator+Permissions.swift */,
+				EF0000000000000000000008 /* WebViewCoordinator+Hosting.swift */,
+				DE0000000000000000000001 /* WebViewCoordinator+Inspector.swift */,
+				DE0000000000000000000008 /* BrowserWebView.swift */,
+				EF0000000000000000000009 /* WebViewCoordinator+Hibernation.swift */,
+				EF000000000000000000000E /* WebViewCoordinator+PreviewWarmup.swift */,
+				EF000000000000000000000A /* WebViewCoordinator+Media.swift */,
+				RD00000000000000000000A1 /* ReaderMode.swift */,
+				RD00000000000000000000A2 /* WebViewCoordinator+Reader.swift */,
+				EF000000000000000000000B /* WebViewCoordinator+Delegates.swift */,
+				EF000000000000000000000C /* WebViewCoordinator+Downloads.swift */,
+				CW0000000000000000000001 /* ChromeWebStore.swift */,
+				CW0000000000000000000003 /* WebExtensionPermissionCopy.swift */,
+				CW0000000000000000000002 /* WebViewCoordinator+WebStore.swift */,
+				EF000000000000000000000D /* WebViewCoordinator+PageIntegration.swift */,
+			);
+			path = Web;
+			sourceTree = "<group>";
+		};
+		010000000000000000000027 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				BA0000000000000000000002 /* BrowserAgent */,
+				A1B2C3D4E5F60718293A4B5D /* Localizable.xcstrings */,
+				DE0000000000000000000007 /* Credits.rtf */,
+				010000000000000000000018 /* Info.plist */,
+				01000000000000000000001A /* Talos.entitlements */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		010000000000000000000028 /* TalosUITests */ = {
+			isa = PBXGroup;
+			children = (
+				010000000000000000000060 /* TalosUITests.swift */,
+				CAB2EE54E68D89DC9ED47404 /* TalosUITests+SplitView.swift */,
+				CA450046AA6C329AA66E8865 /* TalosUITests+BrowsingAndPrivacy.swift */,
+				CAFDC2087C832B20BA2346BA /* TalosUITests+DownloadsAndImport.swift */,
+				CA57C4F1F5DF752BC2F2AB23 /* TalosUITests+OnboardingAndSpaces.swift */,
+				CAFE386717AB000E10CE39BD /* TalosUITests+AccountAndEliSettings.swift */,
+				CA86FCF8660ECC4D43248FE3 /* TalosUITests+TabsAndShortcuts.swift */,
+				CAC68FE38CF9BF7A3AB991C0 /* TalosUITests+Eli.swift */,
+				CA81D81865A1D95E1295B6CC /* TalosUITests+MenusAndSiteInfo.swift */,
+				CAF278299DA0EB114F46C013 /* TalosUITests+Support.swift */,
+				CAD4C986355B52C75DFAB112 /* EliLiveUITests.swift */,
+			);
+			path = TalosUITests;
+			sourceTree = "<group>";
+		};
+		010000000000000000000029 /* Repositories */ = {
+			isa = PBXGroup;
+			children = (
+				010000000000000000000052 /* WorkspaceRepository.swift */,
+				010000000000000000000053 /* HistoryRepository.swift */,
+			);
+			path = Repositories;
+			sourceTree = "<group>";
+		};
+		01000000000000000000002A /* Stores */ = {
+			isa = PBXGroup;
+			children = (
+				010000000000000000000005 /* BrowserStore.swift */,
+				A90000000000000000000001 /* HistoryStore.swift */,
+				010000000000000000000054 /* BrowserStore+Eli.swift */,
+				010000000000000000000055 /* BrowserStore+Media.swift */,
+				RD00000000000000000000A3 /* BrowserStore+Reader.swift */,
+				AA0000000000000000000001 /* UserStore.swift */,
+				AA0000000000000000000002 /* BrowserStore+Testing.swift */,
+				AA0000000000000000000003 /* BrowserStore+CommandPalette.swift */,
+				DE0000000000000000000004 /* BrowserStore+DevelopMenu.swift */,
+				AA0000000000000000000004 /* BrowserStore+Onboarding.swift */,
+				CD0000000000000000000001 /* DownloadsStore.swift */,
+				AA0000000000000000000005 /* BrowserStore+Spaces.swift */,
+				AA0000000000000000000006 /* BrowserStore+TabsFolders.swift */,
+				DE0000000000000000000006 /* BrowserStore+TabArrangement.swift */,
+				AA0000000000000000000007 /* BrowserStore+BrowserActions.swift */,
+				AAFC00000000000000000001 /* BrowserStore+FileCommands.swift */,
+				AA0000000000000000000008 /* BrowserStore+TabSwitching.swift */,
+				AA0000000000000000000009 /* BrowserStore+SplitViewDragDrop.swift */,
+				AA000000000000000000000A /* BrowserStore+NavigationHistory.swift */,
+				AA000000000000000000000B /* BrowserStore+Persistence.swift */,
+				AA000000000000000000000C /* BrowserStore+SessionRepair.swift */,
+			);
+			path = Stores;
+			sourceTree = "<group>";
+		};
+		010000000000000000000030 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				010000000000000000000019 /* Talos.app */,
+				010000000000000000000063 /* TalosUITests.xctest */,
+				UT00000000000000000000A2 /* TalosTests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		F60000000000000000000201 /* UI */ = {
+			isa = PBXGroup;
+			children = (
+				F60000000000000000000001 /* ButtonTreatment.swift */,
+				F60000000000000000000002 /* ShortcutTooltip.swift */,
+			);
+			path = UI;
+			sourceTree = "<group>";
+		};
+		UT00000000000000000000C1 /* TalosTests */ = {
+			isa = PBXGroup;
+			children = (
+				UT00000000000000000000A1 /* TalosTests.swift */,
+			);
+			path = TalosTests;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		010000000000000000000200 /* Talos */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 010000000000000000000400 /* Build configuration list for PBXNativeTarget "Talos" */;
+			buildPhases = (
+				010000000000000000000220 /* Sources */,
+				010000000000000000000210 /* Frameworks */,
+				010000000000000000000230 /* Resources */,
+				EF0000000000000000000300 /* Stamp Dev Version */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = Talos;
+			packageProductDependencies = (
+				010000000000000000000161 /* Sparkle */,
+			);
+			productName = Talos;
+			productReference = 010000000000000000000019 /* Talos.app */;
+			productType = "com.apple.product-type.application";
+		};
+		010000000000000000000201 /* TalosUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 010000000000000000000410 /* Build configuration list for PBXNativeTarget "TalosUITests" */;
+			buildPhases = (
+				010000000000000000000240 /* Sources */,
+				010000000000000000000250 /* Frameworks */,
+				010000000000000000000260 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				010000000000000000000271 /* PBXTargetDependency */,
+			);
+			name = TalosUITests;
+			packageProductDependencies = (
+			);
+			productName = TalosUITests;
+			productReference = 010000000000000000000063 /* TalosUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+		UT00000000000000000000E1 /* TalosTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = UT00000000000000000000F1 /* Build configuration list for PBXNativeTarget "TalosTests" */;
+			buildPhases = (
+				UT00000000000000000000D1 /* Sources */,
+				UT00000000000000000000D2 /* Frameworks */,
+				UT00000000000000000000D3 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				UT00000000000000000000E3 /* PBXTargetDependency */,
+			);
+			name = TalosTests;
+			packageProductDependencies = (
+			);
+			productName = TalosTests;
+			productReference = UT00000000000000000000A2 /* TalosTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		010000000000000000000300 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 2650;
+				LastUpgradeCheck = 2660;
+				TargetAttributes = {
+					010000000000000000000200 = {
+						CreatedOnToolsVersion = 26.5;
+						SystemCapabilities = {
+							com.apple.iCloud = {
+								enabled = 1;
+							};
+						};
+					};
+					010000000000000000000201 = {
+						CreatedOnToolsVersion = 26.5;
+						TestTargetID = 010000000000000000000200;
+					};
+					UT00000000000000000000E1 = {
+						CreatedOnToolsVersion = 26.5;
+						TestTargetID = 010000000000000000000200;
+					};
+				};
+			};
+			buildConfigurationList = 010000000000000000000390 /* Build configuration list for PBXProject "Talos" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+				es,
+				fr,
+				de,
+				ja,
+				"zh-Hans",
+				"pt-BR",
+			);
+			mainGroup = 010000000000000000000020;
+			packageReferences = (
+				010000000000000000000162 /* XCRemoteSwiftPackageReference "Sparkle" */,
+			);
+			productRefGroup = 010000000000000000000030 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				010000000000000000000200 /* Talos */,
+				010000000000000000000201 /* TalosUITests */,
+				UT00000000000000000000E1 /* TalosTests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		010000000000000000000230 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				010000000000000000000150 /* Assets.xcassets in Resources */,
+				BA0000000000000000000102 /* BrowserAgent in Resources */,
+				A1B2C3D4E5F60718293A4B5E /* Localizable.xcstrings in Resources */,
+				DE0000000000000000000107 /* Credits.rtf in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		010000000000000000000260 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		UT00000000000000000000D3 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		EF0000000000000000000300 /* Stamp Dev Version */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			name = "Stamp Dev Version";
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "if [ \"$CONFIGURATION\" != \"Debug\" ]; then exit 0; fi\ncd \"$SRCROOT\"\nBUILD=\"$(git rev-list --count HEAD 2>/dev/null || true)\"\n[ -n \"$BUILD\" ] || exit 0\nLAST_TAG=\"$(git describe --tags --abbrev=0 --match 'v[0-9]*' 2>/dev/null || true)\"\nif [ -n \"$LAST_TAG\" ]; then\n  BASE=\"${LAST_TAG#v}\"\n  MAJOR=\"${BASE%%.*}\"; REST=\"${BASE#*.}\"\n  MINOR=\"${REST%%.*}\"; PATCH=\"${REST#*.}\"\n  if git log --format=%s \"$LAST_TAG..HEAD\" | grep -qE '^feat(\\(|!|:)'; then\n    MINOR=$((MINOR + 1)); PATCH=0\n  else\n    PATCH=$((PATCH + 1))\n  fi\n  VERSION=\"$MAJOR.$MINOR.$PATCH\"\nelse\n  VERSION=\"$MARKETING_VERSION\"\nfi\nPLIST=\"$TARGET_BUILD_DIR/$INFOPLIST_PATH\"\n/usr/libexec/PlistBuddy -c \"Set :CFBundleShortVersionString $VERSION\" \"$PLIST\"\n/usr/libexec/PlistBuddy -c \"Set :CFBundleVersion $BUILD\" \"$PLIST\"\n";
+		};
+/* End PBXShellScriptBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		010000000000000000000220 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				010000000000000000000101 /* TalosApp.swift in Sources */,
+				CA76F499B99AC76B2B4EEC0D /* AppDelegate.swift in Sources */,
+				CAFD575F360E8589004DC60F /* DevelopMenuStyler.swift in Sources */,
+				CA63E9922D9485412624D82C /* MenuAlternateInstaller.swift in Sources */,
+				CA707FE182A25F8B71DC6124 /* BrowserCommands.swift in Sources */,
+				CA6FB3CB6C01320443DD3E01 /* BrowserCommandActions.swift in Sources */,
+				010000000000000000000102 /* BrowserTab.swift in Sources */,
+				010000000000000000000103 /* BrowserSpace.swift in Sources */,
+				010000000000000000000104 /* BrowserWindowState.swift in Sources */,
+				010000000000000000000105 /* BrowserStore.swift in Sources */,
+				A90000000000000000000101 /* HistoryStore.swift in Sources */,
+				AA0000000000000000000101 /* UserStore.swift in Sources */,
+				AA0000000000000000000102 /* BrowserStore+Testing.swift in Sources */,
+				AA0000000000000000000103 /* BrowserStore+CommandPalette.swift in Sources */,
+				AA0000000000000000000104 /* BrowserStore+Onboarding.swift in Sources */,
+				CD0000000000000000000002 /* DownloadsStore.swift in Sources */,
+				AA0000000000000000000105 /* BrowserStore+Spaces.swift in Sources */,
+				AA0000000000000000000106 /* BrowserStore+TabsFolders.swift in Sources */,
+				AA0000000000000000000107 /* BrowserStore+BrowserActions.swift in Sources */,
+				AAFC00000000000000000101 /* BrowserStore+FileCommands.swift in Sources */,
+				AA0000000000000000000108 /* BrowserStore+TabSwitching.swift in Sources */,
+				AA0000000000000000000109 /* BrowserStore+SplitViewDragDrop.swift in Sources */,
+				AA000000000000000000010A /* BrowserStore+NavigationHistory.swift in Sources */,
+				AA000000000000000000010B /* BrowserStore+Persistence.swift in Sources */,
+				AA000000000000000000010C /* BrowserStore+SessionRepair.swift in Sources */,
+				AA000000000000000000010D /* ImageTextRecognizer.swift in Sources */,
+				010000000000000000000106 /* NavigationService.swift in Sources */,
+				CB00000000000000000000C2 /* CommandBarSelectionMemory.swift in Sources */,
+				010000000000000000000107 /* PersistenceService.swift in Sources */,
+				010000000000000000000108 /* FaviconService.swift in Sources */,
+				DB00000000000000000000B1 /* DefaultBrowserService.swift in Sources */,
+				TS00000000000000000000B1 /* TabSnapshotStore.swift in Sources */,
+				010000000000000000000109 /* WKWebViewRepresentable.swift in Sources */,
+				010000000000000000000110 /* WebViewCoordinator.swift in Sources */,
+				AE00000000000000000001A3 /* WebExtensionInstaller.swift in Sources */,
+				AE00000000000000000001A2 /* WebExtensionAdapters.swift in Sources */,
+				AE00000000000000000001A1 /* WebExtensionManager.swift in Sources */,
+				BA0000000000000000000101 /* BrowserAgentDriver.swift in Sources */,
+				EF0000000000000000000105 /* WebPageScripts.swift in Sources */,
+				WN0000000000000000000101 /* WebNotificationService.swift in Sources */,
+				PK0000000000000000000101 /* PasskeyCeremony.swift in Sources */,
+				PK0000000000000000000102 /* PasskeyCredentialStore.swift in Sources */,
+				PK0000000000000000000103 /* WebViewCoordinator+Passkeys.swift in Sources */,
+				EF0000000000000000000107 /* WebViewCoordinator+Permissions.swift in Sources */,
+				EF0000000000000000000108 /* WebViewCoordinator+Hosting.swift in Sources */,
+				EF0000000000000000000109 /* WebViewCoordinator+Hibernation.swift in Sources */,
+				EF000000000000000000010E /* WebViewCoordinator+PreviewWarmup.swift in Sources */,
+				EF000000000000000000010A /* WebViewCoordinator+Media.swift in Sources */,
+				EF000000000000000000010B /* WebViewCoordinator+Delegates.swift in Sources */,
+				EF000000000000000000010C /* WebViewCoordinator+Downloads.swift in Sources */,
+				CW0000000000000000000101 /* ChromeWebStore.swift in Sources */,
+				CW0000000000000000000103 /* WebExtensionPermissionCopy.swift in Sources */,
+				CW0000000000000000000102 /* WebViewCoordinator+WebStore.swift in Sources */,
+				EF000000000000000000010D /* WebViewCoordinator+PageIntegration.swift in Sources */,
+				010000000000000000000111 /* ContentView.swift in Sources */,
+				010000000000000000000169 /* QuickNoteActivity.swift in Sources */,
+				A90000000000000000000102 /* HistoryView.swift in Sources */,
+				CA00000000000000000A0103 /* ClearBrowsingDataSheet.swift in Sources */,
+				CA00000000000000000A0101 /* BrowserMenuController.swift in Sources */,
+				010000000000000000000112 /* SidebarView.swift in Sources */,
+				C1A2B3D4E5F60718293A4B5C /* SidebarSpaceComposer.swift in Sources */,
+				C2A2B3D4E5F60718293A4B5C /* SidebarTabSections.swift in Sources */,
+				C3A2B3D4E5F60718293A4B5C /* SidebarWindowControls.swift in Sources */,
+				C4A2B3D4E5F60718293A4B5C /* SidebarDragDrop.swift in Sources */,
+				E50000000000000000000101 /* AppUpdateBanner.swift in Sources */,
+				AB1200000000000000000101 /* WhatsNewBanner.swift in Sources */,
+				E50000000000000000000102 /* InterfaceStyle.swift in Sources */,
+				E50000000000000000000103 /* SpaceThemeBackdrop.swift in Sources */,
+				E50000000000000000000104 /* SidebarDropIndicators.swift in Sources */,
+				E50000000000000000000105 /* SpaceIconPicker.swift in Sources */,
+				E50000000000000000000106 /* SpaceThemePanel.swift in Sources */,
+				E50000000000000000000107 /* SpaceThemeControls.swift in Sources */,
+				E50000000000000000000108 /* SpaceComposerModels.swift in Sources */,
+				F60000000000000000000101 /* ButtonTreatment.swift in Sources */,
+				F60000000000000000000102 /* ShortcutTooltip.swift in Sources */,
+				010000000000000000000113 /* BrowserInterfaceView.swift in Sources */,
+				010000000000000000000114 /* WebViewContainer.swift in Sources */,
+				5B0000000000000000000101 /* SplitPaneChrome.swift in Sources */,
+				5B0000000000000000000102 /* BrowserInterfaceMask.swift in Sources */,
+				5B0000000000000000000103 /* SplitPaneDropTargets.swift in Sources */,
+				5B0000000000000000000104 /* DeveloperToolbar.swift in Sources */,
+				5B0000000000000000000105 /* PageLoadingPill.swift in Sources */,
+				5B0000000000000000000106 /* SpaceSetupCanvas.swift in Sources */,
+				010000000000000000000115 /* CommandPaletteView.swift in Sources */,
+				010000000000000000000171 /* CommandPaletteView+Layout.swift in Sources */,
+				010000000000000000000172 /* CommandPaletteView+Commands.swift in Sources */,
+				A1B2C3D4E5F60718293A4B5C /* CommandPaletteSearch.swift in Sources */,
+				010000000000000000000174 /* CommandPaletteComponents.swift in Sources */,
+				010000000000000000000175 /* CommandPaletteModels.swift in Sources */,
+				010000000000000000000116 /* TabRowView.swift in Sources */,
+				010000000000000000000117 /* SpaceSwitcherView.swift in Sources */,
+				E60000000000000000000101 /* SpaceSwipeTransition.swift in Sources */,
+				010000000000000000000118 /* TabSwitcherOverlay.swift in Sources */,
+				TR00000000000000000000B1 /* TabRecoveryView.swift in Sources */,
+				LH00000000000000000000B1 /* LinkHoverPreviewPill.swift in Sources */,
+				010000000000000000000119 /* AppConfiguration.swift in Sources */,
+				TF00000000000000000000B1 /* TabLoadFailure.swift in Sources */,
+				010000000000000000000120 /* AppUpdateService.swift in Sources */,
+				AB1200000000000000000102 /* WhatsNewService.swift in Sources */,
+				CA1100000000000000000101 /* ProblemReport.swift in Sources */,
+				CA1100000000000000000102 /* ProblemReportService.swift in Sources */,
+				CA1100000000000000000103 /* ReportProblemView.swift in Sources */,
+				SI00000000000000000000B1 /* SitePermissions.swift in Sources */,
+				SI00000000000000000000B2 /* SiteInfoView.swift in Sources */,
+				EF000000000000000000010F /* TopAddressBar.swift in Sources */,
+				PV00000000000000000000B1 /* PrivacyReportView.swift in Sources */,
+				RD00000000000000000000B1 /* ReaderMode.swift in Sources */,
+				RD00000000000000000000B2 /* WebViewCoordinator+Reader.swift in Sources */,
+				RD00000000000000000000B3 /* BrowserStore+Reader.swift in Sources */,
+				AB1300000000000000000102 /* ProviderModelDirectory.swift in Sources */,
+				010000000000000000000121 /* KeyboardShortcutMonitor.swift in Sources */,
+				010000000000000000000122 /* SidebarRevealMonitor.swift in Sources */,
+				010000000000000000000123 /* WindowInteractionConfigurator.swift in Sources */,
+				010000000000000000000124 /* FloatingMiniPlayer.swift in Sources */,
+				CAC7EAB7B7187201DFEAC713 /* MiniPlayerControls.swift in Sources */,
+				CA6D108AF7262D97F46E57E8 /* MiniPlayerResize.swift in Sources */,
+				CA34D03CADD2319E49A981FD /* CursorHover.swift in Sources */,
+				010000000000000000000125 /* ShortcutSettingsView.swift in Sources */,
+				E1A2B3D4F5C60718293A4B5C /* SettingsPanes.swift in Sources */,
+				AE00000000000000000001A4 /* ExtensionsSettingsPane.swift in Sources */,
+				AE00000000000000000001A5 /* ExtensionActionsView.swift in Sources */,
+				E2A2B3D4F5C60718293A4B5C /* EliSettingsPane.swift in Sources */,
+				E3A2B3D4F5C60718293A4B5C /* ShortcutSettingsComponents.swift in Sources */,
+				010000000000000000000140 /* ContentBlockerService.swift in Sources */,
+				AB1000000000000000000101 /* WebsiteAppearanceService.swift in Sources */,
+				AB10000000000000000BD101 /* BrowsingDataService.swift in Sources */,
+				AB10000000000000000BD103 /* WebsiteDataInventory.swift in Sources */,
+				AB10000000000000000BD104 /* ExternalSchemeHandoff.swift in Sources */,
+				CA00000000000000000A0F04 /* ManageWebsiteDataSheet.swift in Sources */,
+				DE0000000000000000000105 /* AcknowledgmentsView.swift in Sources */,
+				DE0000000000000000000106 /* BrowserStore+TabArrangement.swift in Sources */,
+				DE0000000000000000000101 /* WebViewCoordinator+Inspector.swift in Sources */,
+				DE0000000000000000000108 /* BrowserWebView.swift in Sources */,
+				DE0000000000000000000102 /* ExternalBrowserService.swift in Sources */,
+				DE0000000000000000000103 /* UserAgentConfiguration.swift in Sources */,
+				DE0000000000000000000104 /* BrowserStore+DevelopMenu.swift in Sources */,
+				010000000000000000000141 /* CopiedURLToastView.swift in Sources */,
+				010000000000000000000142 /* EliService.swift in Sources */,
+				EF0000000000000000000101 /* EliModels.swift in Sources */,
+				EF0000000000000000000102 /* EliCredentials.swift in Sources */,
+				EF0000000000000000000110 /* AIModelCatalog.swift in Sources */,
+				EF0000000000000000000103 /* BrowserAgent.swift in Sources */,
+				EF00000000000000000001A3 /* BrowserAgentTrace.swift in Sources */,
+				EF0000000000000000000104 /* PageActionProposal.swift in Sources */,
+				010000000000000000000176 /* AccountService.swift in Sources */,
+				DD0000000000000000000101 /* AppleSignInService.swift in Sources */,
+				AB7700000000000000000101 /* WebAuthenticationSessionHostService.swift in Sources */,
+				010000000000000000000177 /* InitialOnboardingView.swift in Sources */,
+				CAAD787CB7D5F6DA28D5F9AE /* InitialTourPopover.swift in Sources */,
+				CA831C5CF1B3C52269454FD6 /* WelcomeOnboardingStep.swift in Sources */,
+				CA5CD1CEDC2BB77D9409136B /* AccountOnboardingStep.swift in Sources */,
+				CA7D01270A89293BEF495AB9 /* ImportOnboardingStep.swift in Sources */,
+				CA5C84236DDFAB6F3E879D3F /* SpaceOnboardingStep.swift in Sources */,
+				CA1CA0DBB49EDB9286201C0A /* AddressBarOnboardingStep.swift in Sources */,
+				CA2FD9F554C2ECB4DF65A93E /* OnboardingSurface.swift in Sources */,
+				010000000000000000000178 /* BrowserImportService.swift in Sources */,
+				BB0000000000000000000101 /* BrowserPasskeyAuthorizationService.swift in Sources */,
+				010000000000000000000513 /* EliSuggestionCatalog.swift in Sources */,
+				010000000000000000000514 /* EliSuggestionPersonalizer.swift in Sources */,
+				010000000000000000000143 /* EliPromptPolicy.swift in Sources */,
+				010000000000000000000144 /* EliContextSections.swift in Sources */,
+				010000000000000000000145 /* EliSidebarResizeHandle.swift in Sources */,
+				010000000000000000000146 /* EliSidebarView.swift in Sources */,
+				EF0000000000000000000106 /* EliSidebarSupportingViews.swift in Sources */,
+				010000000000000000000192 /* SharePicker.swift in Sources */,
+				010000000000000000000147 /* EliSidebarComponents.swift in Sources */,
+				CAC24A9A2DCF844B5373F5FE /* EliSidebarModels.swift in Sources */,
+				CA8D5B1A3D140BF781AF92CD /* EliSidebarComposerControls.swift in Sources */,
+				CAD9C2BABF8535AF265B143E /* EliSpeechController.swift in Sources */,
+				CA4D3730DB4BB9718D9FCC8C /* EliSidebarMessageRow.swift in Sources */,
+				CAE61EACC3D987AEDC725F72 /* EliSubscriptionGate.swift in Sources */,
+				010000000000000000000148 /* EliContextCompactor.swift in Sources */,
+				010000000000000000000151 /* HistoryVisit.swift in Sources */,
+				CA00000000000000000A0102 /* HomepagePreference.swift in Sources */,
+				CA00000000000000000A0104 /* GeneralSettingsPreferences.swift in Sources */,
+				CA00000000000000000A0105 /* HistoryRetentionService.swift in Sources */,
+				010000000000000000000152 /* WorkspaceRepository.swift in Sources */,
+				010000000000000000000153 /* HistoryRepository.swift in Sources */,
+				010000000000000000000154 /* BrowserStore+Eli.swift in Sources */,
+				010000000000000000000155 /* BrowserStore+Media.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		010000000000000000000240 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				010000000000000000000170 /* TalosUITests.swift in Sources */,
+				CA48EDA59BBFD035A2B7D09A /* TalosUITests+SplitView.swift in Sources */,
+				CA21A09E269885B46E97DF53 /* TalosUITests+BrowsingAndPrivacy.swift in Sources */,
+				CAF45EF99A22A31025D458FD /* TalosUITests+DownloadsAndImport.swift in Sources */,
+				CAD4D39797CE3AEF87CEE2EF /* TalosUITests+OnboardingAndSpaces.swift in Sources */,
+				CA885253E521D36DCBAE87E6 /* TalosUITests+AccountAndEliSettings.swift in Sources */,
+				CAC6116435D9DBFD2E0CE900 /* TalosUITests+TabsAndShortcuts.swift in Sources */,
+				CAEC3052673F91852A97A428 /* TalosUITests+Eli.swift in Sources */,
+				CAB573E05533D50E07BE276A /* TalosUITests+MenusAndSiteInfo.swift in Sources */,
+				CAB1CFB99C461C914657EA83 /* TalosUITests+Support.swift in Sources */,
+				CACE45550886BB1174F97E32 /* EliLiveUITests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		UT00000000000000000000D1 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				UT00000000000000000000B1 /* TalosTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		010000000000000000000271 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 010000000000000000000200 /* Talos */;
+			targetProxy = 010000000000000000000270 /* PBXContainerItemProxy */;
+		};
+		UT00000000000000000000E3 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 010000000000000000000200 /* Talos */;
+			targetProxy = UT00000000000000000000E2 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		010000000000000000000391 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = macosx;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		010000000000000000000392 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SDKROOT = macosx;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		010000000000000000000401 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				TALOS_APP_ENTITLEMENTS = Talos/Resources/Talos.entitlements;
+				CODE_SIGN_ENTITLEMENTS = "$(TALOS_APP_ENTITLEMENTS)";
+				CODE_SIGN_IDENTITY = "Apple Development";
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 5;
+				DEAD_CODE_STRIPPING = YES;
+				DEVELOPMENT_ASSET_PATHS = "";
+				DEVELOPMENT_TEAM = "";
+				"DEVELOPMENT_TEAM[sdk=macosx*]" = CHFBL6P6U7;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Talos/Resources/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MARKETING_VERSION = 0.1.4;
+				PRODUCT_BUNDLE_IDENTIFIER = app.candoa.browser;
+				PRODUCT_NAME = Talos;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		010000000000000000000402 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = Talos/Resources/TalosRelease.entitlements;
+				CODE_SIGN_IDENTITY = "-";
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
+				CODE_SIGN_INJECT_BASE_ENTITLEMENTS = NO;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 5;
+				DEAD_CODE_STRIPPING = YES;
+				DEVELOPMENT_ASSET_PATHS = "";
+				DEVELOPMENT_TEAM = "";
+				"DEVELOPMENT_TEAM[sdk=macosx*]" = CHFBL6P6U7;
+				ENABLE_HARDENED_RUNTIME = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Talos/Resources/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MARKETING_VERSION = 0.1.4;
+				PRODUCT_BUNDLE_IDENTIFIER = app.candoa.browser;
+				PRODUCT_NAME = Talos;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+		010000000000000000000411 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "Apple Development";
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
+				CODE_SIGN_STYLE = Manual;
+				DEAD_CODE_STRIPPING = YES;
+				DEVELOPMENT_TEAM = "";
+				"DEVELOPMENT_TEAM[sdk=macosx*]" = CHFBL6P6U7;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				PRODUCT_BUNDLE_IDENTIFIER = app.candoa.browser.UITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 6.0;
+				TEST_TARGET_NAME = Talos;
+			};
+			name = Debug;
+		};
+		010000000000000000000412 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "-";
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
+				CODE_SIGN_STYLE = Manual;
+				DEAD_CODE_STRIPPING = YES;
+				DEVELOPMENT_TEAM = "";
+				"DEVELOPMENT_TEAM[sdk=macosx*]" = CHFBL6P6U7;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				PRODUCT_BUNDLE_IDENTIFIER = app.candoa.browser.UITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 6.0;
+				TEST_TARGET_NAME = Talos;
+			};
+			name = Release;
+		};
+		UT00000000000000000000F2 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_IDENTITY = "Apple Development";
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
+				CODE_SIGN_STYLE = Manual;
+				DEAD_CODE_STRIPPING = YES;
+				DEVELOPMENT_TEAM = "";
+				"DEVELOPMENT_TEAM[sdk=macosx*]" = CHFBL6P6U7;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				PRODUCT_BUNDLE_IDENTIFIER = app.candoa.browser.Tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 6.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Talos.app/Contents/MacOS/Talos";
+			};
+			name = Debug;
+		};
+		UT00000000000000000000F3 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_IDENTITY = "-";
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
+				CODE_SIGN_STYLE = Manual;
+				DEAD_CODE_STRIPPING = YES;
+				DEVELOPMENT_TEAM = "";
+				"DEVELOPMENT_TEAM[sdk=macosx*]" = CHFBL6P6U7;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				PRODUCT_BUNDLE_IDENTIFIER = app.candoa.browser.Tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 6.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Talos.app/Contents/MacOS/Talos";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		010000000000000000000390 /* Build configuration list for PBXProject "Talos" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				010000000000000000000391 /* Debug */,
+				010000000000000000000392 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		010000000000000000000400 /* Build configuration list for PBXNativeTarget "Talos" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				010000000000000000000401 /* Debug */,
+				010000000000000000000402 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		010000000000000000000410 /* Build configuration list for PBXNativeTarget "TalosUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				010000000000000000000411 /* Debug */,
+				010000000000000000000412 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		UT00000000000000000000F1 /* Build configuration list for PBXNativeTarget "TalosTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				UT00000000000000000000F2 /* Debug */,
+				UT00000000000000000000F3 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		010000000000000000000162 /* XCRemoteSwiftPackageReference "Sparkle" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/sparkle-project/Sparkle";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.9.3;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		010000000000000000000161 /* Sparkle */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 010000000000000000000162 /* XCRemoteSwiftPackageReference "Sparkle" */;
+			productName = Sparkle;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = 010000000000000000000300 /* Project object */;
+}

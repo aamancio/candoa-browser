@@ -2,21 +2,21 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-DESTINATION="${CANDOA_E2E_DESTINATION:-platform=macOS}"
-DERIVED_DATA_PATH="${CANDOA_DERIVED_DATA_PATH:-}"
+DESTINATION="${TALOS_E2E_DESTINATION:-platform=macOS}"
+DERIVED_DATA_PATH="${TALOS_DERIVED_DATA_PATH:-}"
 DERIVED_DATA_DIR=""
 XCODEBUILD_ARGS=(
-  -project Candoa.xcodeproj
-  -scheme Candoa
+  -project Talos.xcodeproj
+  -scheme Talos
   -configuration Debug
   -destination "$DESTINATION"
 )
 
-if [[ "${CANDOA_E2E_ADHOC_SIGNING:-0}" == "1" ]]; then
+if [[ "${TALOS_E2E_ADHOC_SIGNING:-0}" == "1" ]]; then
   # Ad-hoc-signed apps carrying restricted entitlements (iCloud, associated
   # domains) are killed by the system at launch, so CI signs the app against
   # the stripped testing entitlements. The indirection through
-  # CANDOA_APP_ENTITLEMENTS keeps this scoped to the app target — overriding
+  # TALOS_APP_ENTITLEMENTS keeps this scoped to the app target — overriding
   # CODE_SIGN_ENTITLEMENTS directly would also sandbox the UI test runner,
   # which breaks XCUITest automation.
   XCODEBUILD_ARGS+=(
@@ -24,16 +24,16 @@ if [[ "${CANDOA_E2E_ADHOC_SIGNING:-0}" == "1" ]]; then
     CODE_SIGN_IDENTITY=-
     DEVELOPMENT_TEAM=
     CODE_SIGN_INJECT_BASE_ENTITLEMENTS=NO
-    CANDOA_APP_ENTITLEMENTS=Candoa/Resources/CandoaCITesting.entitlements
+    TALOS_APP_ENTITLEMENTS=Talos/Resources/TalosCITesting.entitlements
     ENABLE_HARDENED_RUNTIME=NO
   )
 fi
 
 # Optional comma-separated -only-testing specs (e.g.
-# "CandoaUITests/CandoaUITests/testSomething") so CI dispatches can rerun a
+# "TalosUITests/TalosUITests/testSomething") so CI dispatches can rerun a
 # single flaky test without paying for the whole suite.
-if [[ -n "${CANDOA_E2E_ONLY_TESTING:-}" ]]; then
-  IFS=',' read -ra ONLY_TESTING_SPECS <<< "$CANDOA_E2E_ONLY_TESTING"
+if [[ -n "${TALOS_E2E_ONLY_TESTING:-}" ]]; then
+  IFS=',' read -ra ONLY_TESTING_SPECS <<< "$TALOS_E2E_ONLY_TESTING"
   for only_testing_spec in "${ONLY_TESTING_SPECS[@]}"; do
     if [[ -n "$only_testing_spec" ]]; then
       XCODEBUILD_ARGS+=("-only-testing:${only_testing_spec}")
@@ -44,7 +44,7 @@ fi
 if [[ -n "$DERIVED_DATA_PATH" ]]; then
   DERIVED_DATA_DIR="$DERIVED_DATA_PATH"
 else
-  DERIVED_DATA_DIR="$(mktemp -d "${TMPDIR:-/tmp}/candoa-e2e-derived.XXXXXX")"
+  DERIVED_DATA_DIR="$(mktemp -d "${TMPDIR:-/tmp}/talos-e2e-derived.XXXXXX")"
 fi
 
 XCODEBUILD_ARGS+=(-derivedDataPath "$DERIVED_DATA_DIR")
@@ -58,16 +58,16 @@ trap cleanup EXIT
 
 cd "$ROOT_DIR"
 
-stop_candoa_processes() {
+stop_talos_processes() {
   local signal="$1"
   local pids
 
-  pids="$(pgrep -x Candoa || true)"
+  pids="$(pgrep -x Talos || true)"
   if [[ -z "$pids" ]]; then
     return
   fi
 
-  pkill "-$signal" -x Candoa || true
+  pkill "-$signal" -x Talos || true
 
   while IFS= read -r pid; do
     local ppid
@@ -86,30 +86,30 @@ stop_candoa_processes() {
   done <<< "$pids"
 }
 
-if pgrep -x Candoa >/dev/null; then
-  stop_candoa_processes TERM
+if pgrep -x Talos >/dev/null; then
+  stop_talos_processes TERM
 
   for _ in {1..20}; do
-    if ! pgrep -x Candoa >/dev/null; then
+    if ! pgrep -x Talos >/dev/null; then
       break
     fi
     sleep 0.25
   done
 fi
 
-if pgrep -x Candoa >/dev/null; then
-  stop_candoa_processes KILL
+if pgrep -x Talos >/dev/null; then
+  stop_talos_processes KILL
 
   for _ in {1..20}; do
-    if ! pgrep -x Candoa >/dev/null; then
+    if ! pgrep -x Talos >/dev/null; then
       break
     fi
     sleep 0.25
   done
 fi
 
-if pgrep -x Candoa >/dev/null; then
-  echo "Candoa is still running. Quit Candoa before running E2E tests." >&2
+if pgrep -x Talos >/dev/null; then
+  echo "Talos is still running. Quit Talos before running E2E tests." >&2
   exit 1
 fi
 

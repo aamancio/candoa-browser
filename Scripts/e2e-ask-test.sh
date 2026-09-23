@@ -2,19 +2,19 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-DESTINATION="${CANDOA_E2E_DESTINATION:-platform=macOS}"
-DERIVED_DATA_PATH="${CANDOA_DERIVED_DATA_PATH:-}"
+DESTINATION="${TALOS_E2E_DESTINATION:-platform=macOS}"
+DERIVED_DATA_PATH="${TALOS_DERIVED_DATA_PATH:-}"
 DERIVED_DATA_DIR=""
-LIVE_E2E_MARKER="/tmp/candoa-live-e2e-enabled"
+LIVE_E2E_MARKER="/tmp/talos-live-e2e-enabled"
 XCODEBUILD_ARGS=(
-  -project Candoa.xcodeproj
-  -scheme Candoa
+  -project Talos.xcodeproj
+  -scheme Talos
   -configuration Debug
   -destination "$DESTINATION"
-  -only-testing:CandoaUITests/EliLiveUITests
+  -only-testing:TalosUITests/EliLiveUITests
 )
 
-if [[ "${CANDOA_E2E_ADHOC_SIGNING:-0}" == "1" ]]; then
+if [[ "${TALOS_E2E_ADHOC_SIGNING:-0}" == "1" ]]; then
   XCODEBUILD_ARGS+=(
     CODE_SIGN_STYLE=Manual
     CODE_SIGN_IDENTITY=-
@@ -26,7 +26,7 @@ fi
 if [[ -n "$DERIVED_DATA_PATH" ]]; then
   DERIVED_DATA_DIR="$DERIVED_DATA_PATH"
 else
-  DERIVED_DATA_DIR="$(mktemp -d "${TMPDIR:-/tmp}/candoa-ask-e2e-derived.XXXXXX")"
+  DERIVED_DATA_DIR="$(mktemp -d "${TMPDIR:-/tmp}/talos-ask-e2e-derived.XXXXXX")"
 fi
 
 XCODEBUILD_ARGS+=(-derivedDataPath "$DERIVED_DATA_DIR")
@@ -42,16 +42,16 @@ trap cleanup EXIT
 
 cd "$ROOT_DIR"
 
-stop_candoa_processes() {
+stop_talos_processes() {
   local signal="$1"
   local pids
 
-  pids="$(pgrep -x Candoa || true)"
+  pids="$(pgrep -x Talos || true)"
   if [[ -z "$pids" ]]; then
     return
   fi
 
-  pkill "-$signal" -x Candoa || true
+  pkill "-$signal" -x Talos || true
 
   while IFS= read -r pid; do
     local ppid
@@ -70,30 +70,30 @@ stop_candoa_processes() {
   done <<< "$pids"
 }
 
-if pgrep -x Candoa >/dev/null; then
-  stop_candoa_processes TERM
+if pgrep -x Talos >/dev/null; then
+  stop_talos_processes TERM
 
   for _ in {1..20}; do
-    if ! pgrep -x Candoa >/dev/null; then
+    if ! pgrep -x Talos >/dev/null; then
       break
     fi
     sleep 0.25
   done
 fi
 
-if pgrep -x Candoa >/dev/null; then
-  stop_candoa_processes KILL
+if pgrep -x Talos >/dev/null; then
+  stop_talos_processes KILL
 
   for _ in {1..20}; do
-    if ! pgrep -x Candoa >/dev/null; then
+    if ! pgrep -x Talos >/dev/null; then
       break
     fi
     sleep 0.25
   done
 fi
 
-if pgrep -x Candoa >/dev/null; then
-  echo "Candoa is still running. Quit Candoa before running Ask E2E tests." >&2
+if pgrep -x Talos >/dev/null; then
+  echo "Talos is still running. Quit Talos before running Ask E2E tests." >&2
   exit 1
 fi
 

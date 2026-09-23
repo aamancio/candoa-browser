@@ -1,28 +1,24 @@
-# Candoa Browser
+# Talos Browser
 
-> **Archived, September 2026.** Candoa Browser is no longer developed or
-> maintained. The source stays here under the MPL-2.0 for anyone who wants to
-> build it or fork it under their own name. The last public build is
-> [v0.38.0](https://github.com/aamancio/candoa-browser/releases/tag/v0.38.0).
-> Its update checker, account sign-in, and What's New page pointed at
-> candoa.app, which now hosts unrelated software, so those features no longer
-> work in that build.
+> Talos Browser was called Candoa Browser until September 2026. The name
+> changed; the app, its bundle identity, and its update feed did not. Old
+> links to the candoa-browser repository redirect here.
 
 A lightweight browser workspace for macOS.
 
-Candoa Browser is an open-source Mac browser workspace for people who live in tabs, move
+Talos Browser is an open-source Mac browser workspace for people who live in tabs, move
 between projects, and want browsing to stay native, quiet, and
 battery-conscious.
 
-[Releases](https://github.com/aamancio/candoa-browser/releases) · [Discussions](https://github.com/aamancio/candoa-browser/discussions)
+[Releases](https://github.com/aamancio/talos-browser/releases) · [Discussions](https://github.com/aamancio/talos-browser/discussions)
 
-## Why Candoa Browser
+## Why Talos Browser
 
-Most modern browsers ship a whole cross-platform stack. Candoa Browser takes a simpler
+Most modern browsers ship a whole cross-platform stack. Talos Browser takes a simpler
 Mac-first path: SwiftUI, AppKit where native behavior needs it, and Apple's
 WebKit through `WKWebView`.
 
-That means Candoa Browser can focus on the workflow:
+That means Talos Browser can focus on the workflow:
 
 - A sidebar-first browser surface
 - Spaces for separating work, personal browsing, projects, and research
@@ -33,13 +29,15 @@ That means Candoa Browser can focus on the workflow:
 - Optional iCloud sync for workspace state
 - Automatic updates through Sparkle
 
-Candoa Browser is built independently with native Apple technologies and WebKit.
+Talos Browser is built independently with native Apple technologies and WebKit.
 
 ## Status
 
-Development stopped in September 2026 and the repository is archived.
+Talos Browser is in beta and updates most days. See
+[Releases](https://github.com/aamancio/talos-browser/releases) for the current
+version.
 
-What the last build (v0.38.0) does: Spaces with iCloud sync, vertical and pinned tabs, split view,
+Working today: Spaces with iCloud sync, vertical and pinned tabs, split view,
 a quick search that targets a site directly, an assistant that asks before it
 acts, ad and tracker blocking with no extension needed, extensions installed
 straight from the Chrome Web Store, a floating mini player that takes a video
@@ -49,14 +47,15 @@ address, and automatic updates through Sparkle.
 Not there yet: an equivalent of Arc's peek window. DRM playback is unverified,
 so assume some streaming services may not work until proven otherwise.
 
-Battery efficiency and native macOS behavior were treated as product features
-rather than implementation details.
+Expect rough edges. Battery efficiency and native macOS behavior are treated as
+product features rather than implementation details.
 
 ## Download
 
-The last public build is on the
-[Releases](https://github.com/aamancio/candoa-browser/releases) page. It is
-signed and notarized but will not receive updates.
+Get the latest build from the
+[Releases](https://github.com/aamancio/talos-browser/releases) page, or from
+[talos-browser.app](https://talos-browser.app) once the site is up. Builds are
+signed and notarized and update themselves through Sparkle.
 
 ## Build From Source
 
@@ -65,14 +64,14 @@ Requirements:
 - macOS 14 or newer
 - Xcode
 
-Open `Candoa.xcodeproj`, select the `Candoa` scheme, then build and run.
+Open `Talos.xcodeproj`, select the `Talos` scheme, then build and run.
 
 From Terminal:
 
 ```sh
-cd candoa-browser
-xcodebuild -project "Candoa.xcodeproj" -scheme "Candoa" -configuration Debug -derivedDataPath build/DerivedData build
-open "build/DerivedData/Build/Products/Debug/Candoa.app"
+cd TalosBrowser
+xcodebuild -project "Talos.xcodeproj" -scheme "Talos" -configuration Debug -derivedDataPath build/DerivedData build
+open "build/DerivedData/Build/Products/Debug/Talos.app"
 ```
 
 ## Project Principles
@@ -86,7 +85,7 @@ open "build/DerivedData/Build/Products/Debug/Candoa.app"
 
 ## Keyboard Shortcuts
 
-Candoa reserves familiar macOS browser shortcuts for comparable features.
+Talos reserves familiar macOS browser shortcuts for comparable features.
 
 - `Cmd+T`: New tab / command surface
 - `Cmd+W`: Close current tab
@@ -121,7 +120,7 @@ The app is organized around a small native browser core:
 Important paths:
 
 ```text
-Candoa/
+Talos/
   App/
   Models/
   Views/
@@ -136,16 +135,20 @@ Architecture decisions:
 
 - [Sign in with Apple and Developer ID distribution](docs/sign-in-with-apple-distribution.md)
 
-The repository is archived and does not take pull requests. Fork it if you
-want to continue the work. The project principles above are a description of
-how it was built, not a rule for your fork, except for the trademark note
-below.
+Contributions are welcome, especially around native Mac behavior,
+keyboard-first browsing, WebKit lifecycle, and battery efficiency.
+
+Please keep changes aligned with the project principles above. In particular,
+do not introduce another browser engine, do not add idle polling, and do not
+copy another browser's branding, icons, assets, or exact UI.
 
 ## Releases
 
-Release builds were packaged as a drag-to-Applications DMG and published with
-a Sparkle appcast. The publishing workflow has been removed; the last DMG is
-attached to the v0.38.0 release.
+Release builds are packaged as a drag-to-Applications DMG and published with a
+Sparkle appcast at `https://talos-browser.app/downloads/appcast.xml`. The
+release build carries Apple's managed browser passkey entitlement, so it must
+be signed with the release identity; debug builds run without it and use the
+built-in stand-in authenticator.
 
 Because that DMG uses Developer ID distribution, account authentication must
 follow the tracked [Sign in with Apple distribution decision](docs/sign-in-with-apple-distribution.md).
@@ -153,20 +156,19 @@ follow the tracked [Sign in with Apple distribution decision](docs/sign-in-with-
 Local DMG packaging:
 
 ```sh
-xcodebuild -project "Candoa.xcodeproj" -scheme "Candoa" -configuration Release -derivedDataPath build/DerivedData build
+xcodebuild -project "Talos.xcodeproj" -scheme "Talos" -configuration Release -derivedDataPath build/DerivedData build
 Scripts/package_dmg.sh \
-  build/DerivedData/Build/Products/Release/Candoa.app \
-  artifacts/Candoa.dmg
+  build/DerivedData/Build/Products/Release/Talos.app \
+  artifacts/Talos.dmg
 ```
 
 ## License
 
-Candoa is open source under the Mozilla Public License 2.0. See `LICENSE`.
+Talos is open source under the Mozilla Public License 2.0. See `LICENSE`.
 
 ## Trademark
 
-The Candoa name, icon, and app identity are not covered by the source-code
-license, and the Candoa name is now used for other software by the same
-author. Forks and modified builds must use a different name and identity.
+The Talos name, icon, and app identity are not covered by the source-code
+license. Forks and modified builds should use a different name and identity.
 
 See `TRADEMARKS.md` for the project trademark policy.

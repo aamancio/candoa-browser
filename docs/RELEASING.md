@@ -1,4 +1,4 @@
-# Releasing Candoa
+# Releasing Talos
 
 Every merge to `main` ships automatically. There is no manual release step.
 
@@ -12,21 +12,23 @@ Every merge to `main` ships automatically. There is no manual release step.
    - the major digit is **never** bumped automatically — 1.0 is a human decision,
      made by pushing a `v1.0.0` tag manually.
 3. Builds, signs, and notarizes the Release app; packages the DMG.
-4. Signs the appcast and publishes DMG + appcast to candoa.app via the
-   candoa-cloud repo.
+4. Signs the appcast and publishes DMG + appcast to
+   `https://talos-browser.app/downloads/`. The old publishing workflow (which
+   pushed to the retired candoa-cloud repo) was removed in September 2026 and
+   has to be recreated against the new site before the next release.
 5. Tags the commit `vX.Y.Z` — the anchor for the next version bump.
 
 ## What users experience
 
 Installed apps check the appcast every 6 hours. When the feed is ahead, a
-"New Candoa Version Available" pill appears in the sidebar; hovering it offers
+"New Talos Version Available" pill appears in the sidebar; hovering it offers
 "Restart and Update". With automatic updates on (the default), Sparkle also
 downloads and installs updates silently in the background.
 
 ## Testing an update locally
 
 Install the current release build to `/Applications`, then merge anything to
-`main`. To skip the 6-hour wait, quit Candoa and delete `SULastCheckTime` from
+`main`. To skip the 6-hour wait, quit Talos and delete `SULastCheckTime` from
 the container prefs, then relaunch:
 
 ```bash

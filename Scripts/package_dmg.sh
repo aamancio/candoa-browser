@@ -2,7 +2,7 @@
 set -euo pipefail
 
 if [ "$#" -ne 2 ]; then
-  echo "Usage: $0 /path/to/Candoa.app /path/to/Candoa.dmg" >&2
+  echo "Usage: $0 /path/to/Talos.app /path/to/Talos.dmg" >&2
   exit 64
 fi
 
@@ -16,7 +16,7 @@ fi
 
 APP_NAME="$(basename "$APP_PATH")"
 VOLUME_NAME="${APP_NAME%.app}"
-WORK_DIR="$(mktemp -d "${TMPDIR:-/tmp}/candoa-dmg.XXXXXX")"
+WORK_DIR="$(mktemp -d "${TMPDIR:-/tmp}/talos-dmg.XXXXXX")"
 STAGE_DIR="$WORK_DIR/stage"
 RW_DMG="$WORK_DIR/$VOLUME_NAME.rw.dmg"
 

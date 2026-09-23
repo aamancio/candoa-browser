@@ -1,12 +1,12 @@
 // Prints Eli's page snapshot for a URL, using the exact scripts the app
 // ships, in an off-screen WKWebView. For developing and checking the
-// perception layer without driving Candoa itself.
+// perception layer without driving Talos itself.
 //
 //   swiftc -O scripts/agent-snapshot.swift -o /tmp/agent-snapshot
 //   /tmp/agent-snapshot https://example.com [--scroll 800] [--budget 24000] [--controls] [--json]
 //   /tmp/agent-snapshot --html path/to/page.html
 //
-// The scripts are read from Candoa/Resources/BrowserAgent relative to the
+// The scripts are read from Talos/Resources/BrowserAgent relative to the
 // script's own location, so a worktree prints its own version.
 
 import AppKit
@@ -46,9 +46,9 @@ while index < arguments.count {
 }
 
 let scriptDirectory = URL(fileURLWithPath: CommandLine.arguments[0]).deletingLastPathComponent()
-let repoRoot = ProcessInfo.processInfo.environment["CANDOA_REPO"].map(URL.init(fileURLWithPath:))
+let repoRoot = ProcessInfo.processInfo.environment["TALOS_REPO"].map(URL.init(fileURLWithPath:))
     ?? URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
-let scriptsURL = repoRoot.appendingPathComponent("Candoa/Resources/BrowserAgent")
+let scriptsURL = repoRoot.appendingPathComponent("Talos/Resources/BrowserAgent")
 
 func source(_ name: String) -> String {
     let fileURL = scriptsURL.appendingPathComponent("\(name).js")
@@ -61,7 +61,7 @@ func source(_ name: String) -> String {
 
 final class Runner: NSObject, WKNavigationDelegate {
     let webView: WKWebView
-    let world = WKContentWorld.world(name: "CandoaBrowserAgent")
+    let world = WKContentWorld.world(name: "TalosBrowserAgent")
 
     override init() {
         let configuration = WKWebViewConfiguration()
@@ -162,7 +162,7 @@ app.setActivationPolicy(.prohibited)
 let runner = Runner()
 if let htmlPath {
     let html = try! String(contentsOfFile: htmlPath, encoding: .utf8)
-    runner.webView.loadHTMLString(html, baseURL: URL(string: "https://fixture.candoa.test/page"))
+    runner.webView.loadHTMLString(html, baseURL: URL(string: "https://fixture.talos.test/page"))
 } else if let url {
     runner.webView.load(URLRequest(url: url))
 } else {

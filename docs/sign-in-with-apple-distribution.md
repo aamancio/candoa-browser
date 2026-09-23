@@ -5,7 +5,7 @@ Last verified: August 8, 2026
 
 ## Decision
 
-Candoa's public website download is a Developer ID-signed, notarized DMG. It must use
+Talos's public website download is a Developer ID-signed, notarized DMG. It must use
 Sign in with Apple for the web, initiated with `ASWebAuthenticationSession`, rather than
 the native `ASAuthorizationAppleIDProvider` flow.
 
@@ -30,35 +30,35 @@ Do not treat any of these as release verification:
 
 ## Required public-DMG architecture
 
-1. Candoa requests an intent from Candoa Cloud —
+1. Talos requests an intent from Talos Cloud —
    `POST /api/auth/native-apple/sign-in-intent` for a fresh sign-in, or
    `POST /api/auth/native-apple/link-intent` (with the current session token) to link Apple
    to an existing anonymous account — and receives an HTTPS authorization URL on the Cloud
    origin.
-2. Candoa starts `ASWebAuthenticationSession` at that URL. Candoa Cloud's page hands the
+2. Talos starts `ASWebAuthenticationSession` at that URL. Talos Cloud's page hands the
    flow to Better Auth (`sign-in/social` or `link-social`), which redirects to Apple using
    the configured Apple Services ID.
 3. Apple returns to Better Auth's registered HTTPS callback on the Cloud origin.
-4. Candoa Cloud completes the flow (`/api/auth/native-apple/complete`) and hands off to the
-   app via `candoa://auth/apple` (Debug builds use `candoa-dev://`) carrying a short-lived,
+4. Talos Cloud completes the flow (`/api/auth/native-apple/complete`) and hands off to the
+   app via `talos://auth/apple` (Debug builds use `talos-dev://`) carrying a short-lived,
    hashed one-time code — never the session token itself.
-5. Candoa Browser exchanges the code through `POST /api/auth/native-apple/exchange` and
-   stores only the resulting Candoa session token in Keychain.
+5. Talos Browser exchanges the code through `POST /api/auth/native-apple/exchange` and
+   stores only the resulting Talos session token in Keychain.
 
-The system dialog saying that Candoa wants to use the Cloud domain to sign in is expected
+The system dialog saying that Talos wants to use the Cloud domain to sign in is expected
 `ASWebAuthenticationSession` security UI. Do not attempt to suppress it, imitate it, or move
 the Apple flow into an embedded `WKWebView`.
 
 Debug builds may use `http://127.0.0.1:3000/api` for Cloud development, but Apple web
 authentication must use the deployed registered HTTPS origin. A production-issued session
 cannot be validated against a local database or a different signing secret.
-`CANDOA_CLOUD_API_URL` selects the single Cloud authority. A separately registered HTTPS
+`TALOS_CLOUD_API_URL` selects the single Cloud authority. A separately registered HTTPS
 development authority may be supplied explicitly; localhost and loopback callbacks are not
 valid production substitutes.
 
 ## Changes that are prohibited for the current DMG
 
-- Adding `com.apple.developer.applesignin` to `Candoa.entitlements`.
+- Adding `com.apple.developer.applesignin` to `Talos.entitlements`.
 - Enabling the Xcode Sign in with Apple capability for the public target.
 - Replacing the public flow with `ASAuthorizationAppleIDProvider` because it worked locally.
 - Pointing Apple web authorization at `127.0.0.1` or `localhost`.
@@ -71,7 +71,7 @@ Before shipping or closing an authentication issue:
 
 1. Confirm the deployed sign-in-intent route returns an authorization URL that reaches
    `appleid.apple.com`.
-2. Complete a real Apple authorization, HTTPS callback, `candoa://auth/apple` handoff, and
+2. Complete a real Apple authorization, HTTPS callback, `talos://auth/apple` handoff, and
    one-time-code exchange.
 3. Confirm account restoration works after relaunch and cancellation returns without an error.
 4. Inspect the actual public app with `codesign` and confirm the signing identity is
@@ -87,7 +87,7 @@ Before shipping or closing an authentication issue:
 
 The native flow may replace the web flow only if either:
 
-- Candoa explicitly changes to a compatible distribution channel such as the Mac App Store; or
+- Talos explicitly changes to a compatible distribution channel such as the Mac App Store; or
 - Apple's current capability documentation and an actual Developer ID-signed release prove
   that native Sign in with Apple has become supported.
 
