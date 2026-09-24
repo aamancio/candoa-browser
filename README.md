@@ -52,10 +52,9 @@ product features rather than implementation details.
 
 ## Download
 
-Get the latest build from [talos-browser.app](https://talos-browser.app)
-(served from [aamancio.github.io/talos-browser](https://aamancio.github.io/talos-browser/)
-until the domain is live) or straight from the
-[Releases](https://github.com/aamancio/talos-browser/releases) page. Builds are
+Get the latest build from [talos-browser.app](https://talos-browser.app) or
+straight from the [Releases](https://github.com/aamancio/talos-browser/releases)
+page. Builds are
 signed and notarized and update themselves through Sparkle.
 
 ## Build From Source
