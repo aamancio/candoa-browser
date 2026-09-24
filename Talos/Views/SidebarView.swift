@@ -156,7 +156,7 @@ struct SidebarView: View {
     }
 
     private var usesBrowsingSidebarLayout: Bool {
-        !store.isInitialAccountSetupPresented && !store.isSpaceSetupPresented
+        !store.isSpaceSetupPresented
     }
 
     private var showsSpaceSwitcher: Bool {
@@ -336,17 +336,13 @@ struct SidebarView: View {
         VStack(alignment: .leading, spacing: 12) {
             sidebarHeader(showsWindowControls: true)
 
-            if store.isInitialAccountSetupPresented {
-                Spacer(minLength: 0)
-            } else {
-                UpsertSpaceSidebarComposer(
-                    store: store,
-                    mode: store.isInitialSpaceSetupPresented
-                        ? .initial
-                        : (store.editingSpaceID != nil ? .edit : .create)
-                )
-                .id(store.editingSpaceID)
-            }
+            UpsertSpaceSidebarComposer(
+                store: store,
+                mode: store.isInitialSpaceSetupPresented
+                    ? .initial
+                    : (store.editingSpaceID != nil ? .edit : .create)
+            )
+            .id(store.editingSpaceID)
 
             updateBanner
 
@@ -390,7 +386,6 @@ struct SidebarView: View {
 
     private var canSwipeSpaces: Bool {
         store.spaces.count > 1 &&
-            !store.isInitialAccountSetupPresented &&
             !store.isInitialOnboardingPresented &&
             !store.isSpaceSetupPresented &&
             !store.isCommandPalettePresented &&

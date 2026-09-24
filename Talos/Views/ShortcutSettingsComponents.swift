@@ -553,7 +553,6 @@ enum ShortcutDefinition: String, CaseIterable, Identifiable {
     case captureFullPage
     case pinOrUnpinTab
     case toggleSidebar
-    case toggleAISidebar
     case clearUnpinnedTabs
     case goBack
     case goForward
@@ -580,7 +579,6 @@ enum ShortcutDefinition: String, CaseIterable, Identifiable {
     case zoomIn
     case zoomOut
     case resetZoom
-    case reportAProblem
     case getExtensions
 
     var id: String { rawValue }
@@ -598,7 +596,6 @@ enum ShortcutDefinition: String, CaseIterable, Identifiable {
         case .captureFullPage: return String(localized: "Capture Page")
         case .pinOrUnpinTab: return BrowserCommandTitles.pinOrUnpinTab
         case .toggleSidebar: return BrowserCommandTitles.toggleSidebar
-        case .toggleAISidebar: return BrowserCommandTitles.toggleAISidebar
         case .clearUnpinnedTabs: return BrowserCommandTitles.clearUnpinnedTabs
         case .goBack: return BrowserCommandTitles.back
         case .goForward: return BrowserCommandTitles.forward
@@ -625,21 +622,16 @@ enum ShortcutDefinition: String, CaseIterable, Identifiable {
         case .zoomIn: return BrowserCommandTitles.zoomIn
         case .zoomOut: return BrowserCommandTitles.zoomOut
         case .resetZoom: return BrowserCommandTitles.resetZoom
-        case .reportAProblem: return BrowserCommandTitles.reportAProblem
         case .getExtensions: return BrowserCommandTitles.getExtensions
         }
     }
 
     var category: String {
         switch self {
-        case .reportAProblem:
-            return String(localized: "Help")
         case .getExtensions:
             return String(localized: "Extensions")
         case .captureFullPage:
             return String(localized: "Capture")
-        case .toggleAISidebar:
-            return String(localized: "AI")
         case .toggleSplitView, .splitLayoutHorizontal, .splitLayoutVertical, .zoomSplitPane,
              .focusNextSplitPane, .focusPreviousSplitPane, .unsplitPane, .splitWithTab:
             return String(localized: "Split View")
@@ -664,15 +656,11 @@ enum ShortcutDefinition: String, CaseIterable, Identifiable {
         case .copyURL: return "Shift-Command-C"
         case .copyURLAsMarkdown: return "Option-Shift-Command-C"
         case .captureFullPage: return "None"
-        // Safari gives its own report command no shortcut either; the row
-        // exists so anyone who reports often can bind one.
-        case .reportAProblem: return "None"
         // No Chrome or Safari precedent to copy — the row exists so anyone
         // who browses the store often can bind one.
         case .getExtensions: return "None"
         case .pinOrUnpinTab: return "Command-D"
         case .toggleSidebar: return "Command-S"
-        case .toggleAISidebar: return "Command-E"
         case .clearUnpinnedTabs: return "Shift-Command-K"
         case .goBack: return "Command-Left"
         case .goForward: return "Command-Right"
@@ -742,7 +730,6 @@ enum ShortcutDefinition: String, CaseIterable, Identifiable {
         case .stopLoading: return "xmark.circle"
         case .pinOrUnpinTab: return "pin"
         case .toggleSidebar: return "sidebar.left"
-        case .toggleAISidebar: return "sidebar.right"
         case .focusAddressBar: return "text.cursor"
         case .commandBar: return "command"
         case .newTab: return "plus"
@@ -755,7 +742,6 @@ enum ShortcutDefinition: String, CaseIterable, Identifiable {
         case .zoomIn: return "plus.magnifyingglass"
         case .zoomOut: return "minus.magnifyingglass"
         case .resetZoom: return "1.magnifyingglass"
-        case .reportAProblem: return "exclamationmark.bubble"
         case .getExtensions: return "puzzlepiece.extension"
         }
     }

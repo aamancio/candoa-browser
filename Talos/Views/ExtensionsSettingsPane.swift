@@ -122,7 +122,16 @@ private struct ExtensionsSettingsContent: View {
             }
             .buttonStyle(.plain)
             .padding(.horizontal, 16)
-            .padding(.bottom, 12)
+            .padding(.bottom, 8)
+
+            // Talos ships no assistant of its own; the ones people reach for
+            // install like any other extension.
+            Text(String(localized: "AI assistants such as Claude Code and Codex install as Chrome Web Store extensions."))
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.horizontal, 16)
+                .padding(.bottom, 12)
 
             Text(String(localized: "Installed"))
                 .font(.system(size: 11, weight: .semibold))

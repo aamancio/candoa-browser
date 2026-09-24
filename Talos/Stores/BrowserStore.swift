@@ -105,7 +105,6 @@ struct SidebarTabDropIndicator: Equatable {
 
 enum InitialOnboardingStep: String, CaseIterable {
     case welcome
-    case account
     case importData
     case space
     /// Where the address lives — sidebar pill (default) or a strip above
@@ -117,7 +116,7 @@ enum InitialOnboardingStep: String, CaseIterable {
     /// a welcome-back acknowledgment; the person already has their Spaces.
     case restoredWorkspace
 
-    static let numberedSetupSteps: [Self] = [.importData, .space, .addressBar, .account]
+    static let numberedSetupSteps: [Self] = [.importData, .space, .addressBar]
 
     var position: Int {
         Self.numberedSetupSteps.firstIndex(of: self).map { $0 + 1 } ?? 0
@@ -129,7 +128,6 @@ enum InitialOnboardingStep: String, CaseIterable {
 enum InitialTourTip: Int, CaseIterable {
     case commandBar
     case spaces
-    case ask
 }
 
 @MainActor
@@ -235,7 +233,6 @@ final class BrowserStore: ObservableObject {
     }
     @Published var initialOnboardingStep: InitialOnboardingStep?
     @Published var initialTourTip: InitialTourTip?
-    @Published var preparingInitialTourTip: InitialTourTip?
     var initialTourReturnTabID: UUID? = nil
     @Published var spaceThemeAppearancePreview: SpaceThemeAppearance?
     @Published var isSpaceThemeColorPreviewActive = false
@@ -281,14 +278,9 @@ final class BrowserStore: ObservableObject {
     /// rather than its own `onAppear` so a second Command-F — when the bar is
     /// already up — refocuses and selects the query, the way Safari does.
     @Published var findFocusRequestID = UUID()
-    /// Bumped when something outside the window chrome asks for Eli — the
-    /// developer bar's Chat button. Sidebar visibility itself lives in the
-    /// view that owns the layout.
-    @Published var aiSidebarToggleRequestID = UUID()
     /// Bumped when something outside the window chrome asks for the sidebar
     /// toggle — today only the fixture window-command seam, which needs a
-    /// keyboard-free path to the layout-owning view for the same reason
-    /// Eli's does.
+    /// keyboard-free path to the view that owns the layout.
     @Published var sidebarToggleRequestID = UUID()
     /// Position of the current match among all of them, or nil when there is
     /// nothing to count yet — an empty query, or a page the in-page find
@@ -414,18 +406,6 @@ final class BrowserStore: ObservableObject {
     var pendingMiniPlayerReturnTabID: UUID?
     var isApplyingRemoteState = false
     var needsWorkspaceSaveAfterRepair = false
-    /// One in-flight memory extraction per Space; a second conversation
-    /// ending while one runs is skipped rather than queued.
-    var eliMemoryExtractionTasks: [UUID: Task<Void, Never>] = [:]
-    /// Transcript length at the last extraction per Space, so reopening and
-    /// re-closing an unchanged conversation never re-extracts it.
-    var eliMemoryLastExtractedTurnCounts: [UUID: Int] = [:]
-    /// One in-flight profile-learning extraction; the profile is global, so
-    /// a second conversation ending while one runs is skipped, not queued.
-    var eliProfileExtractionTask: Task<Void, Never>?
-    /// Transcript length at the last profile extraction, keyed like the
-    /// memory counts: by the Space whose conversation window is being read.
-    var eliProfileLastExtractedTurnCounts: [UUID: Int] = [:]
     let spaceSymbols = [
         "circle.grid.2x2",
         "sparkle",
@@ -572,17 +552,12 @@ final class BrowserStore: ObservableObject {
                 // already in the local store, so show the card again — unless
                 // the workspace vanished, which restarts new-user setup.
                 resumableStep = shouldPresentInitialSpaceSetup ? .welcome : .restoredWorkspace
-            case .welcome, .account, .importData, .space, .addressBar:
+            case .welcome, .importData, .space, .addressBar:
                 resumableStep = storedOnboardingStep
             }
             setInitialOnboardingStep(resumableStep)
         } else if shouldPresentInitialSpaceSetup {
             setInitialOnboardingStep(.welcome)
-        } else if !UserStore.hasStoredAccountDecision {
-            // Signing out clears the account decision but deliberately keeps
-            // the current session browsing. The next launch returns to the
-            // account gate so the Mac regains an explicit account state.
-            setInitialOnboardingStep(.account)
         } else {
             if !UserDefaults.standard.bool(forKey: Self.hasCompletedTourKey) {
                 setInitialOnboardingStep(.tour)
@@ -612,7 +587,6 @@ final class BrowserStore: ObservableObject {
         configureUITestingDownloadFixtureTrigger()
         configureUITestingTabSwitcherTrigger()
         configureUITestingWindowCommandTrigger()
-        seedUITestingSpaceMemoryIfNeeded()
     }
 
 }

@@ -26,13 +26,6 @@ internal final class AppDelegate: NSObject, NSApplicationDelegate {
             HistoryRetentionService.shared.activate()
         }
 
-        // Subscribed unconditionally; the submitter drops everything unless
-        // someone has turned sharing on. Subscribing later, only once consent
-        // exists, would miss the payload the system had already queued.
-        if ProcessInfo.processInfo.environment["TALOS_UI_TESTING"] != "1" {
-            CrashDiagnosticReporter.shared.start()
-        }
-
         MenuAlternateInstaller.install()
         DevelopMenuStyler.install()
         webAuthenticationHostService.activate()
@@ -90,11 +83,10 @@ internal final class AppDelegate: NSObject, NSApplicationDelegate {
         browserPasskeyAuthorizationService.requestAuthorizationIfNeeded()
     }
 
-    // URL opens are routed solely through .onOpenURL (Apple sign-in
-    // callbacks first, every other URL into a browser tab). A delegate
-    // application(_:open:) would deliver each URL a second time — and on
-    // macOS versions where it preempts .onOpenURL, swallow them entirely.
-
+    // URL opens are routed solely through .onOpenURL, into a browser tab. A
+    // delegate application(_:open:) would deliver each URL a second time —
+    // and on macOS versions where it preempts .onOpenURL, swallow them
+    // entirely.
 }
 
 /// UI-test launches need a clean slate for the keys below, but they run in

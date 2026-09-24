@@ -2,7 +2,7 @@ import AppKit
 import XCTest
 
 extension TalosUITests {
-    func testCreateSpaceButtonAdvancesToAccountChoice() throws {
+    func testCreateSpaceButtonAdvancesToTheTour() throws {
         let app = launchApp(onboardingStep: "space")
         let createSpaceButton = app.buttons["Create Space"]
         XCTAssertTrue(createSpaceButton.waitForExistence(timeout: 10))
@@ -18,39 +18,31 @@ extension TalosUITests {
         )
         XCTAssertEqual(XCTWaiter.wait(for: [dismissed], timeout: 5), .completed)
         // The address-bar placement question sits between the Space and the
-        // account gate; its default keeps the sidebar pill.
+        // tour; its default keeps the sidebar pill.
         XCTAssertTrue(
             element("initial-onboarding-addressBar", in: app).waitForExistence(timeout: 5),
             "Creating the initial Space should ask where the address lives."
         )
-        XCTAssertTrue(app.staticTexts["3 of 4"].exists)
+        XCTAssertTrue(app.staticTexts["3 of 3"].exists)
         app.buttons["Continue"].click()
 
         XCTAssertTrue(
-            element("account-onboarding", in: app).waitForExistence(timeout: 5),
-            "The address-bar step should offer Sign in with Apple before starting the tour."
+            element("initial-tour-command-bar", in: app).waitForExistence(timeout: 5),
+            "The address-bar step should start the tour."
         )
-        XCTAssertTrue(app.staticTexts["4 of 4"].exists)
-        XCTAssertFalse(element("initial-tour-command-bar", in: app).exists)
         XCTAssertTrue(waitForState(in: app, containing: "addressBar=sidebar"), currentState(in: app))
     }
 
     func testAddressBarOnboardingChoosingTopMovesTheAddressAboveThePage() throws {
         let app = launchApp(onboardingStep: "addressBar")
         XCTAssertTrue(element("initial-onboarding-addressBar", in: app).waitForExistence(timeout: 10))
-        XCTAssertTrue(app.staticTexts["3 of 4"].exists)
+        XCTAssertTrue(app.staticTexts["3 of 3"].exists)
 
         element("onboarding-address-bar-top", in: app).click()
         app.buttons["Continue"].click()
 
         XCTAssertTrue(waitForState(in: app, containing: "addressBar=top"), currentState(in: app))
-        // Back from the account gate returns to the question with the choice kept.
-        XCTAssertTrue(element("account-onboarding", in: app).waitForExistence(timeout: 5))
-        app.buttons["Back"].click()
-        XCTAssertTrue(element("initial-onboarding-addressBar", in: app).waitForExistence(timeout: 5))
-        let topCard = element("onboarding-address-bar-top", in: app)
-        XCTAssertTrue(topCard.waitForExistence(timeout: 5))
-        XCTAssertTrue(topCard.isSelected, "The previously chosen placement should stay selected")
+        XCTAssertTrue(element("initial-tour-command-bar", in: app).waitForExistence(timeout: 5))
     }
 
     func testTopAddressBarPlacementReplacesTheSidebarPill() throws {
@@ -67,10 +59,9 @@ extension TalosUITests {
         XCTAssertTrue(waitForState(in: app, containing: "addressBar=top"), currentState(in: app))
 
         // The whole toolbar moves, not just the address: navigation rides the
-        // strip and Eli gets the trailing slot, the way Dia lays its bar out.
+        // strip, the way Dia lays its bar out.
         XCTAssertTrue(element("navigation-back-button", in: app).exists, currentState(in: app))
         XCTAssertTrue(element("navigation-reload-button", in: app).exists, currentState(in: app))
-        XCTAssertTrue(element("top-chat-button", in: app).exists, currentState(in: app))
         // The toggle rides the strip too, and stays there with the sidebar
         // open — Dia keeps it in one place rather than moving it into the
         // sidebar it just opened.
@@ -91,7 +82,6 @@ extension TalosUITests {
 
         XCTAssertTrue(element("sidebar-address-button", in: app).waitForExistence(timeout: 10))
         XCTAssertFalse(element("top-address-button", in: app).exists)
-        XCTAssertFalse(element("top-chat-button", in: app).exists)
         XCTAssertFalse(element("top-sidebar-toggle-button", in: app).exists)
         // Navigation and the toggle stay in the sidebar header here.
         XCTAssertTrue(element("navigation-back-button", in: app).exists, currentState(in: app))
@@ -184,7 +174,6 @@ extension TalosUITests {
             "The space-setup step should give way to the welcome-back card once iCloud restores existing Spaces"
         )
         XCTAssertFalse(element("initial-onboarding-space", in: app).exists)
-        XCTAssertFalse(element("account-onboarding", in: app).exists)
 
         app.buttons["Start Browsing"].click()
         XCTAssertTrue(

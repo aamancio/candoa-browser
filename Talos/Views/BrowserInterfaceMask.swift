@@ -6,21 +6,16 @@ import SwiftUI
 /// sidebar toggle.
 internal struct BrowserInterfaceMaskModifier: ViewModifier {
     let insets: BrowserInterfaceInsets
-    let slideOverTrailingInset: CGFloat
     let surfaceCornerRadius: CGFloat
     let surfacePadding: CGFloat
-    let trailingSurfacePadding: CGFloat
     let drawsFullSurfaceBorder: Bool
 
-    // The trailing lane is reserved either persistently (insets) or
-    // transiently while Eli covers the page beyond the reserved layout.
-    // Both clip the same way, so every trailing measurement uses their sum.
     private var leadingInset: CGFloat {
         insets.leading
     }
 
     private var trailingInset: CGFloat {
-        insets.trailing + slideOverTrailingInset
+        insets.trailing
     }
 
     func body(content: Content) -> some View {
@@ -31,7 +26,7 @@ internal struct BrowserInterfaceMaskModifier: ViewModifier {
                         RoundedRectangle(cornerRadius: surfaceCornerRadius, style: .continuous)
                             .padding(.vertical, surfacePadding)
                             .padding(.leading, leadingInset + surfacePadding)
-                            .padding(.trailing, trailingInset + trailingSurfacePadding)
+                            .padding(.trailing, trailingInset + surfacePadding)
 
                         // Preserve the surface's existing top, trailing, and
                         // bottom shadow. Only the interface regions need clipping.
@@ -59,7 +54,7 @@ internal struct BrowserInterfaceMaskModifier: ViewModifier {
                         .stroke(InterfaceStyle.surfaceBorder, lineWidth: 1)
                         .padding(.vertical, surfacePadding)
                         .padding(.leading, leadingInset + surfacePadding)
-                        .padding(.trailing, trailingInset + trailingSurfacePadding)
+                        .padding(.trailing, trailingInset + surfacePadding)
                         .allowsHitTesting(false)
                 } else {
                     // Split panes own their individual borders. Add only sides
@@ -73,7 +68,7 @@ internal struct BrowserInterfaceMaskModifier: ViewModifier {
                             }
                             .padding(.vertical, surfacePadding)
                             .padding(.leading, leadingInset + surfacePadding)
-                            .padding(.trailing, trailingInset + trailingSurfacePadding)
+                            .padding(.trailing, trailingInset + surfacePadding)
                             .allowsHitTesting(false)
                     }
 
@@ -86,7 +81,7 @@ internal struct BrowserInterfaceMaskModifier: ViewModifier {
                             }
                             .padding(.vertical, surfacePadding)
                             .padding(.leading, leadingInset + surfacePadding)
-                            .padding(.trailing, trailingInset + trailingSurfacePadding)
+                            .padding(.trailing, trailingInset + surfacePadding)
                             .allowsHitTesting(false)
                     }
                 }

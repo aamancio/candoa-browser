@@ -1,7 +1,5 @@
 import AppKit
-@preconcurrency import AVFoundation
 import os
-@preconcurrency import Speech
 import SwiftUI
 import UniformTypeIdentifiers
 
@@ -19,7 +17,6 @@ struct ContentView: View {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.controlActiveState) private var controlActiveState
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @EnvironmentObject private var userStore: UserStore
     @AppStorage(SettingsOption.websiteAppearance) private var websiteAppearanceValue =
         WebsiteAppearance.automatic.rawValue
     @SceneStorage("talos.windowAutosaveID") private var windowAutosaveID = UUID().uuidString
@@ -37,29 +34,9 @@ struct ContentView: View {
     /// Ordinary pages report in ~100ms and never reach this.
     private static let closingSidebarLaneCap = 150
     @State private var isSidebarRevealSuppressed = false
-    @State private var isAISidebarVisible = false
-    @State private var isAISidebarMounted = false
-    @State private var isAISidebarReservingWebLayout = false
     @State private var isHistoryPresented = false
-    @State private var reservedAISidebarInset: CGFloat = 0
-    // Compositor-only trailing clip applied to the web surface while Eli
-    // covers it beyond the reserved web layout: during a widening resize
-    // drag, and during a close's paint-fence hold, where the page has
-    // already expanded under the still-mounted panel. It keeps the card's
-    // rounded trailing corner pinned to Eli's edge without ever touching the
-    // live WKWebView's frame; it must be exactly 0 whenever the reserved
-    // layout owns the trailing edge.
-    @State private var aiSidebarSlideMaskInset: CGFloat = 0
-    @State private var aiSidebarTransitionGeneration = 0
-    @State private var aiSidebarUITestingState = ""
-    @State private var aiSidebarMessages: [AISidebarMessage] = []
-    @State private var aiSidebarMemoryWindow = EliMemoryWindow()
-    @State private var pendingEliSubscriptionSubmission: EliSubmission?
-    @State private var isSignOutConfirmationPresented = false
-    @State private var aiSidebarResizeStartWidth: CGFloat?
     @State private var miniPlayerOrigin: CGPoint? = MiniPlayerPersistence.loadOrigin()
     @State private var miniPlayerExpandedLongEdge = MiniPlayerPersistence.loadLongEdge()
-    @SceneStorage("talos.aiSidebarWidth.diaLayout") private var aiSidebarWidth = 540.0
     private let sidebarWidth = InterfaceStyle.sidebarWidth
     private let sidebarDividerWidth: CGFloat = 0
 
@@ -82,7 +59,7 @@ struct ContentView: View {
     }
 
     /// True while a text field holds the keyboard — the address bar, a tab
-    /// rename, an Eli prompt. AppKit hands those the field editor, so the
+    /// rename. AppKit hands those the field editor, so the
     /// responder is an NSTextView rather than the control itself.
     private var isEditingTextField: Bool {
         guard let responder = NSApp.keyWindow?.firstResponder else { return false }
@@ -136,11 +113,6 @@ struct ContentView: View {
     }
 
     var body: some View {
-        let currentAISidebarWidth = clampedAISidebarWidth(CGFloat(aiSidebarWidth))
-        let currentAISidebarInset = isAISidebarMounted
-            ? currentAISidebarWidth
-            : 0
-
         ZStack(alignment: .leading) {
             if isFullWindowOnboardingPresented {
                 InitialOnboardingCanvas(store: store)
@@ -178,44 +150,20 @@ struct ContentView: View {
                             isHistoryPresented = false
                         }
                     } else {
-                        // Keep the WebKit host at one stable width when the left
-                        // or right sidebar toggles. WebKit paints through a remote
+                        // Keep the WebKit host at one stable width when the
+                        // sidebar toggles. WebKit paints through a remote
                         // layer; resizing that host exposes or stretches the
                         // previous frame before the WebContent process catches up
-                        // and makes pages flash their scrollbars. Both sidebar
-                        // lanes are reserved inside WebViewContainer instead.
+                        // and makes pages flash their scrollbars. The sidebar
+                        // lane is reserved inside WebViewContainer instead.
                         WebViewContainer(
                             store: store,
                             visibleInterfaceInsets: webVisibleInterfaceInsets,
                             barInterfaceInsets: barInterfaceInsets,
-                            attachesToTrailingPanel: isAISidebarMounted,
-                            onToggleSidebar: toggleSidebar,
-                            slideOverTrailingInset: aiSidebarSlideMaskInset
+                            onToggleSidebar: toggleSidebar
                         )
-                        // Resize WebKit once, after Eli has finished sliding over
-                        // this lane. Keeping this out of the animation avoids
-                        // per-frame web layout while placing WebKit's own overlay
-                        // scroller at the visible page edge.
-                        .padding(
-                            .trailing,
-                            isAISidebarReservingWebLayout ? reservedAISidebarInset : 0
-                        )
-
-                        if isAISidebarMounted {
-                            aiSidebarLayout(width: currentAISidebarWidth)
-                                .transition(
-                                    reduceMotion
-                                        ? .identity
-                                        : .move(edge: .trailing)
-                                )
-                                .zIndex(1)
-                        }
                     }
                 }
-                // The web surface and attached Ask panel form one window row.
-                // Extending only the web child into the title-bar safe area
-                // pushes Ask's toolbar down and exposes a square strip above
-                // its rounded outside corner.
                 .ignoresSafeArea(
                     .container,
                     edges: isHistoryPresented ? [] : .top
@@ -249,12 +197,11 @@ struct ContentView: View {
             }
 
             if store.isTabSwitcherPresented {
-                // Centered on the page, not the window: the sidebar and Ask
-                // lanes are inset and the title-bar safe area is ignored,
-                // matching where the web view actually is.
+                // Centered on the page, not the window: the sidebar lane is
+                // inset and the title-bar safe area is ignored, matching
+                // where the web view actually is.
                 TabSwitcherOverlay(store: store)
                     .padding(.leading, isSidebarVisible ? sidebarTotalWidth : 0)
-                    .padding(.trailing, isAISidebarReservingWebLayout ? reservedAISidebarInset : 0)
                     .ignoresSafeArea(.container, edges: .top)
                     .zIndex(9)
             }
@@ -264,7 +211,7 @@ struct ContentView: View {
                !isHistoryPresented {
                 LinkHoverPreviewPill(urlString: hoveredLinkHref)
                     .padding(.leading, (isSidebarVisible ? sidebarTotalWidth : 0) + 10)
-                    .padding(.trailing, currentAISidebarInset + 10)
+                    .padding(.trailing, 10)
                     .padding(.bottom, 10)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
                     .allowsHitTesting(false)
@@ -274,18 +221,17 @@ struct ContentView: View {
 
             if let mediaTab = store.floatingMiniPlayerTab,
                let mediaState = store.floatingMiniPlayerState {
-                // The player floats over the whole window — sidebar and Eli
-                // included, like a PiP window over the browser — so it roams
-                // the full content size; only the summon glide still needs to
-                // know where the page lane is, since its start rect is
+                // The player floats over the whole window — sidebar included,
+                // like a PiP window over the browser — so it roams the full
+                // content size; only the summon glide still needs to know
+                // where the page lane is, since its start rect is
                 // page-relative.
                 GeometryReader { proxy in
                     let leadingInset = isSidebarVisible ? sidebarTotalWidth : 0
-                    let trailingInset = currentAISidebarInset
                     let pageLaneFrame = CGRect(
                         x: leadingInset,
                         y: 0,
-                        width: max(1, proxy.size.width - leadingInset - trailingInset),
+                        width: max(1, proxy.size.width - leadingInset),
                         height: proxy.size.height
                     )
 
@@ -305,7 +251,7 @@ struct ContentView: View {
                 // Leaving (back to its tab, or the media ending) is a plain
                 // fade over the page — the page itself is already in place.
                 .transition(.opacity)
-                // Above both sidebars (2); only the modal overlays — link
+                // Above the sidebar (2); only the modal overlays — link
                 // pill, tab switcher, command palette — still cover it.
                 .zIndex(7)
             }
@@ -319,15 +265,6 @@ struct ContentView: View {
                     .allowsHitTesting(false)
 
                 VStack(alignment: .trailing, spacing: 8) {
-                    if isSignOutConfirmationPresented {
-                        SignOutConfirmationView()
-                            .transition(
-                                reduceMotion
-                                    ? .opacity
-                                    : .move(edge: .top).combined(with: .opacity)
-                            )
-                    }
-
                     if let toast = store.copiedURLToast {
                         CopiedURLToastView(
                             toast: toast,
@@ -349,51 +286,20 @@ struct ContentView: View {
         .overlay(alignment: .bottomTrailing) {
             if BrowserStore.isUITesting {
                 let stateDescription = store.uiTestingStateDescription(sidebarVisible: isSidebarVisible)
-                    + ";aiVisible=\(isAISidebarVisible);aiMounted=\(isAISidebarMounted)"
                     + ";websiteAppearance=\(websiteAppearance.rawValue)"
 
-                VStack(spacing: 0) {
-                    Text(stateDescription)
-                        .font(.system(size: 1))
-                        .foregroundStyle(.clear)
-                        .frame(width: 1, height: 1)
-                        .accessibilityLabel(stateDescription)
-                        .accessibilityIdentifier("ui-testing-state")
-
-                    Text(aiSidebarUITestingState)
-                        .font(.system(size: 1))
-                        .foregroundStyle(.clear)
-                        .frame(width: 1, height: 1)
-                        .accessibilityLabel(aiSidebarUITestingState)
-                        .accessibilityIdentifier("agent-ui-testing-state")
-                }
+                Text(stateDescription)
+                    .font(.system(size: 1))
+                    .foregroundStyle(.clear)
+                    .frame(width: 1, height: 1)
+                    .accessibilityLabel(stateDescription)
+                    .accessibilityIdentifier("ui-testing-state")
             }
         }
         .sheet(isPresented: $store.isPrivacyReportPresented) {
             PrivacyReportView(onDismiss: { store.isPrivacyReportPresented = false })
         }
         .animation(.spring(duration: 0.5, bounce: 0.2), value: store.copiedURLToast)
-        .onChange(of: userStore.signOutGeneration) { _, generation in
-            guard generation > 0 else { return }
-
-            let hasPersonalEliAccess = EliPreferences.hasDirectEliAccess
-            if !hasPersonalEliAccess {
-                aiSidebarMessages = [.subscriptionGate]
-                pendingEliSubscriptionSubmission = nil
-            }
-
-            withAnimation(.easeOut(duration: reduceMotion ? 0 : 0.15)) {
-                isSignOutConfirmationPresented = true
-            }
-
-            Task {
-                try? await Task.sleep(for: .seconds(2))
-                guard userStore.signOutGeneration == generation else { return }
-                withAnimation(.easeOut(duration: reduceMotion ? 0 : 0.15)) {
-                    isSignOutConfirmationPresented = false
-                }
-            }
-        }
         .background {
             WindowBackdrop(store: store)
                 .ignoresSafeArea()
@@ -434,8 +340,6 @@ struct ContentView: View {
                 store.togglePinForActiveTab()
             } onToggleSidebar: {
                 toggleSidebar()
-            } onToggleAISidebar: {
-                toggleAISidebar()
             } onFindInPage: {
                 showFind()
             } onFindNext: {
@@ -538,16 +442,8 @@ struct ContentView: View {
         .task {
             store.openPrivateWindowCommandBarIfNeeded()
         }
-        .task {
-            await userStore.restoreSessionIfNeeded()
-            store.reconcileAccountSetup(
-                hasCompletedAccountChoice: userStore.hasCompletedAccountChoice
-            )
-        }
         .onOpenURL { url in
-            if !userStore.handleAppleSignInCallback(url) {
-                store.openExternalURL(url)
-            }
+            store.openExternalURL(url)
         }
         .onDisappear {
             store.flushSession()
@@ -562,21 +458,6 @@ struct ContentView: View {
         .onChange(of: scenePhase) { _, phase in
             if phase != .active {
                 store.flushSession()
-            } else {
-                Task {
-                    await userStore.recoverSessionIfNeeded()
-                    await userStore.reconcilePendingSubscriptionIfNeeded()
-                }
-            }
-        }
-        .onReceive(
-            NotificationCenter.default.publisher(
-                for: NSApplication.didBecomeActiveNotification
-            )
-        ) { _ in
-            Task {
-                await userStore.recoverSessionIfNeeded()
-                await userStore.reconcilePendingSubscriptionIfNeeded()
             }
         }
         .onReceive(
@@ -593,17 +474,8 @@ struct ContentView: View {
             guard (notification.object as? NSMenu) === NSApp.mainMenu else { return }
             store.refreshDevelopMenuIfInspectorStateDrifted()
         }
-        .onChange(of: store.activeTab?.url) { _, url in
-            guard let url else { return }
-            Task {
-                await userStore.reconcilePendingSubscriptionIfNeeded(for: url)
-            }
-        }
         .onChange(of: store.pageLaneSettledTick) { _, _ in
             uncoverClosingSidebarLane()
-        }
-        .onChange(of: store.aiSidebarToggleRequestID) { _, _ in
-            toggleAISidebar()
         }
         .onChange(of: store.activeSpaceID) { _, _ in
             // A Space is its tabs, and they live in the sidebar. Switching
@@ -623,35 +495,12 @@ struct ContentView: View {
                   !store.isDownloadsPopoverPresented else { return }
             showDownloads()
         }
-        .onChange(of: userStore.hasCompletedAccountChoice) { _, hasCompletedAccountChoice in
-            store.reconcileAccountSetup(
-                hasCompletedAccountChoice: hasCompletedAccountChoice
-            )
-        }
         .onChange(of: websiteAppearanceValue) { _, _ in
             applyWebsiteAppearance()
         }
         .onChange(of: systemAppearance.colorScheme) { _, _ in
             guard websiteAppearance == .automatic else { return }
             applyWebsiteAppearance()
-        }
-        .onChange(of: store.initialTourTip) { previousTip, currentTip in
-            if previousTip == .ask, currentTip != .ask {
-                closeAISidebar()
-            }
-        }
-        .onChange(of: store.preparingInitialTourTip) { _, tip in
-            guard tip == .ask else { return }
-            openAISidebar()
-
-            // The native popover needs an AppKit anchor that has completed a
-            // layout pass. Mount the Eli panel first, then present its tip on
-            // the next committed SwiftUI pass.
-            DispatchQueue.main.async {
-                DispatchQueue.main.async {
-                    store.presentPreparedInitialTourTip(.ask)
-                }
-            }
         }
         .quickNoteActivity(for: store)
         // The dragged row's ghost, in the window's own top-left space —
@@ -698,8 +547,6 @@ struct ContentView: View {
             openCommandPalette: store.openCommandPalette,
             toggleSidebar: toggleSidebar,
             isSidebarVisible: isSidebarVisible,
-            toggleAISidebar: toggleAISidebar,
-            isAISidebarVisible: isAISidebarVisible,
             showHistory: showHistory,
             isHistoryVisible: isHistoryPresented,
             clearBrowsingData: presentClearBrowsingData,
@@ -855,63 +702,6 @@ struct ContentView: View {
         }
     }
 
-    private func aiSidebarPanel(width: CGFloat) -> some View {
-        EliSidebarView(
-            store: store,
-            uiTestingState: $aiSidebarUITestingState,
-            messages: $aiSidebarMessages,
-            memoryWindow: $aiSidebarMemoryWindow,
-            pendingSubscriptionSubmission: $pendingEliSubscriptionSubmission
-        ) {
-            toggleAISidebar()
-        }
-        .frame(width: width)
-    }
-
-    private func aiSidebarLayout(width: CGFloat) -> some View {
-        ZStack {
-            // The lane stays transparent even while Eli slides over the page:
-            // the web surface is clipped at Eli's moving edge by
-            // slideOverTrailingInset, so the one shared window backdrop shows
-            // through here in every state and can never drift in color from
-            // the center or the docked lane.
-            aiSidebarPanel(width: width)
-        }
-        .frame(width: width)
-        .frame(maxHeight: .infinity)
-        .overlay(alignment: .leading) {
-            AISidebarResizeHandle()
-                .frame(width: AISidebarLayout.resizeHandleHitWidth)
-                .offset(x: -AISidebarLayout.resizeHandleHitWidth / 2)
-                .gesture(
-                    DragGesture(minimumDistance: 0, coordinateSpace: .global)
-                        .onChanged { value in
-                            let startWidth = aiSidebarResizeStartWidth ?? width
-                            if aiSidebarResizeStartWidth == nil {
-                                aiSidebarResizeStartWidth = width
-                            }
-                            let draggedWidth = clampedAISidebarWidth(startWidth - value.translation.width)
-                            aiSidebarWidth = Double(draggedWidth)
-                            // While Eli widens over the still-reserved web
-                            // layout, clip the card at Eli's edge so its
-                            // rounded corner is never squared off mid-drag.
-                            aiSidebarSlideMaskInset = max(0, draggedWidth - reservedAISidebarInset)
-                        }
-                        .onEnded { _ in
-                            aiSidebarResizeStartWidth = nil
-                            // Keep pointer-driven resizing compositor-only, then
-                            // commit the WebKit viewport once when dragging ends.
-                            // Releasing the slide mask in the same update keeps
-                            // the visible card edge exactly in place.
-                            reservedAISidebarInset = clampedAISidebarWidth(CGFloat(aiSidebarWidth))
-                            aiSidebarSlideMaskInset = 0
-                        }
-                )
-        }
-        .allowsHitTesting(isAISidebarVisible)
-        .accessibilityHidden(!isAISidebarVisible)
-    }
-
     // The pinned toggle deliberately snaps in a single frame: sidebar
     // translation, mask lane, and WebKit obscured insets all switch in one
     // commit, so the sidebar can never separate from the content beside it.
@@ -958,14 +748,6 @@ struct ContentView: View {
         coversClosingSidebarLane = false
     }
 
-    private func toggleAISidebar() {
-        if isAISidebarVisible {
-            closeAISidebar()
-        } else {
-            openAISidebar()
-        }
-    }
-
     /// Pins the sidebar open for something that needs it visible, leaving it
     /// alone when it already is.
     private func revealSidebar() {
@@ -977,7 +759,6 @@ struct ContentView: View {
 
     private func showQuickTour() {
         revealSidebar()
-        closeAISidebar()
         store.showQuickTour()
     }
 
@@ -986,7 +767,6 @@ struct ContentView: View {
             isHistoryPresented = false
             return
         }
-        closeAISidebar()
         isHistoryPresented = true
     }
 
@@ -1034,54 +814,6 @@ struct ContentView: View {
         }
     }
 
-    private func openAISidebar() {
-        guard !isAISidebarVisible else { return }
-        aiSidebarTransitionGeneration += 1
-
-        // Open snaps in one commit, matching the pinned left sidebar: the
-        // panel appears docked, the card ends at its edge with the rounded
-        // corner from its own clip shape, and the single native WKWebView
-        // resize happens in the same frame.
-        reservedAISidebarInset = clampedAISidebarWidth(CGFloat(aiSidebarWidth))
-        isAISidebarReservingWebLayout = true
-        isAISidebarMounted = true
-        isAISidebarVisible = true
-        aiSidebarSlideMaskInset = 0
-    }
-
-    private func closeAISidebar() {
-        guard isAISidebarVisible else { return }
-        aiSidebarTransitionGeneration += 1
-        let generation = aiSidebarTransitionGeneration
-
-        aiSidebarResizeStartWidth = nil
-        // Close also snaps, but in two invisible beats: expand the page once
-        // while Eli still covers the changing edge — the slide mask takes
-        // over the exact visible card edge in the same unanimated update —
-        // then remove the panel only after WebKit has painted the widened
-        // layout, so the snap uncovers real content instead of the page's
-        // background fill. The panel lingers for the fence (typically a
-        // frame or two, capped at 250ms) but is logically closed and inert
-        // immediately.
-        isAISidebarVisible = false
-        isAISidebarReservingWebLayout = false
-        aiSidebarSlideMaskInset = clampedAISidebarWidth(CGFloat(aiSidebarWidth))
-        // The CATransaction completion is guaranteed to run only after the
-        // handoff above has rendered; a main-queue async block is not.
-        CATransaction.setCompletionBlock {
-            guard aiSidebarTransitionGeneration == generation else { return }
-            store.waitForWebContentPaint(at: .trailing, timeout: 0.25) {
-                guard aiSidebarTransitionGeneration == generation else { return }
-                isAISidebarMounted = false
-                aiSidebarSlideMaskInset = 0
-            }
-        }
-    }
-
-    private func clampedAISidebarWidth(_ width: CGFloat) -> CGFloat {
-        min(max(width, AISidebarLayout.minWidth), AISidebarLayout.maxWidth)
-    }
-
     private func openNewTabFlow() {
         isHistoryPresented = false
         store.openNewTab()
@@ -1098,21 +830,5 @@ struct ContentView: View {
         }
 
         store.closeCurrentTabOrWindow()
-    }
-}
-
-private struct SignOutConfirmationView: View {
-    var body: some View {
-        Label("Signed out", systemImage: "checkmark.circle.fill")
-            .font(.system(size: 13, weight: .semibold))
-            .padding(.horizontal, 12)
-            .frame(minHeight: 36)
-            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
-            .overlay {
-                RoundedRectangle(cornerRadius: 9, style: .continuous)
-                    .stroke(InterfaceStyle.popoverBorder, lineWidth: 1)
-            }
-            .shadow(color: Color(nsColor: .shadowColor).opacity(0.18), radius: 9, y: 3)
-            .accessibilityIdentifier("sign-out-confirmation")
     }
 }

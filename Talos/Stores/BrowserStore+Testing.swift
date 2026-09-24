@@ -160,9 +160,9 @@ extension BrowserStore {
     /// Drives the active window from a fixture runner without synthetic
     /// input: `navigate:<url>` loads a page in the active tab, `tab:new:<url>`
     /// opens one in a new tab (which backgrounds the page that was playing,
-    /// the way into the floating mini player), `eli:toggle` opens or
-    /// closes the Eli sidebar, `sidebar:toggle` pins the sidebar open or
-    /// away, and `websitedata:manage` drops the Manage Website Data sheet.
+    /// the way into the floating mini player), `sidebar:toggle` pins the
+    /// sidebar open or away, and `websitedata:manage` drops the Manage
+    /// Website Data sheet.
     /// Same rationale as the tab-switcher seam — keyboard-free, so it
     /// works while the machine is in use.
     static let uiTestingWindowCommandNotification =
@@ -181,8 +181,6 @@ extension BrowserStore {
                         self.navigateActiveTab(to: String(command.dropFirst("navigate:".count)))
                     } else if command.hasPrefix("tab:new:") {
                         self.navigateNewTab(to: String(command.dropFirst("tab:new:".count)))
-                    } else if command == "eli:toggle" {
-                        self.aiSidebarToggleRequestID = UUID()
                     } else if command == "sidebar:toggle" {
                         self.sidebarToggleRequestID = UUID()
                     } else if command.hasPrefix("palette:type:") {
@@ -495,10 +493,8 @@ extension BrowserStore {
         return [
             "private=\(isPrivate)",
             "setup=\(isInitialSpaceSetupPresented)",
-            "accountSetup=\(isInitialAccountSetupPresented)",
             "onboarding=\(initialOnboardingStep?.rawValue ?? "none")",
             "tourTip=\(initialTourTip?.rawValue.description ?? "none")",
-            "preparingTourTip=\(preparingInitialTourTip?.rawValue.description ?? "none")",
             "palette=\(isCommandPalettePresented)",
             "newTabPalette=\(isNewTabPaletteActive)",
             "find=\(isFindBarPresented)",
@@ -593,60 +589,6 @@ extension BrowserStore {
         }
     }
 
-    static let uiTestingPersonalMemorySpaceID = UUID(uuidString: "1A1A1A1A-1A1A-1A1A-1A1A-1A1A1A1A1A1A")!
-    static let uiTestingWorkMemorySpaceID = UUID(uuidString: "2A2A2A2A-2A2A-2A2A-2A2A-2A2A2A2A2A2A")!
-
-    /// Canned extractor output for the memory fixture: UI tests set this to
-    /// a JSON array of fact strings and the app persists it through the real
-    /// sanitize/merge path instead of calling a model.
-    static func uiTestingMemoryExtractionFacts() -> [String]? {
-        guard isUITesting,
-              let raw = ProcessInfo.processInfo.environment["TALOS_UI_TESTING_MEMORY_EXTRACTION_FACTS"],
-              let data = raw.data(using: .utf8)
-        else {
-            return nil
-        }
-        return try? JSONDecoder().decode([String].self, from: data)
-    }
-
-    /// Seeds saved facts for the space-memory fixture's two Spaces so tests
-    /// can assert per-Space isolation without a model round trip.
-    func seedUITestingSpaceMemoryIfNeeded() {
-        guard Self.isUITesting, !isPrivate,
-              ProcessInfo.processInfo.environment["TALOS_UI_TESTING_FIXTURE"] == "space-memory"
-        else {
-            return
-        }
-
-        // Distinct createdAt values keep the row order (and the index-based
-        // delete identifiers) deterministic.
-        let fixtureDate = Date(timeIntervalSince1970: 1_800_000_000)
-        persistenceService.replaceSpaceMemoryFacts(
-            with: [
-                SpaceMemoryFact(
-                    spaceID: Self.uiTestingPersonalMemorySpaceID,
-                    content: "The user's name is Alex Fixture.",
-                    createdAt: fixtureDate
-                ),
-                SpaceMemoryFact(
-                    spaceID: Self.uiTestingPersonalMemorySpaceID,
-                    content: "The user is applying for engineering jobs.",
-                    createdAt: fixtureDate.addingTimeInterval(60)
-                )
-            ],
-            in: Self.uiTestingPersonalMemorySpaceID
-        )
-        persistenceService.replaceSpaceMemoryFacts(
-            with: [
-                SpaceMemoryFact(
-                    spaceID: Self.uiTestingWorkMemorySpaceID,
-                    content: "The user prepares quarterly budget reports."
-                )
-            ],
-            in: Self.uiTestingWorkMemorySpaceID
-        )
-    }
-
     static func uiTestingFixtureState() -> BrowserWindowState? {
         let environment = ProcessInfo.processInfo.environment
         guard environment["TALOS_UI_TESTING"] == "1" else { return nil }
@@ -656,214 +598,6 @@ extension BrowserStore {
         // workspace instead of seeding fixture state.
         if fixture == "persisted-workspace" {
             return nil
-        }
-
-        if fixture == "ask" {
-            return testingBotFixtureState(includesSeedTabs: false)
-        }
-
-        if fixture == "space-memory" {
-            let personalSpace = BrowserSpace(
-                id: uiTestingPersonalMemorySpaceID,
-                name: "Personal",
-                symbolName: "sparkles",
-                themeAppearance: BrowserSpace.defaultThemeAppearance
-            )
-            let workSpace = BrowserSpace(
-                id: uiTestingWorkMemorySpaceID,
-                name: "Work",
-                symbolName: "briefcase",
-                themeAppearance: BrowserSpace.defaultThemeAppearance
-            )
-            let personalTabID = UUID(uuidString: "1B1B1B1B-1B1B-1B1B-1B1B-1B1B1B1B1B1B")!
-            let tabs = [
-                BrowserTab(
-                    id: personalTabID,
-                    title: "Personal Home",
-                    url: URL(string: "https://fixture.talos.test/personal")!,
-                    spaceID: personalSpace.id,
-                    hasBeenActivated: true
-                ),
-                BrowserTab(
-                    id: UUID(uuidString: "2B2B2B2B-2B2B-2B2B-2B2B-2B2B2B2B2B2B")!,
-                    title: "Work Home",
-                    url: URL(string: "https://fixture.talos.test/work")!,
-                    spaceID: workSpace.id,
-                    hasBeenActivated: true
-                )
-            ]
-            return BrowserWindowState(
-                spaces: [personalSpace, workSpace],
-                folders: [],
-                tabs: tabs,
-                activeSpaceID: personalSpace.id,
-                activeTabID: personalTabID
-            )
-        }
-
-        if fixture == "ask-agent-navigation" {
-            let spaceID = UUID(uuidString: "AEAEAEAE-AEAE-AEAE-AEAE-AEAEAEAEAEAE")!
-            let tabID = UUID(uuidString: "BFBFBFBF-BFBF-BFBF-BFBF-BFBFBFBFBFBF")!
-            let space = BrowserSpace(
-                id: spaceID,
-                name: "TestingBot",
-                symbolName: "sparkles",
-                themeAppearance: BrowserSpace.defaultThemeAppearance
-            )
-            let tab = BrowserTab(
-                id: tabID,
-                title: "Membership Home",
-                url: URL(string: "https://fixture.talos.test/home")!,
-                faviconSymbol: "person.crop.circle",
-                spaceID: spaceID,
-                hasBeenActivated: true
-            )
-            return BrowserWindowState(
-                spaces: [space],
-                folders: [],
-                tabs: [tab],
-                activeSpaceID: spaceID,
-                activeTabID: tabID
-            )
-        }
-
-        if fixture == "ask-agent-form-fill" {
-            let spaceID = UUID(uuidString: "ADADADAD-ADAD-ADAD-ADAD-ADADADADADAD")!
-            let tabID = UUID(uuidString: "CDCDCDCD-CDCD-CDCD-CDCD-CDCDCDCDCDCD")!
-            let space = BrowserSpace(
-                id: spaceID,
-                name: "TestingBot",
-                symbolName: "sparkles",
-                themeAppearance: BrowserSpace.defaultThemeAppearance
-            )
-            let tab = BrowserTab(
-                id: tabID,
-                title: "Job Application",
-                url: URL(string: "https://fixture.talos.test/apply")!,
-                faviconSymbol: "doc.text",
-                spaceID: spaceID,
-                hasBeenActivated: true
-            )
-            return BrowserWindowState(
-                spaces: [space],
-                folders: [],
-                tabs: [tab],
-                activeSpaceID: spaceID,
-                activeTabID: tabID
-            )
-        }
-
-        if fixture == "ask-agent-waiting" {
-            let spaceID = UUID(uuidString: "AFAFAFAF-AFAF-AFAF-AFAF-AFAFAFAFAFAF")!
-            let tabID = UUID(uuidString: "CECECECE-CECE-CECE-CECE-CECECECECECE")!
-            let space = BrowserSpace(
-                id: spaceID,
-                name: "TestingBot",
-                symbolName: "sparkles",
-                themeAppearance: BrowserSpace.defaultThemeAppearance
-            )
-            let tab = BrowserTab(
-                id: tabID,
-                title: "Membership Home",
-                url: URL(string: "https://fixture.talos.test/home")!,
-                faviconSymbol: "person.crop.circle",
-                spaceID: spaceID,
-                hasBeenActivated: true
-            )
-            return BrowserWindowState(
-                spaces: [space],
-                folders: [],
-                tabs: [tab],
-                activeSpaceID: spaceID,
-                activeTabID: tabID
-            )
-        }
-
-        if fixture == "ask-agent-normalized-navigation" {
-            let spaceID = UUID(uuidString: "ACACACAC-ACAC-ACAC-ACAC-ACACACACACAC")!
-            let tabID = UUID(uuidString: "BDBDBDBD-BDBD-BDBD-BDBD-BDBDBDBDBDBD")!
-            let space = BrowserSpace(
-                id: spaceID,
-                name: "TestingBot",
-                symbolName: "sparkles",
-                themeAppearance: BrowserSpace.defaultThemeAppearance
-            )
-            let tab = BrowserTab(
-                id: tabID,
-                title: "MacBook Air",
-                url: URL(string: "https://fixture.talos.test/air")!,
-                faviconSymbol: "laptopcomputer",
-                spaceID: spaceID,
-                hasBeenActivated: true
-            )
-            return BrowserWindowState(
-                spaces: [space],
-                folders: [],
-                tabs: [tab],
-                activeSpaceID: spaceID,
-                activeTabID: tabID
-            )
-        }
-
-        if fixture == "ask-agent-selection" {
-            let spaceID = UUID(uuidString: "EFEFEFEF-EFEF-EFEF-EFEF-EFEFEFEFEFEF")!
-            let tabID = UUID(uuidString: "FAFAFAFA-FAFA-FAFA-FAFA-FAFAFAFAFAFA")!
-            let space = BrowserSpace(
-                id: spaceID,
-                name: "TestingBot",
-                symbolName: "sparkles",
-                themeAppearance: BrowserSpace.defaultThemeAppearance
-            )
-            let tab = BrowserTab(
-                id: tabID,
-                title: "Configure MacBook Air",
-                url: URL(string: "https://fixture.talos.test/configure")!,
-                faviconSymbol: "laptopcomputer",
-                spaceID: spaceID,
-                hasBeenActivated: true
-            )
-            return BrowserWindowState(
-                spaces: [space],
-                folders: [],
-                tabs: [tab],
-                activeSpaceID: spaceID,
-                activeTabID: tabID
-            )
-        }
-
-        if fixture == "ask-agent-mentioned-tab" {
-            let spaceID = UUID(uuidString: "ABABABAB-ABAB-ABAB-ABAB-ABABABABABAB")!
-            let readingTabID = UUID(uuidString: "CDCDCDCD-CDCD-CDCD-CDCD-CDCDCDCDCDCD")!
-            let membershipTabID = UUID(uuidString: "DEDEDEDE-DEDE-DEDE-DEDE-DEDEDEDEDEDE")!
-            let space = BrowserSpace(
-                id: spaceID,
-                name: "TestingBot",
-                symbolName: "sparkles",
-                themeAppearance: BrowserSpace.defaultThemeAppearance
-            )
-            let readingTab = BrowserTab(
-                id: readingTabID,
-                title: "Reading List",
-                url: URL(string: "https://fixture.talos.test/reading")!,
-                faviconSymbol: "book",
-                spaceID: spaceID,
-                hasBeenActivated: true
-            )
-            let membershipTab = BrowserTab(
-                id: membershipTabID,
-                title: "Membership Home",
-                url: URL(string: "https://fixture.talos.test/home")!,
-                faviconSymbol: "person.crop.circle",
-                spaceID: spaceID,
-                hasBeenActivated: true
-            )
-            return BrowserWindowState(
-                spaces: [space],
-                folders: [],
-                tabs: [readingTab, membershipTab],
-                activeSpaceID: spaceID,
-                activeTabID: readingTabID
-            )
         }
 
         if fixture == "cross-space-duplicate-url" {

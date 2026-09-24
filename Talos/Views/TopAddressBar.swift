@@ -139,8 +139,6 @@ struct TopAddressBar: View {
             if url != nil {
                 shareButton
             }
-
-            chatButton
         }
         .buttonTreatment(.content)
         .foregroundStyle(InterfaceStyle.sidebarIcon)
@@ -245,23 +243,6 @@ struct TopAddressBar: View {
         .help("Share")
         .accessibilityLabel("Share")
         .accessibilityIdentifier("top-share-url-button")
-    }
-
-    /// A plain icon like the strip's other controls (and the developer
-    /// bar's), not a labeled pill — the strip stays a row of quiet glyphs.
-    private var chatButton: some View {
-        Button {
-            store.requestAISidebarToggle()
-        } label: {
-            Image(systemName: "bubble.left")
-                // The bubble's thin tail leaves its mass high, so a
-                // box-centered glyph reads lifted otherwise.
-                .offset(y: 0.5)
-        }
-        .toolbarIconButton()
-        .shortcutTooltip("Chat", shortcut: .toggleAISidebar)
-        .accessibilityLabel("Chat")
-        .accessibilityIdentifier("top-chat-button")
     }
 
     /// The lock doubles as the Site Info trigger, the same pairing the sidebar

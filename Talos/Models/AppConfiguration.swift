@@ -8,7 +8,6 @@ enum AppConfiguration {
     static let privateBrowserWindowSceneID = "browser.private"
     static let acknowledgmentsWindowSceneID = "browser.acknowledgments"
     static let featureFlagsWindowSceneID = "browser.feature-flags"
-    static let reportProblemWindowSceneID = "browser.report-problem"
     static let windowAutosaveNamePrefix = "Talos.BrowserWindow"
 }
 
@@ -21,7 +20,6 @@ enum BrowserCommandTitles {
     static let openLocation = String(localized: "Open Location…")
     static let commandBar = String(localized: "Command Bar")
     static let toggleSidebar = String(localized: "Toggle Sidebar")
-    static let toggleAISidebar = String(localized: "Toggle Eli Sidebar")
     static let reloadTab = String(localized: "Reload Page")
     static let reloadTabFromOrigin = String(localized: "Reload Page From Origin")
     static let stopLoading = String(localized: "Stop")
@@ -55,8 +53,6 @@ enum BrowserCommandTitles {
     static let muteOtherTabs = String(localized: "Mute Other Tabs")
     static let getExtensions = String(localized: "Get Extensions…")
     static let acknowledgments = String(localized: "Acknowledgments")
-    static let reportAProblem = String(localized: "Report an Issue…")
-    static let reportAProblemWindowTitle = String(localized: "Report an Issue")
     static let addToFavorites = String(localized: "Add to Favorites")
     static let removeFromFavorites = String(localized: "Remove from Favorites")
     static let siteInfo = String(localized: "Site Info…")

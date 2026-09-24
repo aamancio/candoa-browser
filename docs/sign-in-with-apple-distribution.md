@@ -1,5 +1,7 @@
 # Sign in with Apple and Developer ID Distribution
 
+> The account feature this document describes was removed in September 2026 (Talos runs fully local); the document is kept for history.
+
 Status: accepted  
 Last verified: August 8, 2026
 

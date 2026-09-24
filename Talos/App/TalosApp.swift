@@ -4,7 +4,6 @@ import SwiftUI
 @main
 struct TalosApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
-    @StateObject private var userStore = UserStore()
 
     init() {
         // Talos has no tab bar — tabs live in the sidebar. Left on, AppKit's
@@ -17,7 +16,6 @@ struct TalosApp: App {
     var body: some Scene {
         WindowGroup(id: AppConfiguration.browserWindowSceneID) {
             ContentView()
-                .environmentObject(userStore)
                 .tint(AppColor.accent)
                 .handlesExternalEvents(preferring: ["*"], allowing: ["*"])
                 .frame(
@@ -32,7 +30,7 @@ struct TalosApp: App {
         )
         .commands {
             AboutCommands()
-            BrowserCommands(userStore: userStore)
+            BrowserCommands()
             // Separate struct: BrowserCommands' builder is at the
             // ten-element limit. Declared last so the menu lands after
             // Develop, before Window.
@@ -46,7 +44,6 @@ struct TalosApp: App {
         // explicitly chooses otherwise.
         WindowGroup(id: AppConfiguration.privateBrowserWindowSceneID) {
             ContentView(isPrivate: true)
-                .environmentObject(userStore)
                 .tint(AppColor.accent)
                 .frame(
                     minWidth: AppConfiguration.minimumWindowWidth,
@@ -62,7 +59,6 @@ struct TalosApp: App {
 
         Settings {
             SettingsView()
-                .environmentObject(userStore)
                 .tint(AppColor.accent)
         }
 
@@ -78,17 +74,6 @@ struct TalosApp: App {
         .defaultSize(width: 460, height: 380)
         // Without this, the scene injects its own "Acknowledgments" row into
         // the Window menu, duplicating the Help menu entry.
-        .commandsRemoved()
-
-        // Help ▸ Report an Issue…. Its own scene so it opens with no browser
-        // window key, the same way Acknowledgments does.
-        Window(
-            BrowserCommandTitles.reportAProblemWindowTitle,
-            id: AppConfiguration.reportProblemWindowSceneID
-        ) {
-            ReportProblemView()
-        }
-        .windowResizability(.contentSize)
         .commandsRemoved()
 
         // Develop ▸ Feature Flags…, Safari's WebKit experimental-feature
