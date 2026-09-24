@@ -617,7 +617,6 @@ extension TalosUITests {
 
         let spaceStep = element("initial-onboarding-space", in: app)
         XCTAssertTrue(spaceStep.waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["2 of 4"].exists)
-        XCTAssertFalse(element("account-onboarding", in: app).exists)
+        XCTAssertTrue(app.staticTexts["2 of 3"].exists)
     }
 }

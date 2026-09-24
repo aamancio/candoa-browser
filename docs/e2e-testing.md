@@ -36,9 +36,9 @@ Things that behave differently on CI runners than on a development Mac.
 When a test passes locally and fails on CI (or the reverse), check here
 first.
 
-- **AX identifiers can vanish on runners.** The
-  `account-onboarding-description` accessibility identifier is never
-  exposed on CI runners (a macOS/Xcode AX difference); the test matches by
+- **AX identifiers can vanish on runners.** The former account step's
+  `account-onboarding-description` accessibility identifier was never
+  exposed on CI runners (a macOS/Xcode AX difference); its test matched by
   content instead (PR #77). Any identifier-based assertion can hit this
   class of issue — when an element exists locally but not on CI, try
   matching by content or value before assuming the UI is broken.

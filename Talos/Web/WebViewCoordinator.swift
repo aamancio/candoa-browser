@@ -11,7 +11,6 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
     }
 
     static let pageZoomLevels: [CGFloat] = [0.5, 0.65, 0.8, 0.9, 1.0, 1.1, 1.25, 1.5, 1.75, 2.0, 2.5, 3.0]
-    static let browserAgentContentWorld = WKContentWorld.world(name: "TalosBrowserAgent")
     /// Ends at `Safari/605.1.15`, with nothing of ours appended. Sites match
     /// the user agent against known-browser strings, and an unrecognized
     /// trailing token reads as a scripted client — Google's unusual-traffic
@@ -155,10 +154,6 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
     var websiteAppearance = WebsiteAppearance.automatic
     var systemUsesDarkAppearance = false
     var pendingAppearanceNavigationTokens: [UUID: UUID] = [:]
-    private lazy var browserAgentDriver = BrowserAgentDriver(
-        contentWorld: Self.browserAgentContentWorld
-    )
-
     func attach(store: BrowserStore) {
         self.store = store
 
@@ -774,141 +769,6 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         guard let webView = webViews[tabID] else { return }
         webView.evaluateJavaScript(WebPageScripts.findClearScript)
         webView.evaluateJavaScript("window.getSelection().removeAllRanges()")
-    }
-
-    /// The page's full text-node content (see `plainPageTextScript`), used
-    /// for evidence checks that the readable extraction would miss.
-    func plainPageText(for tabID: UUID) async -> String? {
-        guard let webView = webViews[tabID] else { return nil }
-
-        return await withCheckedContinuation { continuation in
-            webView.evaluateJavaScript(WebPageScripts.plainPageTextScript) { value, error in
-                guard error == nil else {
-                    continuation.resume(returning: nil)
-                    return
-                }
-
-                continuation.resume(returning: value as? String)
-            }
-        }
-    }
-
-    func readablePageText(for tabID: UUID) async -> String? {
-        guard let webView = webViews[tabID] else { return nil }
-
-        return await withCheckedContinuation { continuation in
-            webView.evaluateJavaScript(WebPageScripts.readablePageTextScript) { value, error in
-                guard error == nil else {
-                    continuation.resume(returning: nil)
-                    return
-                }
-
-                continuation.resume(returning: value as? String)
-            }
-        }
-    }
-
-    /// Gives a just-loaded, script-rendered page a short bounded window to finish
-    /// exposing its semantic content before Ask captures the page. This runs only
-    /// for a user-initiated Ask request and does not leave observers or timers behind.
-    func waitForAIPageContextSettled(for tabID: UUID) async {
-        guard let webView = webViews[tabID] else { return }
-        let expectedURL = store?.tabs.first(where: { $0.id == tabID })?.url
-        var stableChecks = 0
-
-        for _ in 0..<16 {
-            guard !Task.isCancelled else { return }
-            let reachedExpectedPage: Bool
-            if let expectedURL, let currentURL = webView.url {
-                reachedExpectedPage = currentURL.scheme == expectedURL.scheme
-                    && currentURL.host == expectedURL.host
-                    && currentURL.path == expectedURL.path
-            } else {
-                reachedExpectedPage = expectedURL == nil && webView.url != nil
-            }
-
-            if reachedExpectedPage && !webView.isLoading {
-                stableChecks += 1
-                if stableChecks >= 3 { return }
-            } else {
-                stableChecks = 0
-            }
-            try? await Task.sleep(for: .milliseconds(150))
-        }
-    }
-
-    func visiblePageControlsText(for tabID: UUID) async -> String? {
-        guard let webView = webViews[tabID] else { return nil }
-
-        return await withCheckedContinuation { continuation in
-            webView.evaluateJavaScript(WebPageScripts.visiblePageControlsScript) { value, error in
-                guard error == nil else {
-                    continuation.resume(returning: nil)
-                    return
-                }
-
-                continuation.resume(returning: value as? String)
-            }
-        }
-    }
-
-    func browserAgentSnapshot(for tabID: UUID) async -> BrowserAgentSnapshot? {
-        guard let webView = webViews[tabID] else { return nil }
-        let snapshotID = UUID()
-
-        do {
-            return try await browserAgentDriver.snapshot(in: webView, id: snapshotID)
-        } catch {
-            return nil
-        }
-    }
-
-    /// Waits for the page to stop changing after an agent action and
-    /// returns how many DOM mutations it saw (nil when the page could not be
-    /// observed). Client-rendered pages change long after a click returns;
-    /// watching the DOM instead of sleeping a fixed beat lands the next
-    /// snapshot after the change, and a zero tells the model the click did
-    /// nothing.
-    func waitForBrowserAgentPageSettled(for tabID: UUID, previousURL: String) async -> Int? {
-        guard let webView = webViews[tabID] else { return nil }
-
-        // A navigation tears the document down; a settle observer on the
-        // old document would resolve with nothing. Let the load finish first.
-        for _ in 0..<40 {
-            guard !Task.isCancelled else { return nil }
-            if !webView.isLoading { break }
-            try? await Task.sleep(for: .milliseconds(100))
-        }
-        let report = await browserAgentDriver.waitForSettle(in: webView)
-        // The settle may have been the start of a navigation; wait that out too.
-        for _ in 0..<40 {
-            guard !Task.isCancelled else { return report?.mutations }
-            if !webView.isLoading { break }
-            try? await Task.sleep(for: .milliseconds(100))
-        }
-        if webView.url?.absoluteString != previousURL {
-            // New document: give its scripts one settle window as well.
-            try? await Task.sleep(for: .milliseconds(150))
-            await browserAgentDriver.waitForSettle(in: webView, quiet: .milliseconds(300), timeout: .seconds(2))
-        }
-        return report?.mutations
-    }
-
-    func performAIPageAction(_ action: PageActionProposal, for tabID: UUID) async -> PageActionResult {
-        guard let webView = webViews[tabID] else {
-            return .failed("That page is not ready for an action.")
-        }
-        if let expectedURL = action.browserAgentPageURL,
-           webView.url?.absoluteString != expectedURL {
-            return .failed("Talos stopped because the page changed after it was inspected.")
-        }
-        do {
-            return try await browserAgentDriver.performAction(action, in: webView)
-        } catch BrowserAgentDriver.DriverError.actionNotGrounded {
-            return .failed("Talos stopped because this action was not grounded in the latest page inspection.")
-        } catch {
-            return .failed("Talos could not complete that referenced action.")
-        }
     }
 
     func captureVisiblePage(for tabID: UUID, completion: @escaping (NSImage?) -> Void) {

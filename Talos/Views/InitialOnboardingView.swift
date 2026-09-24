@@ -7,8 +7,6 @@ struct InitialOnboardingCanvas: View {
         switch store.initialOnboardingStep {
         case .welcome:
             WelcomeOnboardingStep(store: store)
-        case .account:
-            AccountOnboardingStep(store: store)
         case .importData:
             ImportOnboardingStep(store: store)
         case .space:

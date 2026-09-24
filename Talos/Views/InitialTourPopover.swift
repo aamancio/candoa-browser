@@ -5,7 +5,6 @@ extension InitialTourTip {
         switch self {
         case .commandBar: "command"
         case .spaces: "square.stack.3d.up"
-        case .ask: "sparkles"
         }
     }
 
@@ -13,7 +12,6 @@ extension InitialTourTip {
         switch self {
         case .commandBar: String(localized: "Find anything quickly")
         case .spaces: String(localized: "Keep contexts separate")
-        case .ask: String(localized: "Understand any page")
         }
     }
 
@@ -23,8 +21,6 @@ extension InitialTourTip {
             String(localized: "Press Command-T to search the web, open a site, or jump to an existing tab.")
         case .spaces:
             String(localized: "Spaces separate work, projects, research, and personal browsing without losing your tabs.")
-        case .ask:
-            String(localized: "Press Command-E to open Eli and summarize, explain, compare, or identify next steps without leaving the page.")
         }
     }
 
@@ -32,7 +28,6 @@ extension InitialTourTip {
         switch self {
         case .commandBar: "⌘T"
         case .spaces: "⌃1–9"
-        case .ask: "⌘E"
         }
     }
 
@@ -40,7 +35,6 @@ extension InitialTourTip {
         switch self {
         case .commandBar: String(localized: "Keyboard shortcut: Command-T")
         case .spaces: String(localized: "Keyboard shortcut: Control-1 through 9")
-        case .ask: String(localized: "Keyboard shortcut: Command-E")
         }
     }
 
@@ -48,7 +42,6 @@ extension InitialTourTip {
         switch self {
         case .commandBar: "command-bar"
         case .spaces: "spaces"
-        case .ask: "ask"
         }
     }
 }

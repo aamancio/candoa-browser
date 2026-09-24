@@ -9,17 +9,13 @@ extension BrowserStore {
         initialOnboardingStep == .space
     }
 
-    var isInitialAccountSetupPresented: Bool {
-        initialOnboardingStep == .account
-    }
-
     var isInitialOnboardingPresented: Bool {
         initialOnboardingStep != nil
     }
 
     var isInitialOnboardingBlockingBrowsing: Bool {
         switch initialOnboardingStep {
-        case .welcome, .account, .importData, .space, .addressBar, .restoredWorkspace:
+        case .welcome, .importData, .space, .addressBar, .restoredWorkspace:
             return true
         case .tour, .none:
             return false
@@ -38,10 +34,6 @@ extension BrowserStore {
     var editingSpace: BrowserSpace? {
         guard let editingSpaceID else { return nil }
         return spaces.first { $0.id == editingSpaceID }
-    }
-
-    private var nextAccountOrTourStep: InitialOnboardingStep {
-        UserStore.hasStoredAccountDecision ? .tour : .account
     }
 
     func completeInitialSpaceSetup(
@@ -139,30 +131,12 @@ extension BrowserStore {
         tabs.append(contentsOf: starterTabs)
     }
 
-    func completeInitialAccountSetup() {
-        guard isInitialAccountSetupPresented,
-              UserStore.hasStoredAccountDecision else { return }
-        reconcileAccountSetup(hasCompletedAccountChoice: true)
-    }
-
-    func reconcileAccountSetup(hasCompletedAccountChoice: Bool) {
-        guard isInitialAccountSetupPresented, hasCompletedAccountChoice else { return }
-
-        if needsInitialSpaceSetup() {
-            setInitialOnboardingStep(.space)
-        } else if !UserDefaults.standard.bool(forKey: Self.hasCompletedTourKey) {
-            setInitialOnboardingStep(.tour)
-        } else {
-            setInitialOnboardingStep(nil)
-        }
-    }
-
     /// The address-bar step commits the chosen placement (the sidebar pill,
-    /// or a strip above the page) and moves on to the account gate or tour.
+    /// or a strip above the page) and moves on to the tour.
     func completeInitialAddressBarSetup(placement: AddressBarPlacement) {
         guard initialOnboardingStep == .addressBar else { return }
         AddressBarPlacement.setCurrent(placement)
-        setInitialOnboardingStep(nextAccountOrTourStep)
+        setInitialOnboardingStep(.tour)
     }
 
     func completeInitialWelcome() {
@@ -181,8 +155,6 @@ extension BrowserStore {
             setInitialOnboardingStep(.importData)
         case .addressBar:
             setInitialOnboardingStep(.space)
-        case .account:
-            setInitialOnboardingStep(.addressBar)
         case .welcome, .importData, .tour, .restoredWorkspace, .none:
             break
         }
@@ -305,8 +277,7 @@ extension BrowserStore {
 
     func startInitialTour() {
         guard initialOnboardingStep == .tour,
-              initialTourTip == nil,
-              preparingInitialTourTip == nil
+              initialTourTip == nil
         else { return }
         initialTourTip = .commandBar
     }
@@ -328,22 +299,8 @@ extension BrowserStore {
         if nextIndex == InitialTourTip.allCases.endIndex {
             completeInitialTour()
         } else {
-            let nextTip = InitialTourTip.allCases[nextIndex]
-            if nextTip == .ask {
-                initialTourTip = nil
-                preparingInitialTourTip = nextTip
-            } else {
-                initialTourTip = nextTip
-            }
+            initialTourTip = InitialTourTip.allCases[nextIndex]
         }
-    }
-
-    func presentPreparedInitialTourTip(_ tip: InitialTourTip) {
-        guard initialOnboardingStep == .tour,
-              preparingInitialTourTip == tip
-        else { return }
-        preparingInitialTourTip = nil
-        initialTourTip = tip
     }
 
     func showPreviousInitialTourTip() {
@@ -396,7 +353,6 @@ extension BrowserStore {
     ) {
         initialOnboardingStep = step
         initialTourTip = nil
-        preparingInitialTourTip = nil
         if step == .tour {
             prepareWelcomeTab()
         }

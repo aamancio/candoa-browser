@@ -22,8 +22,8 @@ struct PasskeyCredential: Codable, Equatable, Identifiable {
 }
 
 /// Keychain storage for the built-in authenticator's passkeys (issue #506).
-/// Items live in the data-protection keychain like every other Talos secret
-/// (see `KeychainStore`), marked synchronizable so iCloud Keychain roams them
+/// Items live in the data-protection keychain, marked synchronizable so
+/// iCloud Keychain roams them
 /// end-to-end encrypted — a passkey made on this Mac works on the next one,
 /// which is what people expect passkeys to do.
 struct PasskeyCredentialStore {

@@ -21,40 +21,27 @@ internal struct BrowserCommands: Commands {
     @FocusedValue(\.browserCommandActions) private var actions
     @Environment(\.openWindow) private var openWindow
     @Environment(\.openSettings) private var openSettings
-    @ObservedObject var userStore: UserStore
 
     /// Safari titles the Develop menu's local-targets submenu with the
     /// device itself, name over OS version.
     private static let deviceMenuTitle = DeviceMenuPresentation.menuTitle
 
     var body: some Commands {
-        // Grouped to stay inside the commands builder's ten-element limit.
-        Group {
-            CommandGroup(before: .appTermination) {
-                Button("Sign Out", systemImage: "rectangle.portrait.and.arrow.right") {
-                    userStore.signOut()
-                }
-                .disabled(!userStore.hasCloudSession || userStore.isWorking)
-
-                Divider()
+        // Safari keeps both of these in its app menu just below Settings —
+        // the report as "Privacy Report…", the per-page entry as "Settings
+        // for <site>…" — not in View. The address pill remains the
+        // everyday way in to Site Info.
+        CommandGroup(after: .appSettings) {
+            // The report describes global protection, so it needs no page.
+            Button(BrowserCommandTitles.privacyReport, systemImage: "shield.fill") {
+                actions?.showPrivacyReport()
             }
+            .disabled(actions == nil)
 
-            // Safari keeps both of these in its app menu just below Settings —
-            // the report as "Privacy Report…", the per-page entry as "Settings
-            // for <site>…" — not in View. The address pill remains the
-            // everyday way in to Site Info.
-            CommandGroup(after: .appSettings) {
-                // The report describes global protection, so it needs no page.
-                Button(BrowserCommandTitles.privacyReport, systemImage: "shield.fill") {
-                    actions?.showPrivacyReport()
-                }
-                .disabled(actions == nil)
-
-                Button(BrowserCommandTitles.siteInfo, systemImage: "info.circle") {
-                    actions?.showSiteInfo()
-                }
-                .disabled(actions?.canShowSiteInfo != true)
+            Button(BrowserCommandTitles.siteInfo, systemImage: "info.circle") {
+                actions?.showSiteInfo()
             }
+            .disabled(actions?.canShowSiteInfo != true)
         }
 
         CommandGroup(replacing: .newItem) {
@@ -172,12 +159,6 @@ internal struct BrowserCommands: Commands {
                 actions?.toggleSidebar()
             }
             .keyboardShortcut(ShortcutDefinition.toggleSidebar.currentKeyboardShortcut)
-            .disabled(actions == nil)
-
-            Button(actions?.isAISidebarVisible == true ? "Hide Eli Sidebar" : "Show Eli Sidebar") {
-                actions?.toggleAISidebar()
-            }
-            .keyboardShortcut(ShortcutDefinition.toggleAISidebar.currentKeyboardShortcut)
             .disabled(actions == nil)
 
             Divider()
@@ -431,12 +412,6 @@ internal struct BrowserCommands: Commands {
                 actions?.showQuickTour()
             }
             .disabled(actions == nil)
-
-            Divider()
-
-            Button(BrowserCommandTitles.reportAProblem) {
-                openWindow(id: AppConfiguration.reportProblemWindowSceneID)
-            }
 
             Divider()
 

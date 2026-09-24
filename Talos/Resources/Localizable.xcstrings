@@ -81,6 +81,46 @@
         }
       }
     },
+    "AI assistants such as Claude Code and Codex install as Chrome Web Store extensions." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "KI-Assistenten wie Claude Code und Codex werden als Chrome Web Store-Erweiterungen installiert."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Los asistentes de IA como Claude Code y Codex se instalan como extensiones de Chrome Web Store."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Les assistants IA tels que Claude Code et Codex s'installent comme des extensions du Chrome Web Store."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Claude CodeやCodexなどのAIアシスタントは、Chrome ウェブストアの拡張機能としてインストールします。"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Assistentes de IA como Claude Code e Codex são instalados como extensões da Chrome Web Store."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Claude Code 和 Codex 等 AI 助手以 Chrome 应用店扩展的形式安装。"
+          }
+        }
+      }
+    },
     "Choose which passkey saved in Talos to sign in with." : {
       "localizations" : {
         "de" : {

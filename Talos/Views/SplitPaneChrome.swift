@@ -48,8 +48,8 @@ internal struct SplitPaneDivider: View {
                 .padding(axis == .horizontal ? .vertical : .horizontal, 10)
         }
         .onHover { isHovering = $0 }
-        .aiSidebarCursor(
-            axis == .horizontal ? AISidebarResizeCursor.horizontal : AISidebarResizeCursor.vertical
+        .resizeCursor(
+            axis == .horizontal ? SplitPaneResizeCursor.horizontal : SplitPaneResizeCursor.vertical
         )
         .gesture(
             DragGesture(minimumDistance: 1, coordinateSpace: .global)
@@ -319,5 +319,54 @@ private final class SplitPaneGripCursorNSView: NSView {
         guard hasPushedClosedHand else { return }
         hasPushedClosedHand = false
         NSCursor.pop()
+    }
+}
+
+enum SplitPaneResizeCursor {
+    static var horizontal: NSCursor {
+        if #available(macOS 15.0, *) {
+            return NSCursor.columnResize(directions: .all)
+        }
+        return .resizeLeftRight
+    }
+
+    static var vertical: NSCursor {
+        if #available(macOS 15.0, *) {
+            return NSCursor.rowResize(directions: .all)
+        }
+        return .resizeUpDown
+    }
+}
+
+/// Pushes a cursor while the pointer hovers the divider and pops it on the
+/// way out (or when the divider leaves the hierarchy mid-hover).
+private struct ResizeCursorHoverModifier: ViewModifier {
+    let cursor: NSCursor
+    @State private var hasPushedCursor = false
+
+    func body(content: Content) -> some View {
+        content
+            .onHover { isHovering in
+                updateCursor(isHovering: isHovering)
+            }
+            .onDisappear {
+                updateCursor(isHovering: false)
+            }
+    }
+
+    private func updateCursor(isHovering: Bool) {
+        guard isHovering != hasPushedCursor else { return }
+        hasPushedCursor = isHovering
+        if isHovering {
+            cursor.push()
+        } else {
+            NSCursor.pop()
+        }
+    }
+}
+
+extension View {
+    func resizeCursor(_ cursor: NSCursor) -> some View {
+        modifier(ResizeCursorHoverModifier(cursor: cursor))
     }
 }

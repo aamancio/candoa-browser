@@ -2,7 +2,6 @@ import AppKit
 import SwiftUI
 
 struct SettingsView: View {
-    @EnvironmentObject private var userStore: UserStore
     @State private var selectedTab = SettingsTab.general
 
     var body: some View {
@@ -30,12 +29,6 @@ struct SettingsView: View {
                     Label(SettingsTab.extensions.title, systemImage: SettingsTab.extensions.symbolName)
                 }
                 .tag(SettingsTab.extensions)
-
-            EliSettingsPane()
-                .tabItem {
-                    Label(SettingsTab.ask.title, systemImage: SettingsTab.ask.symbolName)
-                }
-                .tag(SettingsTab.ask)
 
             ShortcutSettingsView()
                 .tabItem {
@@ -65,9 +58,6 @@ struct SettingsView: View {
                 SettingsPaneRequest.pending = nil
             }
         }
-        .onOpenURL { url in
-            _ = userStore.handleAppleSignInCallback(url)
-        }
     }
 }
 
@@ -92,7 +82,6 @@ internal enum SettingsTab: Hashable {
     case search
     case privacy
     case extensions
-    case ask
     case shortcuts
     case advanced
 
@@ -102,7 +91,6 @@ internal enum SettingsTab: Hashable {
         case .search: return String(localized: "Search")
         case .privacy: return String(localized: "Privacy")
         case .extensions: return String(localized: "Extensions")
-        case .ask: return "Eli"
         case .shortcuts: return String(localized: "Shortcuts")
         case .advanced: return String(localized: "Advanced")
         }
@@ -114,7 +102,6 @@ internal enum SettingsTab: Hashable {
         case .search: return "magnifyingglass"
         case .privacy: return "hand.raised"
         case .extensions: return "puzzlepiece.extension"
-        case .ask: return "sparkles"
         case .shortcuts: return "keyboard"
         case .advanced: return "slider.horizontal.3"
         }
@@ -128,22 +115,7 @@ enum SettingsOption {
     static let prefix = "Talos.Settings.ZenOption."
 
     static let checkDefaultBrowser = prefix + "CheckDefaultBrowser"
-    /// Off until someone turns it on: nothing about a failure leaves this Mac
-    /// by default, not even an anonymous crash.
-    static let shareProblemReports = prefix + "ShareProblemReports"
     static let askBeforeQuitting = prefix + "AskBeforeQuitting"
-    static let askConnection = prefix + "AskConnection"
-    static let askHostedModel = prefix + "AskHostedModel"
-    static let askDirectModel = prefix + "AskDirectModel"
-    static let askDirectModelInfo = prefix + "AskDirectModelInfo"
-    static let askReasoningEffort = prefix + "AskReasoningEffort"
-    /// JSON `UserProfile`: the details Eli may type into a form. Local to this
-    /// Mac and global to the app.
-    static let userProfile = prefix + "UserProfile"
-    /// JSON array of `UserProfile.Field` raw values: the fields whose value
-    /// Eli learned from a conversation rather than the user typing it.
-    /// Editing a field in Settings removes it from this set.
-    static let userProfileLearnedFields = prefix + "UserProfileLearnedFields"
 
     static let websiteAppearance = prefix + "WebsiteAppearance"
     static let addressBarPlacement = prefix + "AddressBarPlacement"

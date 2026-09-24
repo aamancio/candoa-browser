@@ -9,7 +9,7 @@ internal struct DeveloperToolbar: View {
     /// link preview draws complete instead of filling in after a fetch.
     let pageTitle: String
     let faviconData: Data?
-    /// The interface lanes covering the card's edges. The striped surface
+    /// The interface lanes covering the card's edges. The banded surface
     /// spans the full card, but content placed under a lane is masked away
     /// with it, so the URL field and controls stay inside the visible run.
     let contentInsets: BrowserInterfaceInsets
@@ -27,7 +27,6 @@ internal struct DeveloperToolbar: View {
     /// Talos — same dropdown, same suggestions — instead of a bare inline
     /// field with no autocomplete.
     let onEditAddress: () -> Void
-    let onToggleChat: () -> Void
 
     @State private var isURLFieldHovered = false
     @State private var hoveredControl: DeveloperToolbarControlKind?
@@ -40,7 +39,7 @@ internal struct DeveloperToolbar: View {
     private var isLocalDevelopment: Bool { url.isLocalDevelopment }
 
     // One treatment for every developer-mode page. Local development used to
-    // wear a brand-blue striped bar (Arc-style); it drew the eye to the chrome
+    // wear a brand-blue banded bar (Arc-style); it drew the eye to the chrome
     // instead of the page and read as a different app from every other
     // surface, so the bar now matches the rest of Talos's chrome and the URL
     // itself says where you are.
@@ -198,21 +197,18 @@ internal struct DeveloperToolbar: View {
                 title: pageTitle,
                 faviconData: faviconData
             ) {}
-        case .chat:
-            onToggleChat()
         }
     }
 
 }
 
-/// The developer bar's controls. Three, fixed: the bar used to let people
-/// choose from a longer list, but everything else it offered has its own home
-/// — Capture Page in the menu bar, Extensions in the sidebar header, Split
+/// The developer bar's controls. Fixed: the bar used to let people choose
+/// from a longer list, but everything else it offered has its own home —
+/// Capture Page in the menu bar, Extensions in the sidebar header, Split
 /// View on its shortcut, Developer Mode in the palette and the address pill's
-/// context menu — so the chooser only added a knob and a fourth icon.
+/// context menu — so the chooser only added a knob and another icon.
 private enum DeveloperToolbarControlKind: String, CaseIterable, Identifiable {
     case share
-    case chat
 
     var id: String { rawValue }
 
@@ -220,8 +216,6 @@ private enum DeveloperToolbarControlKind: String, CaseIterable, Identifiable {
         switch self {
         case .share:
             return String(localized: "Share")
-        case .chat:
-            return String(localized: "Chat")
         }
     }
 
@@ -229,26 +223,20 @@ private enum DeveloperToolbarControlKind: String, CaseIterable, Identifiable {
         switch self {
         case .share:
             return "square.and.arrow.up"
-        case .chat:
-            return "bubble.left"
         }
     }
 
     /// Symbols centered in equal frames still read crooked, and matching their
     /// ink boxes is not enough: the eye centers on where the ink's *weight*
     /// falls. Rendered at 11.5pt semibold in a 24pt frame, square.and.arrow.up
-    /// boxes at 12.47 but carries its mass in the tray, centroid 13.26;
-    /// bubble.left boxes dead center at 12.00 while its thin tail leaves the
-    /// body's mass high, centroid 11.27. Box-aligned, the bubble therefore
-    /// reads lifted. Each correction centers the midpoint of box and centroid
-    /// — the optical center — on the frame, rounded to the half point so the
-    /// nudge lands on a whole device pixel: share -0.87 → -1, chat +0.36 → +½.
+    /// boxes at 12.47 but carries its mass in the tray, centroid 13.26. The
+    /// correction centers the midpoint of box and centroid — the optical
+    /// center — on the frame, rounded to the half point so the nudge lands on
+    /// a whole device pixel: share -0.87 → -1.
     var inkCorrection: CGFloat {
         switch self {
         case .share:
             return -1
-        case .chat:
-            return 0.5
         }
     }
 
@@ -256,9 +244,6 @@ private enum DeveloperToolbarControlKind: String, CaseIterable, Identifiable {
         switch self {
         case .share:
             return String(localized: "Set in Settings > Shortcuts")
-        case .chat:
-            let caps = ShortcutKeyCaps.current(for: .toggleAISidebar).joined()
-            return caps.isEmpty ? String(localized: "Set in Settings > Shortcuts") : caps
         }
     }
 

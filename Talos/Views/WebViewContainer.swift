@@ -18,15 +18,9 @@ struct WebViewContainer: View {
     /// the live insets slid the URL text under the still-covering sidebar,
     /// its tail peeking past the sidebar's edge for the length of the cover.
     let barInterfaceInsets: BrowserInterfaceInsets
-    let attachesToTrailingPanel: Bool
     /// The strip above the page takes over the sidebar's toggle while the
     /// sidebar is away, so it needs the same action the sidebar header uses.
     let onToggleSidebar: () -> Void
-    /// Extra trailing clip while Eli covers the page beyond the reserved web
-    /// layout (widening resize drags, and the close paint-fence hold).
-    /// Mask-only: it never reaches the WKWebView's obscured content insets
-    /// or frame.
-    let slideOverTrailingInset: CGFloat
     @AppStorage(DeveloperModeConfiguration.storageKey) private var developerModeOverrides = ""
     @AppStorage(SettingsOption.addressBarPlacement)
     private var addressBarPlacement = AddressBarPlacement.default.rawValue
@@ -105,10 +99,8 @@ struct WebViewContainer: View {
         .modifier(
             BrowserInterfaceMaskModifier(
                 insets: visibleInterfaceInsets,
-                slideOverTrailingInset: slideOverTrailingInset,
                 surfaceCornerRadius: surfaceCornerRadius,
                 surfacePadding: surfacePadding,
-                trailingSurfacePadding: attachesToTrailingPanel ? 0 : surfacePadding,
                 drawsFullSurfaceBorder: store.displayedSplitTabs.count < 2
             )
         )
@@ -118,10 +110,7 @@ struct WebViewContainer: View {
     private var splitDropSurfaceOverlay: some View {
         if store.draggedTabID != nil, store.activeTab != nil, !store.isSpaceSetupPresented {
             GeometryReader { proxy in
-                let laneInsets = BrowserInterfaceInsets(
-                    leading: visibleInterfaceInsets.leading,
-                    trailing: visibleInterfaceInsets.trailing + slideOverTrailingInset
-                )
+                let laneInsets = visibleInterfaceInsets
                 let pageSize = CGSize(
                     width: max(proxy.size.width - laneInsets.leading - laneInsets.trailing, 1),
                     height: proxy.size.height
@@ -203,9 +192,7 @@ struct WebViewContainer: View {
             top: surfacePadding,
             leading: surfacePadding,
             bottom: surfacePadding,
-            // Eli owns the adjacent trailing lane after its transition. It
-            // must not add a second inset inside the page surface.
-            trailing: attachesToTrailingPanel ? 0 : surfacePadding
+            trailing: surfacePadding
         )
     }
 
@@ -305,8 +292,7 @@ struct WebViewContainer: View {
                     contentInsets: barInterfaceInsets,
                     leadingControls: usesTopToolbarPlacement ? topToolbarLeadingControls : nil,
                     chromeTint: chromePageTint,
-                    onEditAddress: { store.focusAddressBar() },
-                    onToggleChat: { store.requestAISidebarToggle() }
+                    onEditAddress: { store.focusAddressBar() }
                 )
                 // The web host's opaque surface background paints over
                 // earlier siblings' rows; keep the toolbar above it or the

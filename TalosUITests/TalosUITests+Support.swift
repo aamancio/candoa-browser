@@ -6,9 +6,6 @@ extension TalosUITests {
         fixture: String? = nil,
         onboardingStep: String? = nil,
         browserImportFixture: String? = nil,
-        checkoutFailure: Bool = false,
-        checkoutSuccess: Bool = false,
-        appleSuccess: Bool = false,
         websiteAppearance: String? = nil,
         cloudKitEntitlement: Bool = false,
         preservesStore: Bool = false,
@@ -42,15 +39,6 @@ extension TalosUITests {
         }
         if let browserImportFixture {
             app.launchEnvironment["TALOS_UI_TESTING_BROWSER_IMPORT_FIXTURE"] = browserImportFixture
-        }
-        if checkoutFailure {
-            app.launchEnvironment["TALOS_UI_TESTING_CHECKOUT_FAILURE"] = "1"
-        }
-        if checkoutSuccess {
-            app.launchEnvironment["TALOS_UI_TESTING_CHECKOUT_SUCCESS"] = "1"
-        }
-        if appleSuccess {
-            app.launchEnvironment["TALOS_UI_TESTING_APPLE_SUCCESS"] = "1"
         }
         if cloudKitEntitlement {
             app.launchEnvironment["TALOS_UI_TESTING_CLOUDKIT_ENTITLEMENT"] = "1"
@@ -308,14 +296,6 @@ extension TalosUITests {
         field.typeKey(.return, modifierFlags: [])
     }
 
-    func submitAskText(_ text: String, in app: XCUIApplication) {
-        let field = app.textFields["agent-sidebar"].firstMatch
-        XCTAssertTrue(field.waitForExistence(timeout: 5), currentState(in: app))
-        field.click()
-        pasteText(text, into: field)
-        field.typeKey(.return, modifierFlags: [])
-    }
-
     func waitForState(in app: XCUIApplication, containing expectedText: String, timeout: TimeInterval = 5) -> Bool {
         guard element("ui-testing-state", in: app).waitForExistence(timeout: timeout) else { return false }
 
@@ -346,34 +326,10 @@ extension TalosUITests {
         return stateElement.debugDescription
     }
 
-    func waitForAskState(in app: XCUIApplication, containing expectedText: String, timeout: TimeInterval = 5) -> Bool {
-        guard element("agent-ui-testing-state", in: app).waitForExistence(timeout: timeout) else { return false }
-
-        let deadline = Date().addingTimeInterval(timeout)
-        while Date() < deadline {
-            if askState(in: app).contains(expectedText) {
-                return true
-            }
-            RunLoop.current.run(until: Date().addingTimeInterval(0.1))
-        }
-
-        XCTContext.runActivity(named: "Current Eli UI testing state") { activity in
-            let attachment = XCTAttachment(string: askState(in: app))
-            attachment.lifetime = .keepAlways
-            activity.add(attachment)
-        }
-        return false
-    }
-
-    func askState(in app: XCUIApplication) -> String {
-        let stateElement = element("agent-ui-testing-state", in: app)
-        if let value = stateElement.value as? String, !value.isEmpty {
-            return value
-        }
-        if !stateElement.label.isEmpty {
-            return stateElement.label
-        }
-        return stateElement.debugDescription
+    func popUpButton(withValue value: String, in app: XCUIApplication) -> XCUIElement {
+        app.popUpButtons.matching(
+            NSPredicate(format: "value == %@", value)
+        ).firstMatch
     }
 
     func pasteText(_ text: String, into field: XCUIElement) {

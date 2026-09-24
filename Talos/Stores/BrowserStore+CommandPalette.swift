@@ -69,10 +69,6 @@ extension BrowserStore {
         navigateActiveTab(to: input)
     }
 
-    func requestAISidebarToggle() {
-        aiSidebarToggleRequestID = UUID()
-    }
-
     func focusSidebarAddressBar() {
         guard !isInitialOnboardingBlockingBrowsing else { return }
 

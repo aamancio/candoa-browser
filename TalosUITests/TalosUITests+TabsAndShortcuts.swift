@@ -21,24 +21,13 @@ extension TalosUITests {
         XCTAssertTrue(element("initial-tour-command-bar", in: app).waitForExistence(timeout: 5))
         app.buttons["Next"].click()
 
-        XCTAssertTrue(element("initial-tour-spaces", in: app).waitForExistence(timeout: 5))
-        app.buttons["Next"].click()
-
-        XCTAssertTrue(
-            app.staticTexts["Understand any page"].waitForExistence(timeout: 5),
-            currentState(in: app)
-        )
-        XCTAssertTrue(
-            waitForState(in: app, containing: "aiVisible=true;aiMounted=true", timeout: 5),
-            currentState(in: app)
-        )
-        XCTAssertFalse(element("agent-subscription-gate", in: app).exists)
+        let spacesTip = element("initial-tour-spaces", in: app)
+        XCTAssertTrue(spacesTip.waitForExistence(timeout: 5))
         app.buttons["Done"].click()
 
-        let askTip = element("initial-tour-ask", in: app)
         let dismissed = XCTNSPredicateExpectation(
             predicate: NSPredicate(format: "exists == false"),
-            object: askTip
+            object: spacesTip
         )
         XCTAssertEqual(XCTWaiter.wait(for: [dismissed], timeout: 5), .completed)
         XCTAssertTrue(element("welcome-to-talos-page", in: app).waitForExistence(timeout: 5))
