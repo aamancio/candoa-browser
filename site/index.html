@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Talos Browser</title>
+  <meta name="description" content="A native macOS browser workspace built on WebKit. Spaces, vertical tabs, keyboard-first navigation, and nothing running in the background.">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <style>
+    :root { color-scheme: light dark; --bg: #f6f6f4; --fg: #1a1a1a; --muted: #6b6b66; --card: #ffffff; --line: #e4e4df; --accent: #1f4b99; }
+    @media (prefers-color-scheme: dark) { :root { --bg: #131313; --fg: #ededea; --muted: #9a9a94; --card: #1c1c1c; --line: #2a2a2a; --accent: #7fa7ff; } }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--fg); font: 17px/1.55 -apple-system, "SF Pro Text", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+    main { max-width: 42rem; margin: 0 auto; padding: 5rem 1.25rem 4rem; }
+    h1 { font-size: 2.6rem; line-height: 1.1; letter-spacing: -0.02em; margin: 0 0 0.75rem; }
+    .lede { font-size: 1.25rem; color: var(--muted); margin: 0 0 2rem; max-width: 34rem; }
+    .cta { display: inline-flex; align-items: center; gap: 0.6rem; background: var(--accent); color: #fff; text-decoration: none; padding: 0.85rem 1.3rem; border-radius: 12px; font-weight: 600; }
+    .cta:hover { filter: brightness(1.08); }
+    .meta { display: block; margin: 0.75rem 0 0; color: var(--muted); font-size: 0.95rem; }
+    .meta a { color: inherit; }
+    h2 { font-size: 1.15rem; margin: 3rem 0 0.75rem; }
+    ul { padding-left: 1.2rem; margin: 0; }
+    li { margin: 0.35rem 0; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); gap: 0.75rem; margin-top: 1rem; }
+    .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 1rem 1.1rem; }
+    .card strong { display: block; margin-bottom: 0.2rem; }
+    .card span { color: var(--muted); font-size: 0.95rem; }
+    footer { margin-top: 4rem; padding-top: 1.5rem; border-top: 1px solid var(--line); color: var(--muted); font-size: 0.95rem; }
+    footer a { color: inherit; }
+    code { font: 0.9em ui-monospace, SF Mono, Menlo, monospace; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Talos</h1>
+  <p class="lede">A browser workspace for the Mac. Native SwiftUI on Apple's WebKit, so it stays quiet, light on the battery, and out of your way.</p>
+
+  <a class="cta" id="download" href="https://github.com/aamancio/talos-browser/releases/latest">Download for macOS</a>
+  <span class="meta" id="download-meta">macOS 14 or newer. <a href="https://github.com/aamancio/talos-browser/releases">All releases</a></span>
+
+  <h2>What it does</h2>
+  <div class="grid">
+    <div class="card"><strong>Spaces</strong><span>Work, personal, a project, a rabbit hole. Each one keeps its own tabs, synced through iCloud.</span></div>
+    <div class="card"><strong>Vertical and pinned tabs</strong><span>A sidebar you can read, with the tabs you keep at the top.</span></div>
+    <div class="card"><strong>Keyboard first</strong><span>One command bar for addresses, search, and every action, with the shortcuts you already know.</span></div>
+    <div class="card"><strong>Split view</strong><span>Two pages side by side when you need them.</span></div>
+    <div class="card"><strong>Blocking built in</strong><span>Ads and trackers stop at WebKit's content rules. No extension, no script watching you.</span></div>
+    <div class="card"><strong>Chrome extensions</strong><span>Install straight from the Chrome Web Store. AI assistants such as Claude Code and Codex come this way.</span></div>
+    <div class="card"><strong>Passkeys</strong><span>Sign in with the passkeys in your Apple Passwords, confirmed with Touch ID.</span></div>
+    <div class="card"><strong>Mini player</strong><span>A video follows you to the next tab.</span></div>
+  </div>
+
+  <h2>Honest notes</h2>
+  <ul>
+    <li>Talos is in beta and updates itself through Sparkle. Expect rough edges.</li>
+    <li>Nothing phones home. There are no accounts and no server behind the app; iCloud sync is Apple's.</li>
+    <li>DRM playback is unverified, so some streaming services may not work yet.</li>
+  </ul>
+
+  <footer>
+    <a href="whats-new/">What's new</a> · <a href="https://github.com/aamancio/talos-browser">Source on GitHub</a> · Mozilla Public License 2.0<br>
+    Talos was called Candoa Browser until September 2026.
+  </footer>
+</main>
+<script>
+  fetch("downloads/latest.json", { cache: "no-store" })
+    .then(r => r.ok ? r.json() : null)
+    .then(m => {
+      if (!m || !m.downloadURL) return;
+      const a = document.getElementById("download");
+      a.href = m.downloadURL;
+      a.textContent = "Download Talos " + m.version;
+      document.getElementById("download-meta").innerHTML =
+        "macOS 14 or newer. <a href=\"https://github.com/aamancio/talos-browser/releases\">All releases</a> · <a href=\"whats-new/\">What's new in " + m.version + "</a>";
+    })
+    .catch(() => {});
+</script>
+</body>
+</html>

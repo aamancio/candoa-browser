@@ -52,9 +52,10 @@ product features rather than implementation details.
 
 ## Download
 
-Get the latest build from the
-[Releases](https://github.com/aamancio/talos-browser/releases) page, or from
-[talos-browser.app](https://talos-browser.app) once the site is up. Builds are
+Get the latest build from [talos-browser.app](https://talos-browser.app)
+(served from [aamancio.github.io/talos-browser](https://aamancio.github.io/talos-browser/)
+until the domain is live) or straight from the
+[Releases](https://github.com/aamancio/talos-browser/releases) page. Builds are
 signed and notarized and update themselves through Sparkle.
 
 ## Build From Source
@@ -144,8 +145,10 @@ copy another browser's branding, icons, assets, or exact UI.
 
 ## Releases
 
-Release builds are packaged as a drag-to-Applications DMG and published with a
-Sparkle appcast at `https://talos-browser.app/downloads/appcast.xml`. The
+Release builds are packaged as a drag-to-Applications DMG, attached to a GitHub
+Release, and announced through the Sparkle appcast at
+`https://talos-browser.app/downloads/appcast.xml`, which lives in `site/` with
+the download page and What's New. See `docs/RELEASING.md`. The
 release build carries Apple's managed browser passkey entitlement, so it must
 be signed with the release identity; debug builds run without it and use the
 built-in stand-in authenticator.

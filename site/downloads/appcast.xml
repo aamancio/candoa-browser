@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
+  <channel>
+    <title>Talos</title>
+    <link>https://talos-browser.app</link>
+    <description>Talos updates. The release workflow replaces this file on every published version.</description>
+    <language>en</language>
+  </channel>
+</rss>

@@ -12,11 +12,20 @@ Every merge to `main` ships automatically. There is no manual release step.
    - the major digit is **never** bumped automatically — 1.0 is a human decision,
      made by pushing a `v1.0.0` tag manually.
 3. Builds, signs, and notarizes the Release app; packages the DMG.
-4. Signs the appcast and publishes DMG + appcast to
-   `https://talos-browser.app/downloads/`. The old publishing workflow (which
-   pushed to the retired candoa-cloud repo) was removed in September 2026 and
-   has to be recreated against the new site before the next release.
-5. Tags the commit `vX.Y.Z` — the anchor for the next version bump.
+4. Tags `vX.Y.Z`, creates the GitHub Release with `Talos-X.Y.Z.dmg` attached,
+   signs the Sparkle appcast (download URLs point at the release asset), and
+   commits `site/downloads/appcast.xml`, `site/downloads/latest.json`, and a
+   new entry in `site/whats-new/index.html`. The Pages workflow then publishes
+   `site/`. Nothing is hosted anywhere else; the old candoa-cloud publishing
+   step is gone.
+5. That tag is the anchor for the next version bump.
+
+## Switching releases on
+
+The workflow only runs when the repository variable `TALOS_RELEASES_ENABLED`
+is `true`. It is `false` until the Developer ID provisioning profile carries
+the browser passkey entitlement and the `talos-browser.app` associated domain;
+the workflow checks both and refuses to sign otherwise.
 
 ## What users experience
 
