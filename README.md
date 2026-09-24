@@ -153,8 +153,8 @@ release build carries Apple's managed browser passkey entitlement, so it must
 be signed with the release identity; debug builds run without it and use the
 built-in stand-in authenticator.
 
-Because that DMG uses Developer ID distribution, account authentication must
-follow the tracked [Sign in with Apple distribution decision](docs/sign-in-with-apple-distribution.md).
+Talos has no accounts and no server of its own; the only network services it
+uses are Apple's (iCloud sync, passkeys) and the update feed above.
 
 Local DMG packaging:
 
