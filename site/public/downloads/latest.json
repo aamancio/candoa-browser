@@ -1,9 +1,9 @@
 {
-  "version": "0.103.0",
-  "build": "732",
+  "version": "0.104.0",
+  "build": "738",
   "bundleIdentifier": "app.candoa.browser",
-  "fileName": "Talos-0.103.0.dmg",
-  "downloadURL": "https://github.com/aamancio/talos-browser/releases/download/v0.103.0/Talos-0.103.0.dmg",
+  "fileName": "Talos-0.104.0.dmg",
+  "downloadURL": "https://github.com/aamancio/talos-browser/releases/download/v0.104.0/Talos-0.104.0.dmg",
   "appcastURL": "https://talos-browser.app/downloads/appcast.xml",
   "releaseNotesURL": "https://talos-browser.app/whats-new/"
 }

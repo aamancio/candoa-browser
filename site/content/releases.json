@@ -1,5 +1,13 @@
 [
   {
+    "version": "0.104.0",
+    "date": "2026-09-25",
+    "new": [
+      "An extension's own shortcuts work, and Settings › Shortcuts lists them"
+    ],
+    "fixed": []
+  },
+  {
     "version": "0.103.0",
     "date": "2026-09-25",
     "new": [
