@@ -1,9 +1,20 @@
-<?xml version="1.0" encoding="utf-8"?>
-<rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
-  <channel>
-    <title>Talos</title>
-    <link>https://talos-browser.app</link>
-    <description>Talos updates. The release workflow replaces this file on every published version.</description>
-    <language>en</language>
-  </channel>
+<?xml version="1.0" standalone="yes"?>
+<rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
+    <channel>
+        <title>Talos</title>
+        <item>
+            <title>0.102.0</title>
+            <pubDate>Fri, 25 Sep 2026 00:24:33 +0000</pubDate>
+            <link>https://talos-browser.app</link>
+            <sparkle:version>724</sparkle:version>
+            <sparkle:shortVersionString>0.102.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+            <description sparkle:format="markdown"><![CDATA[# Talos 0.102.0
+
+See https://talos-browser.app/whats-new/
+]]></description>
+            <enclosure url="https://github.com/aamancio/talos-browser/releases/download/v0.102.0/Talos-0.102.0.dmg" length="6140356" type="application/octet-stream" sparkle:edSignature="dBpK1ogS0XxCRvDdgMMeAuOykVk4JPDnxj/vysI2geWJJgAvvy1gDvKc3FADuyQAQlbFgHDK7LNtSAtQ6py5CA=="/>
+        </item>
+    </channel>
 </rss>
