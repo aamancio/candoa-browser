@@ -1,5 +1,5 @@
 import type { Metadata } from "next"
-import { Geist_Mono, Inter } from "next/font/google"
+import { Bricolage_Grotesque, Instrument_Serif } from "next/font/google"
 
 import "./globals.css"
 import { SiteFooter } from "@/components/site-footer"
@@ -7,11 +7,16 @@ import { SiteHeader } from "@/components/site-header"
 import { ThemeProvider } from "@/components/theme-provider"
 import { cn } from "@/lib/utils"
 
-const inter = Inter({ subsets: ["latin"], variable: "--font-sans" })
-
-const fontMono = Geist_Mono({
+const sans = Bricolage_Grotesque({
   subsets: ["latin"],
-  variable: "--font-mono",
+  variable: "--font-sans",
+})
+
+const serif = Instrument_Serif({
+  subsets: ["latin"],
+  weight: "400",
+  style: ["normal", "italic"],
+  variable: "--font-serif",
 })
 
 export const metadata: Metadata = {
@@ -33,19 +38,12 @@ export default function RootLayout({
     <html
       lang="en"
       suppressHydrationWarning
-      className={cn(
-        "antialiased",
-        fontMono.variable,
-        "font-sans",
-        inter.variable
-      )}
+      className={cn("font-sans antialiased", sans.variable, serif.variable)}
     >
       <body className="flex min-h-svh flex-col">
         <ThemeProvider>
           <SiteHeader />
-          <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-12 sm:px-6 sm:py-16">
-            {children}
-          </main>
+          <main className="flex-1">{children}</main>
           <SiteFooter />
         </ThemeProvider>
       </body>

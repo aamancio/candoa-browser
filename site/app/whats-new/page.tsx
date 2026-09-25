@@ -13,12 +13,12 @@ export default function Page() {
   const releases = listReleases()
 
   return (
-    <div className="flex flex-col gap-8">
-      <div className="flex flex-col gap-2">
-        <h1 className="text-3xl font-semibold tracking-tight">
-          What&apos;s new
+    <div className="mx-auto flex w-full max-w-3xl flex-col gap-12 px-5 pt-16 sm:px-8 sm:pt-24">
+      <div className="flex flex-col gap-3">
+        <h1 className="font-serif text-6xl leading-none tracking-tight sm:text-7xl">
+          What&apos;s <em className="text-coral">new</em>
         </h1>
-        <p className="text-muted-foreground">
+        <p className="text-lg text-muted-foreground">
           Every Talos release, newest first.
         </p>
       </div>
@@ -31,14 +31,18 @@ export default function Page() {
             <article
               key={r.version}
               id={`v${r.version}`}
-              className="flex flex-col gap-4"
+              className="flex flex-col gap-5"
             >
-              {i > 0 ? <Separator className="my-8" /> : null}
+              {i > 0 ? <Separator className="my-10" /> : null}
               <div className="flex flex-wrap items-center gap-3">
-                <h2 className="text-xl font-semibold tracking-tight">
+                <h2 className="text-2xl font-semibold tracking-tight">
                   Talos {r.version}
                 </h2>
-                {i === 0 ? <Badge>Latest</Badge> : null}
+                {i === 0 ? (
+                  <Badge className="rounded-full bg-coral text-white">
+                    Latest
+                  </Badge>
+                ) : null}
                 <time
                   dateTime={r.date}
                   className="text-sm text-muted-foreground"
@@ -63,7 +67,7 @@ function Changes({ title, items }: { title: string; items: string[] }) {
   if (items.length === 0) return null
   return (
     <div className="flex flex-col gap-2">
-      <h3 className="text-xs font-medium tracking-wider text-muted-foreground uppercase">
+      <h3 className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
         {title}
       </h3>
       <ul className="list-disc space-y-1.5 pl-5">
