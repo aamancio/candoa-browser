@@ -628,6 +628,10 @@ extension BrowserStore {
             return tabSwitcherPreviewsFixtureState()
         }
 
+        if fixture == "site-showcase" || fixture == "site-showcase-dark" {
+            return siteShowcaseFixtureState(dark: fixture == "site-showcase-dark")
+        }
+
         if fixture == "website-appearance" {
             let spaceID = UUID(uuidString: "ACACACAC-ACAC-ACAC-ACAC-ACACACACACAC")!
             let dataStoreID = UUID(uuidString: "ADADADAD-ADAD-ADAD-ADAD-ADADADADADAD")!
@@ -647,6 +651,55 @@ extension BrowserStore {
         }
 
         return testingBotFixtureState(includesSeedTabs: true)
+    }
+
+    /// The workspace the website's screenshots are taken from: two Spaces
+    /// with everyday names and a favourites row, no tabs. The screenshot run
+    /// opens its pages with `open -a`, so they load with real favicons.
+    static func siteShowcaseFixtureState(dark: Bool) -> BrowserWindowState {
+        let workSpaceID = UUID(uuidString: "AB010101-0101-0101-0101-010101010101")!
+        let personalSpaceID = UUID(uuidString: "AB020202-0202-0202-0202-020202020202")!
+        let fixtureDate = Date(timeIntervalSince1970: 1_800_000_000)
+        let appearance: SpaceThemeAppearance = dark ? .dark : .light
+        let spaces = [
+            BrowserSpace(
+                id: workSpaceID,
+                name: "Work",
+                symbolName: "briefcase",
+                themeAppearance: appearance
+            ),
+            BrowserSpace(
+                id: personalSpaceID,
+                name: "Personal",
+                symbolName: "house",
+                themeAppearance: appearance
+            )
+        ]
+        let favorites: [(String, String, String)] = [
+            ("GitHub", "https://github.com", "chevron.left.forwardslash.chevron.right"),
+            ("Apple", "https://www.apple.com", "apple.logo"),
+            ("Wikipedia", "https://en.wikipedia.org", "book.closed"),
+            ("Mail", "https://www.icloud.com/mail/", "envelope")
+        ]
+        let tabs = favorites.enumerated().map { index, favorite in
+            BrowserTab(
+                title: favorite.0,
+                url: URL(string: favorite.1)!,
+                faviconSymbol: favorite.2,
+                isFavorite: true,
+                spaceID: workSpaceID,
+                sortOrder: Double(index),
+                lastAccessedAt: fixtureDate.addingTimeInterval(Double(-60 * index)),
+                hasBeenActivated: false
+            )
+        }
+        return BrowserWindowState(
+            spaces: spaces,
+            folders: [],
+            tabs: tabs,
+            activeSpaceID: workSpaceID,
+            activeTabID: nil
+        )
     }
 
     static func crossSpaceDuplicateURLFixtureState() -> BrowserWindowState {
