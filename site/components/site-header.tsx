@@ -45,31 +45,22 @@ export function SiteHeader() {
 export function TalosMark({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 64 64" aria-hidden="true" className={className}>
-      <rect width="64" height="64" rx="16" className="fill-foreground" />
+      <rect width="64" height="64" rx="14.5" className="fill-foreground" />
       <rect
-        x="14"
-        y="16"
-        width="10"
-        height="32"
-        rx="3"
+        x="13"
+        y="14"
+        width="38"
+        height="9.2"
+        rx="3.4"
         className="fill-background"
       />
-      <rect x="28" y="16" width="22" height="9" rx="3" className="fill-brand" />
       <rect
-        x="28"
-        y="28"
-        width="22"
-        height="9"
-        rx="3"
-        className="fill-background/70"
-      />
-      <rect
-        x="28"
-        y="40"
-        width="22"
-        height="8"
-        rx="3"
-        className="fill-background/40"
+        x="27.4"
+        y="14"
+        width="9.2"
+        height="37"
+        rx="3.4"
+        className="fill-background"
       />
     </svg>
   )

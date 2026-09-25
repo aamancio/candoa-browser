@@ -6,7 +6,7 @@ exported to static HTML and published by GitHub Pages
 
 ```bash
 pnpm install
-pnpm dev        # http://localhost:3000
+pnpm dev        # http://localhost:3101 (3000 is the union app)
 pnpm build      # writes out/ — what Pages serves
 ```
 
