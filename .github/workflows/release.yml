@@ -244,7 +244,7 @@ jobs:
           tar -xf "$RUNNER_TEMP/Sparkle.tar.xz" -C "$TOOLS" --strip-components=1
           "$TOOLS/bin/generate_appcast" --help >/dev/null
 
-      - name: Write the appcast, latest.json, and What's New into site/
+      - name: Write the appcast, latest.json, and the release notes into site/
         env:
           SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
         run: |
@@ -259,8 +259,8 @@ jobs:
             --embed-release-notes \
             -o "$DIR/appcast.xml" \
             "$DIR"
-          mkdir -p site/downloads
-          cp "$DIR/appcast.xml" site/downloads/appcast.xml
+          mkdir -p site/public/downloads
+          cp "$DIR/appcast.xml" site/public/downloads/appcast.xml
 
           python3 - <<'PY'
           import json, os, re, subprocess
@@ -271,7 +271,7 @@ jobs:
           base = os.environ["RELEASE_DOWNLOAD_BASE"]; site = os.environ["SITE_URL"]
           name = os.environ["APP_ARCHIVE_NAME"]; last = os.environ.get("LAST_RELEASE_TAG", "")
 
-          Path("site/downloads/latest.json").write_text(json.dumps({
+          Path("site/public/downloads/latest.json").write_text(json.dumps({
               "version": v,
               "build": os.environ["APP_BUILD"],
               "bundleIdentifier": os.environ["EXPECTED_APP_BUNDLE_IDENTIFIER"],
@@ -291,22 +291,15 @@ jobs:
               if not m: continue
               kind, _, text, _ = m.groups()
               (feats if kind == "feat" else fixes).append(text[0].upper() + text[1:])
-          def esc(t): return t.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-          def block(title, items):
-              if not items: return ""
-              return f"    <h3>{title}</h3>\n    <ul>\n" + "".join(f"      <li>{esc(i)}</li>\n" for i in items) + "    </ul>\n"
-          body = block("New", feats) + block("Fixed", fixes) or "    <p>Maintenance release.</p>\n"
-          section = (f'  <section id="{tag}">\n    <h2>Talos {v}</h2>\n    <time datetime="{date.today().isoformat()}">'
-                     f'{date.today().strftime("%B %-d, %Y")}</time>\n{body}  </section>\n')
-          p = Path("site/whats-new/index.html"); html = p.read_text()
-          html = re.sub(r'\s*<p class="empty">.*?</p>\n', "\n", html, count=1, flags=re.S)
-          html = html.replace("<!-- releases:start -->\n", "<!-- releases:start -->\n" + section, 1)
-          p.write_text(html)
+          p = Path("site/content/releases.json")
+          releases = [r for r in json.loads(p.read_text()) if r.get("version") != v]
+          releases.insert(0, {"version": v, "date": date.today().isoformat(), "new": feats, "fixed": fixes})
+          p.write_text(json.dumps(releases, indent=2, ensure_ascii=False) + "\n")
           PY
 
       - name: Commit the site changes
         run: |
-          git add site/downloads/appcast.xml site/downloads/latest.json site/whats-new/index.html
+          git add site/public/downloads/appcast.xml site/public/downloads/latest.json site/content/releases.json
           git commit -m "release: Talos $APP_VERSION appcast and notes"
           git push origin HEAD:main
 

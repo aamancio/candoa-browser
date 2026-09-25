@@ -14,10 +14,11 @@ Every merge to `main` ships automatically. There is no manual release step.
 3. Builds, signs, and notarizes the Release app; packages the DMG.
 4. Tags `vX.Y.Z`, creates the GitHub Release with `Talos-X.Y.Z.dmg` attached,
    signs the Sparkle appcast (download URLs point at the release asset), and
-   commits `site/downloads/appcast.xml`, `site/downloads/latest.json`, and a
-   new entry in `site/whats-new/index.html`, then dispatches the Pages
-   workflow to publish `site/` (a push made by the workflow never triggers
-   other workflows by itself). Nothing is hosted anywhere else; the old
+   commits `site/public/downloads/appcast.xml`,
+   `site/public/downloads/latest.json`, and a new entry at the top of
+   `site/content/releases.json`, then dispatches the Pages workflow, which
+   builds the Next.js site in `site/` and publishes the static export (a push
+   made by the workflow never triggers other workflows by itself). Nothing is hosted anywhere else; the old
    candoa-cloud publishing step is gone.
 5. That tag is the anchor for the next version bump.
 

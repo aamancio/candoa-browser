@@ -1,0 +1,12 @@
+[
+  {
+    "version": "0.102.0",
+    "date": "2026-09-25",
+    "new": [
+      "Talos runs fully local; the assistant, accounts, and subscriptions leave",
+      "The download page, What's New, and appcast live in this repo",
+      "The release build carries Apple's browser passkey entitlement"
+    ],
+    "fixed": []
+  }
+]

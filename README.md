@@ -146,8 +146,8 @@ copy another browser's branding, icons, assets, or exact UI.
 
 Release builds are packaged as a drag-to-Applications DMG, attached to a GitHub
 Release, and announced through the Sparkle appcast at
-`https://talos-browser.app/downloads/appcast.xml`, which lives in `site/` with
-the download page and What's New. See `docs/RELEASING.md`. The
+`https://talos-browser.app/downloads/appcast.xml`, which lives in `site/public/`
+next to the download page and What's New (a Next.js site, exported static). See `docs/RELEASING.md`. The
 release build carries Apple's managed browser passkey entitlement, so it must
 be signed with the release identity; debug builds run without it and use the
 built-in stand-in authenticator.
