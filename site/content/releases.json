@@ -1,5 +1,13 @@
 [
   {
+    "version": "0.103.0",
+    "date": "2026-09-25",
+    "new": [
+      "Talos gets an icon of its own"
+    ],
+    "fixed": []
+  },
+  {
     "version": "0.102.0",
     "date": "2026-09-25",
     "new": [
