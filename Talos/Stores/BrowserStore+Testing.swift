@@ -1,3 +1,4 @@
+import AppKit
 import Combine
 import Foundation
 import SQLite3
@@ -165,11 +166,32 @@ extension BrowserStore {
     /// Website Data sheet, `palette:close` dismisses the command bar,
     /// `space:next` / `space:previous` change Space, `split:<url>` /
     /// `split:close` open and end a split beside the active pane, `tab:close`
-    /// closes the active tab, and `tab:at:<n>` picks the nth tab like ⌘n.
+    /// closes the active tab, `tab:at:<n>` picks the nth tab like ⌘n, and
+    /// `key:<shortcut>` ("Command-E") posts that key to the key window.
     /// Same rationale as the tab-switcher seam — keyboard-free, so it
     /// works while the machine is in use.
     static let uiTestingWindowCommandNotification =
         Notification.Name("app.talos.uitesting.window-command")
+
+    /// Posts a key down and up for a shortcut string ("Command-E") to the
+    /// key window, the way the keyboard would.
+    static func postKeyEvent(for shortcut: String) {
+        let components = WebExtensionShortcut.components(from: shortcut)
+        NSApp.activate(ignoringOtherApps: true)
+        let window = NSApp.keyWindow ?? NSApp.windows.first { $0.isVisible && !($0 is NSPanel) }
+        guard let key = components.activationKey, let window else { return }
+        window.makeKeyAndOrderFront(nil)
+        let modifiers = components.modifierFlags
+        let characters = modifiers.contains(.shift) ? key.uppercased() : key
+        for type in [NSEvent.EventType.keyDown, .keyUp] {
+            guard let event = NSEvent.keyEvent(
+                with: type, location: .zero, modifierFlags: modifiers, timestamp: ProcessInfo.processInfo.systemUptime,
+                windowNumber: window.windowNumber, context: nil, characters: characters,
+                charactersIgnoringModifiers: characters, isARepeat: false, keyCode: 0
+            ) else { continue }
+            NSApp.postEvent(event, atStart: false)
+        }
+    }
 
     func configureUITestingWindowCommandTrigger() {
         guard Self.isUITesting, !isPrivate else { return }
@@ -186,6 +208,11 @@ extension BrowserStore {
                         self.navigateNewTab(to: String(command.dropFirst("tab:new:".count)))
                     } else if command == "sidebar:toggle" {
                         self.sidebarToggleRequestID = UUID()
+                    } else if command.hasPrefix("key:") {
+                        // A real key event through the app's own queue, so
+                        // shortcut handling is exercised end to end (the
+                        // window monitor, then extensions' commands).
+                        Self.postKeyEvent(for: String(command.dropFirst("key:".count)))
                     } else if command.hasPrefix("palette:type:") {
                         let text = String(command.dropFirst("palette:type:".count))
                         if !self.isCommandPalettePresented {

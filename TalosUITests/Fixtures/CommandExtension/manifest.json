@@ -1,0 +1,14 @@
+{
+  "manifest_version": 3,
+  "name": "Command Fixture",
+  "version": "1.0",
+  "description": "Opens a tab when its shortcut fires, so a test can see the key reached the extension.",
+  "permissions": ["tabs"],
+  "commands": {
+    "open-marker-tab": {
+      "suggested_key": { "default": "Ctrl+E", "mac": "Command+E" },
+      "description": "Open the marker tab"
+    }
+  },
+  "background": { "service_worker": "background.js" }
+}

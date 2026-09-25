@@ -368,6 +368,38 @@ final class WebExtensionManager: NSObject, ObservableObject {
         for installation in installations where installation.isEnabled {
             await loadPersistedExtension(installation)
         }
+        await loadUITestingFixtureExtension()
+    }
+
+    /// UI-testing builds load no installed extensions, but a test can point
+    /// `TALOS_UI_TESTING_EXTENSION` at an unpacked extension folder and it
+    /// loads as if installed — no prompt, nothing persisted — so extension
+    /// surfaces (commands, Settings rows) can be exercised from a clean
+    /// workspace.
+    private func loadUITestingFixtureExtension() async {
+        guard
+            BrowserStore.isUITesting,
+            let path = ProcessInfo.processInfo.environment["TALOS_UI_TESTING_EXTENSION"],
+            !path.isEmpty
+        else {
+            return
+        }
+        let installation = WebExtensionInstallation(
+            id: UUID(uuidString: "F1F1F1F1-F1F1-F1F1-F1F1-F1F1F1F1F1F1")!,
+            displayName: "Fixture",
+            version: "1.0",
+            isEnabled: true,
+            installedAt: Date(timeIntervalSince1970: 1_600_000_000)
+        )
+        do {
+            let webExtension = try await WKWebExtension(resourceBaseURL: URL(fileURLWithPath: path, isDirectory: true))
+            try loadContext(for: webExtension, installation: installation)
+            installations.append(installation)
+            NSLog("[uitesting] fixture extension loaded: commands=%ld errors=%@", contextsByInstallationID[installation.id]?.commands.count ?? -1, webExtension.errors.map(\.localizedDescription).joined(separator: "; "))
+        } catch {
+            loadFailureDescriptions[installation.id] = error.localizedDescription
+            NSLog("[uitesting] fixture extension failed: %@", error.localizedDescription)
+        }
     }
 
     private func loadPersistedExtension(_ installation: WebExtensionInstallation) async {
