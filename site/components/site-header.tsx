@@ -54,7 +54,7 @@ export function TalosMark({ className }: { className?: string }) {
         rx="3"
         className="fill-background"
       />
-      <rect x="28" y="16" width="22" height="9" rx="3" className="fill-coral" />
+      <rect x="28" y="16" width="22" height="9" rx="3" className="fill-brand" />
       <rect
         x="28"
         y="28"

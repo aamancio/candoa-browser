@@ -34,7 +34,7 @@ export function BrowserMock() {
                 <span
                   className={
                     "size-4 rounded-md " +
-                    (t.active ? "bg-coral" : "bg-foreground/15")
+                    (t.active ? "bg-brand" : "bg-foreground/15")
                   }
                 />
                 <span className={"h-2 rounded-full bg-foreground/15 " + t.w} />
@@ -42,7 +42,7 @@ export function BrowserMock() {
             ))}
           </div>
           <div className="mt-auto flex gap-2">
-            <span className="size-2.5 rounded-full bg-coral" />
+            <span className="size-2.5 rounded-full bg-brand" />
             <span className="size-2.5 rounded-full bg-foreground/20" />
             <span className="size-2.5 rounded-full bg-foreground/20" />
           </div>

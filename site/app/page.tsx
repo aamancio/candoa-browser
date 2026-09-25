@@ -66,7 +66,7 @@ export default function Page() {
         <h1 className="font-serif text-[3.25rem] leading-[0.95] tracking-tight text-balance sm:text-8xl">
           a browser that
           <br />
-          stays <em className="text-coral">out of your way</em>
+          stays <em className="text-brand">out of your way</em>
         </h1>
         <p className="max-w-xl text-lg text-balance text-muted-foreground">
           Talos is a browser workspace for the Mac. Native SwiftUI on
@@ -113,7 +113,7 @@ export default function Page() {
       <section className="mx-auto grid w-full max-w-6xl gap-12 px-5 sm:grid-cols-[1fr_1.4fr] sm:px-8">
         <div className="flex flex-col gap-4 sm:sticky sm:top-28 sm:self-start">
           <h2 className="font-serif text-5xl leading-none tracking-tight sm:text-6xl">
-            Built for <em className="text-coral">focus</em>
+            Built for <em className="text-brand">focus</em>
           </h2>
           <p className="max-w-sm text-muted-foreground">
             A browser should help you get through the day, not keep you in it.
@@ -134,7 +134,7 @@ export default function Page() {
       <section className="mx-auto flex w-full max-w-6xl flex-col gap-12 px-5 sm:px-8">
         <div className="flex max-w-2xl flex-col gap-4">
           <h2 className="font-serif text-5xl leading-none tracking-tight sm:text-6xl">
-            What we <em className="text-coral">won&apos;t</em> do
+            What we <em className="text-brand">won&apos;t</em> do
           </h2>
           <p className="text-muted-foreground">
             The promises are simpler than the features.
@@ -155,7 +155,7 @@ export default function Page() {
 
       <section className="mx-auto flex w-full max-w-6xl flex-col items-center gap-6 px-5 text-center sm:px-8">
         <h2 className="font-serif text-5xl leading-none tracking-tight sm:text-6xl">
-          Try it <em className="text-coral">today</em>
+          Try it <em className="text-brand">today</em>
         </h2>
         <a
           href={downloadHref}

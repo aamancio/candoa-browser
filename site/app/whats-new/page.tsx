@@ -16,7 +16,7 @@ export default function Page() {
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-12 px-5 pt-16 sm:px-8 sm:pt-24">
       <div className="flex flex-col gap-3">
         <h1 className="font-serif text-6xl leading-none tracking-tight sm:text-7xl">
-          What&apos;s <em className="text-coral">new</em>
+          What&apos;s <em className="text-brand">new</em>
         </h1>
         <p className="text-lg text-muted-foreground">
           Every Talos release, newest first.
@@ -39,7 +39,7 @@ export default function Page() {
                   Talos {r.version}
                 </h2>
                 {i === 0 ? (
-                  <Badge className="rounded-full bg-coral text-white">
+                  <Badge className="rounded-full bg-brand text-white">
                     Latest
                   </Badge>
                 ) : null}
