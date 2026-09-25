@@ -161,8 +161,11 @@ extension BrowserStore {
     /// input: `navigate:<url>` loads a page in the active tab, `tab:new:<url>`
     /// opens one in a new tab (which backgrounds the page that was playing,
     /// the way into the floating mini player), `sidebar:toggle` pins the
-    /// sidebar open or away, and `websitedata:manage` drops the Manage
-    /// Website Data sheet.
+    /// sidebar open or away, `websitedata:manage` drops the Manage
+    /// Website Data sheet, `palette:close` dismisses the command bar,
+    /// `space:next` / `space:previous` change Space, `split:<url>` /
+    /// `split:close` open and end a split beside the active pane, `tab:close`
+    /// closes the active tab, and `tab:at:<n>` picks the nth tab like ⌘n.
     /// Same rationale as the tab-switcher seam — keyboard-free, so it
     /// works while the machine is in use.
     static let uiTestingWindowCommandNotification =
@@ -194,6 +197,35 @@ extension BrowserStore {
                             try? await Task.sleep(for: .milliseconds(250))
                             self?.uiTestingCommandPaletteTypedText =
                                 UITestingPaletteTypedText(id: UUID(), text: text)
+                        }
+                    } else if command.hasPrefix("tab:close-url:") {
+                        // Closes every tab whose URL starts with the prefix,
+                        // without touching the active tab: the feature loop
+                        // tidies its split tab away off screen.
+                        let prefix = String(command.dropFirst("tab:close-url:".count))
+                        for tab in self.tabs where tab.id != self.activeTabID
+                            && (tab.url?.absoluteString.hasPrefix(prefix) ?? false) {
+                            self.closeTab(tab.id)
+                        }
+                    } else if command == "tab:close" {
+                        self.closeCurrentTab()
+                    } else if command.hasPrefix("tab:at:"), let position = Int(command.dropFirst("tab:at:".count)) {
+                        self.switchToTab(at: position)
+                    } else if command == "palette:close" {
+                        self.dismissCommandPalette()
+                    } else if command == "space:next" {
+                        self.switchToNextSpace()
+                    } else if command == "space:previous" {
+                        self.switchToPreviousSpace()
+                    } else if command.hasPrefix("split:") {
+                        // `split:close` ends the split; `split:<url>` opens
+                        // one beside the active pane, the way the website's
+                        // feature loop shows it.
+                        let payload = String(command.dropFirst("split:".count))
+                        if payload == "close" {
+                            self.closeSplitView()
+                        } else {
+                            self.splitActivePane(navigatingTo: payload)
                         }
                     } else if command == "websitedata:manage" {
                         ManageWebsiteDataPrompt.present()
@@ -659,7 +691,9 @@ extension BrowserStore {
     static func siteShowcaseFixtureState(dark: Bool) -> BrowserWindowState {
         let workSpaceID = UUID(uuidString: "AB010101-0101-0101-0101-010101010101")!
         let personalSpaceID = UUID(uuidString: "AB020202-0202-0202-0202-020202020202")!
-        let fixtureDate = Date(timeIntervalSince1970: 1_800_000_000)
+        // Well in the past, so a Space switch restores the page that was
+        // really open last rather than a favourite that was never visited.
+        let fixtureDate = Date(timeIntervalSince1970: 1_600_000_000)
         let appearance: SpaceThemeAppearance = dark ? .dark : .light
         let spaces = [
             BrowserSpace(
