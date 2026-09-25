@@ -41,286 +41,6 @@
         }
       }
     },
-    "Add Detail" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Angabe hinzufügen"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Añadir dato"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ajouter une information"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "情報を追加"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Adicionar informação"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "添加信息"
-          }
-        }
-      }
-    },
-    "AI assistants such as Claude Code and Codex install as Chrome Web Store extensions." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "KI-Assistenten wie Claude Code und Codex werden als Chrome Web Store-Erweiterungen installiert."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Los asistentes de IA como Claude Code y Codex se instalan como extensiones de Chrome Web Store."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Les assistants IA tels que Claude Code et Codex s'installent comme des extensions du Chrome Web Store."
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Claude CodeやCodexなどのAIアシスタントは、Chrome ウェブストアの拡張機能としてインストールします。"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Assistentes de IA como Claude Code e Codex são instalados como extensões da Chrome Web Store."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Claude Code 和 Codex 等 AI 助手以 Chrome 应用店扩展的形式安装。"
-          }
-        }
-      }
-    },
-    "Choose which passkey saved in Talos to sign in with." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Wähle, mit welchem in Talos gesicherten Passkey du dich anmelden möchtest."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Elige con qué llave de acceso guardada en Talos quieres iniciar sesión."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Choisissez la clé d’identification enregistrée dans Talos à utiliser pour vous connecter."
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talosに保存されているどのパスキーでサインインするかを選択してください。"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Escolha com qual chave-senha salva no Talos deseja iniciar sessão."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "选择要用于登录的已存储在 Talos 中的通行密钥。"
-          }
-        }
-      }
-    },
-    "Eli hasn't learned any details yet — things you share in conversations show up here." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Eli hat noch keine Angaben gelernt — was du in Unterhaltungen teilst, erscheint hier."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Eli aún no ha aprendido ningún dato: lo que compartas en tus conversaciones aparecerá aquí."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Eli n’a encore rien appris — ce que vous partagez dans vos conversations apparaîtra ici."
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Eli はまだ何も学習していません。会話で共有した情報がここに表示されます。"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "O Eli ainda não aprendeu nenhum dado — o que você compartilhar nas conversas aparece aqui."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Eli 尚未学习任何信息——你在对话中分享的内容会显示在这里。"
-          }
-        }
-      }
-    },
-    "save a passkey for “%@”" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "einen Passkey für „%@“ zu sichern"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "guardar una llave de acceso para “%@”"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "enregistrer une clé d’identification pour « %@ »"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "“%@”のパスキーを保存"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "salvar uma chave-senha para “%@”"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "存储“%@”的通行密钥"
-          }
-        }
-      }
-    },
-    "Show website colors" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Website-Farben anzeigen"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Mostrar los colores del sitio web"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Afficher les couleurs du site web"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ウェブサイトの色を表示"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Mostrar cores do site"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "显示网站颜色"
-          }
-        }
-      }
-    },
-    "Blend the toolbar and sidebar into the color of the site you're on." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Symbolleiste und Seitenleiste an die Farbe der aktuellen Website anpassen."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Fusiona la barra de herramientas y la barra lateral con el color del sitio que estás visitando."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Fond la barre d’outils et la barre latérale dans la couleur du site que vous consultez."
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ツールバーとサイドバーを表示中のサイトの色になじませます。"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Mescla a barra de ferramentas e a barra lateral com a cor do site em que você está."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "将工具栏和边栏融入当前网站的颜色。"
-          }
-        }
-      }
-    },
     "— %@" : {
       "comment" : "Command palette row: em dash before a detail or source label.",
       "localizations" : {
@@ -445,6 +165,7 @@
     },
     "%@ - History" : {
       "comment" : "Attachment label in Eli: a website host followed by ' - History'.",
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -486,6 +207,7 @@
     },
     "%@ %@" : {
       "comment" : "Two full sentences joined by a space: when credits reset, then how the plan works.",
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -611,6 +333,7 @@
     },
     "%@ key saved" : {
       "comment" : "Placeholder is an AI provider name (OpenAI, Anthropic, Google).",
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -815,6 +538,7 @@
       }
     },
     "%lld credits per message" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -1229,6 +953,7 @@
     },
     "+%lld" : {
       "comment" : "Overflow badge: how many more attachments exist beyond the two shown.",
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -1269,6 +994,7 @@
       }
     },
     "1 credit per message" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -1469,6 +1195,7 @@
       }
     },
     "Account" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -1670,49 +1397,9 @@
         }
       }
     },
-    "Add a %@ API key in Talos Settings before using your own key." : {
-      "comment" : "Placeholder is an AI provider name (Anthropic, Google).",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Fügen Sie in den Talos-Einstellungen einen %@-API-Schlüssel hinzu, bevor Sie Ihren eigenen Schlüssel verwenden."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Añade una clave de API de %@ en los Ajustes de Talos antes de usar tu propia clave."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ajoutez une clé d’API %@ dans les Réglages de Talos avant d’utiliser votre propre clé."
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "自分のキーを使用する前に、Talos設定で%@のAPIキーを追加してください。"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Adicione uma chave de API de %@ nos Ajustes do Talos antes de usar sua própria chave."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "使用自己的密钥前，请先在 Talos 设置中添加 %@ API 密钥。"
-          }
-        }
-      }
-    },
     "Add a %@ API key in Settings before using your own key." : {
       "comment" : "Placeholder is an AI provider name (Anthropic, Google).",
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -1752,7 +1439,50 @@
         }
       }
     },
+    "Add a %@ API key in Talos Settings before using your own key." : {
+      "comment" : "Placeholder is an AI provider name (Anthropic, Google).",
+      "extractionState" : "stale",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fügen Sie in den Talos-Einstellungen einen %@-API-Schlüssel hinzu, bevor Sie Ihren eigenen Schlüssel verwenden."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Añade una clave de API de %@ en los Ajustes de Talos antes de usar tu propia clave."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ajoutez une clé d’API %@ dans les Réglages de Talos avant d’utiliser votre propre clé."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "自分のキーを使用する前に、Talos設定で%@のAPIキーを追加してください。"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Adicione uma chave de API de %@ nos Ajustes do Talos antes de usar sua própria chave."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "使用自己的密钥前，请先在 Talos 设置中添加 %@ API 密钥。"
+          }
+        }
+      }
+    },
     "Add an API key in Settings before using your own key." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -1792,47 +1522,8 @@
         }
       }
     },
-    "Add an OpenAI API key in Talos Settings before using your own key." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Fügen Sie in den Talos-Einstellungen einen OpenAI-API-Schlüssel hinzu, bevor Sie Ihren eigenen Schlüssel verwenden."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Añade una clave de API de OpenAI en los Ajustes de Talos antes de usar tu propia clave."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ajoutez une clé d’API OpenAI dans les Réglages de Talos avant d’utiliser votre propre clé."
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "自分のキーを使用する前に、Talos設定でOpenAIのAPIキーを追加してください。"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Adicione uma chave de API da OpenAI nos Ajustes do Talos antes de usar sua própria chave."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "使用自己的密钥前，请先在 Talos 设置中添加 OpenAI API 密钥。"
-          }
-        }
-      }
-    },
     "Add an OpenAI API key in Settings before using your own key." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -1868,6 +1559,47 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "使用自己的密钥前，请先在设置中添加 OpenAI API 密钥。"
+          }
+        }
+      }
+    },
+    "Add an OpenAI API key in Talos Settings before using your own key." : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fügen Sie in den Talos-Einstellungen einen OpenAI-API-Schlüssel hinzu, bevor Sie Ihren eigenen Schlüssel verwenden."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Añade una clave de API de OpenAI en los Ajustes de Talos antes de usar tu propia clave."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ajoutez une clé d’API OpenAI dans les Réglages de Talos avant d’utiliser votre propre clé."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "自分のキーを使用する前に、Talos設定でOpenAIのAPIキーを追加してください。"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Adicione uma chave de API da OpenAI nos Ajustes do Talos antes de usar sua própria chave."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "使用自己的密钥前，请先在 Talos 设置中添加 OpenAI API 密钥。"
           }
         }
       }
@@ -1908,6 +1640,47 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "再添加一种颜色以使用色彩和谐"
+          }
+        }
+      }
+    },
+    "Add Detail" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Angabe hinzufügen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Añadir dato"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ajouter une information"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "情報を追加"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Adicionar informação"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "添加信息"
           }
         }
       }
@@ -1992,46 +1765,6 @@
         }
       }
     },
-    "Add to Talos" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Zu Talos hinzufügen"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Añadir a Talos"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ajouter à Talos"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talos に追加"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Adicionar ao Talos"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "添加至 Talos"
-          }
-        }
-      }
-    },
     "Add to Favorites" : {
       "localizations" : {
         "de" : {
@@ -2109,6 +1842,46 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "添加到备忘录"
+          }
+        }
+      }
+    },
+    "Add to Talos" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zu Talos hinzufügen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Añadir a Talos"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ajouter à Talos"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talos に追加"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Adicionar ao Talos"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "添加至 Talos"
           }
         }
       }
@@ -2516,6 +2289,7 @@
       }
     },
     "AI" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -2551,6 +2325,46 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "AI"
+          }
+        }
+      }
+    },
+    "AI assistants such as Claude Code and Codex install as Chrome Web Store extensions." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "KI-Assistenten wie Claude Code und Codex werden als Chrome Web Store-Erweiterungen installiert."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Los asistentes de IA como Claude Code y Codex se instalan como extensiones de Chrome Web Store."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Les assistants IA tels que Claude Code et Codex s'installent comme des extensions du Chrome Web Store."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Claude CodeやCodexなどのAIアシスタントは、Chrome ウェブストアの拡張機能としてインストールします。"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Assistentes de IA como Claude Code e Codex são instalados como extensões da Chrome Web Store."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Claude Code 和 Codex 等 AI 助手以 Chrome 应用店扩展的形式安装。"
           }
         }
       }
@@ -2638,6 +2452,7 @@
     },
     "All open tabs" : {
       "comment" : "Mention-menu row that attaches every open tab as context for Eli.",
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -2839,6 +2654,7 @@
       }
     },
     "Also send crash reports automatically" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -3082,6 +2898,7 @@
       }
     },
     "Anthropic could not complete this request." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -3162,6 +2979,7 @@
       }
     },
     "Apple could not be connected to this Talos account." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -3363,6 +3181,7 @@
       }
     },
     "Ask about this page or another tab" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -3523,6 +3342,7 @@
       }
     },
     "Attached image preview" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -3563,6 +3383,7 @@
       }
     },
     "Attachment preview" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -3765,6 +3586,7 @@
       }
     },
     "Automatic uses your plan's default model. Sign in to choose from your plan's models." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -4125,6 +3947,46 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "自行车"
+          }
+        }
+      }
+    },
+    "Blend the toolbar and sidebar into the color of the site you're on." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Symbolleiste und Seitenleiste an die Farbe der aktuellen Website anpassen."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fusiona la barra de herramientas y la barra lateral con el color del sitio que estás visitando."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fond la barre d’outils et la barre latérale dans la couleur du site que vous consultez."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ツールバーとサイドバーを表示中のサイトの色になじませます。"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mescla a barra de ferramentas e a barra lateral com a cor do site em que você está."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "将工具栏和边栏融入当前网站的颜色。"
           }
         }
       }
@@ -4894,6 +4756,7 @@
       }
     },
     "Cancel Dictation" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -5050,971 +4913,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "已取消"
-          }
-        }
-      }
-    },
-    "Talos %@ is available" : {
-      "comment" : "Update banner title; placeholder is a version number like '0.2.0'.",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talos %@ ist verfügbar"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talos %@ está disponible"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talos %@ est disponible"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talos %@が利用可能です"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "O Talos %@ está disponível"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talos %@ 已可用"
-          }
-        }
-      }
-    },
-    "Talos %@ is installing and will relaunch shortly" : {
-      "comment" : "Update banner status; placeholder is a version number.",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talos %@ wird installiert und startet in Kürze neu"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talos %@ se está instalando y se reiniciará en breve"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talos %@ s’installe et redémarrera dans un instant"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talos %@をインストール中です。まもなく再起動します"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "O Talos %@ está sendo instalado e será reaberto em breve"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talos %@ 正在安装，稍后将重新启动"
-          }
-        }
-      }
-    },
-    "Talos checkout is temporarily unavailable." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Der Talos-Bezahlvorgang ist vorübergehend nicht verfügbar."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "El proceso de compra de Talos no está disponible temporalmente."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Le paiement Talos est temporairement indisponible."
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talosのチェックアウトは一時的に利用できません。"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "O checkout do Talos está temporariamente indisponível."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talos 结账服务暂时不可用。"
-          }
-        }
-      }
-    },
-    "Talos Cloud" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talos Cloud"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talos Cloud"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talos Cloud"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talos Cloud"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talos Cloud"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talos Cloud"
-          }
-        }
-      }
-    },
-    "Talos could not complete Sign in with Apple." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talos konnte „Mit Apple anmelden“ nicht abschließen."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talos no pudo completar Iniciar sesión con Apple."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talos n’a pas pu terminer « Se connecter avec Apple »."
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "TalosはAppleでサインインを完了できませんでした。"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "O Talos não pôde concluir o Iniciar Sessão com a Apple."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talos 无法完成通过Apple登录。"
-          }
-        }
-      }
-    },
-    "Talos could not complete that request." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talos konnte diese Anfrage nicht abschließen."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talos no pudo completar esa solicitud."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talos n’a pas pu traiter cette demande."
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talosはそのリクエストを完了できませんでした。"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "O Talos não pôde concluir essa solicitação."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talos 无法完成该请求。"
-          }
-        }
-      }
-    },
-    "Talos could not save the API key in Keychain." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talos konnte den API-Schlüssel nicht im Schlüsselbund sichern."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talos no pudo guardar la clave de API en el llavero."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talos n’a pas pu enregistrer la clé d’API dans le trousseau."
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "TalosはAPIキーをキーチェーンに保存できませんでした。"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "O Talos não pôde salvar a chave de API no Chaveiro."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talos 无法将 API 密钥存储到钥匙串中。"
-          }
-        }
-      }
-    },
-    "Talos could not save your session in Keychain." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talos konnte Ihre Sitzung nicht im Schlüsselbund sichern."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talos no pudo guardar tu sesión en el llavero."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talos n’a pas pu enregistrer votre session dans le trousseau."
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talosはセッションをキーチェーンに保存できませんでした。"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "O Talos não pôde salvar sua sessão no Chaveiro."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talos 无法将你的会话存储到钥匙串中。"
-          }
-        }
-      }
-    },
-    "Talos couldn’t access %@’s default profile. You can choose another profile manually." : {
-      "comment" : "Placeholder is a browser name (Chrome, Safari).",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talos konnte nicht auf das Standardprofil von %@ zugreifen. Sie können manuell ein anderes Profil auswählen."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talos no pudo acceder al perfil predeterminado de %@. Puedes elegir otro perfil manualmente."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talos n’a pas pu accéder au profil par défaut de %@. Vous pouvez choisir un autre profil manuellement."
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talosは%@のデフォルトプロファイルにアクセスできませんでした。別のプロファイルを手動で選択できます。"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "O Talos não conseguiu acessar o perfil padrão do %@. Você pode escolher outro perfil manualmente."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talos 无法访问 %@ 的默认个人资料。你可以手动选择其他个人资料。"
-          }
-        }
-      }
-    },
-    "Talos couldn’t find %@ bookmark data in that folder." : {
-      "comment" : "Placeholder is a browser name.",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talos konnte in diesem Ordner keine Lesezeichendaten von %@ finden."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talos no encontró datos de marcadores de %@ en esa carpeta."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talos n’a pas trouvé de données de signets %@ dans ce dossier."
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "そのフォルダに%@のブックマークデータが見つかりませんでした。"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "O Talos não encontrou dados de marcadores do %@ nessa pasta."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talos 在该文件夹中找不到 %@ 的书签数据。"
-          }
-        }
-      }
-    },
-    "Talos couldn’t find your account on this Mac." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talos konnte Ihren Account auf diesem Mac nicht finden."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talos no encontró tu cuenta en este Mac."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talos n’a pas trouvé votre compte sur ce Mac."
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "このMacでTalosアカウントが見つかりませんでした。"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "O Talos não encontrou sua conta neste Mac."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talos 在这台 Mac 上找不到你的账户。"
-          }
-        }
-      }
-    },
-    "Talos couldn’t open checkout. Please try again." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talos konnte den Bezahlvorgang nicht öffnen. Bitte versuchen Sie es erneut."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talos no pudo abrir el proceso de compra. Inténtalo de nuevo."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talos n’a pas pu ouvrir la page de paiement. Veuillez réessayer."
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "チェックアウトを開けませんでした。もう一度お試しください。"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "O Talos não conseguiu abrir o checkout. Tente novamente."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talos 无法打开结账页面。请重试。"
-          }
-        }
-      }
-    },
-    "Talos couldn’t read that bookmarks file." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talos konnte diese Lesezeichendatei nicht lesen."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talos no pudo leer ese archivo de marcadores."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talos n’a pas pu lire ce fichier de signets."
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "そのブックマークファイルを読み込めませんでした。"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "O Talos não conseguiu ler esse arquivo de marcadores."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talos 无法读取该书签文件。"
-          }
-        }
-      }
-    },
-    "Talos couldn’t verify your account before checkout." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talos konnte Ihren Account vor dem Bezahlvorgang nicht überprüfen."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talos no pudo verificar tu cuenta antes de la compra."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talos n’a pas pu vérifier votre compte avant le paiement."
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "チェックアウトの前にアカウントを確認できませんでした。"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "O Talos não conseguiu verificar sua conta antes do checkout."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talos 无法在结账前验证你的账户。"
-          }
-        }
-      }
-    },
-    "Talos has its own themes, so Chrome and Firefox themes don't install here. Pick a look in Settings ▸ Spaces." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talos hat eigene Themes, deshalb lassen sich Chrome- und Firefox-Themes hier nicht installieren. Wähle einen Look unter Einstellungen ▸ Spaces."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talos tiene sus propios temas, así que los de Chrome y Firefox no se instalan aquí. Elige un aspecto en Ajustes ▸ Espacios."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talos a ses propres thèmes : ceux de Chrome et Firefox ne s’installent pas ici. Choisissez une allure dans Réglages ▸ Espaces."
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talos には独自のテーマがあるため、Chrome や Firefox のテーマはインストールできません。設定 ▸ スペースで外観を選んでください。"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "O Talos tem os próprios temas, então temas do Chrome e do Firefox não são instalados aqui. Escolha um visual em Ajustes ▸ Espaços."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talos 有自己的主题，因此无法在此安装 Chrome 或 Firefox 主题。请在“设置 ▸ 空间”中选择外观。"
-          }
-        }
-      }
-    },
-    "Talos is still confirming your subscription. Try again in a moment." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talos bestätigt Ihr Abonnement noch. Versuchen Sie es gleich erneut."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talos todavía está confirmando tu suscripción. Vuelve a intentarlo en un momento."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talos confirme encore votre abonnement. Réessayez dans un instant."
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "サブスクリプションを確認中です。しばらくしてからもう一度お試しください。"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "O Talos ainda está confirmando sua assinatura. Tente novamente em instantes."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talos 仍在确认你的订阅。请稍后重试。"
-          }
-        }
-      }
-    },
-    "Talos is the default browser in macOS." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talos ist der Standardbrowser in macOS."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talos es el navegador predeterminado en macOS."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talos est le navigateur par défaut dans macOS."
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "TalosはmacOSのデフォルトブラウザです。"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "O Talos é o navegador padrão no macOS."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talos是macOS的默认浏览器。"
-          }
-        }
-      }
-    },
-    "Talos keeps the address and its controls in the sidebar so pages get the whole window. If you’d rather always see them above the page, choose that here." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talos hält die Adresse und ihre Bedienelemente in der Seitenleiste, damit Seiten das ganze Fenster bekommen. Wenn du sie lieber immer über der Seite sehen möchtest, wähle das hier."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talos guarda la dirección y sus controles en la barra lateral para que las páginas ocupen toda la ventana. Si prefieres verlos siempre encima de la página, elígelo aquí."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talos garde l’adresse et ses commandes dans la barre latérale pour que les pages occupent toute la fenêtre. Si vous préférez toujours les voir au-dessus de la page, choisissez cette option ici."
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talos はアドレスとそのコントロールをサイドバーに置くので、ページがウインドウ全体を使えます。常にページの上に表示したい場合はここで選んでください。"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "O Talos mantém o endereço e seus controles na barra lateral para que as páginas ocupem toda a janela. Se preferir vê-los sempre acima da página, escolha isso aqui."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talos 将地址及其控件放在边栏中，让页面占据整个窗口。如果你更希望始终在页面上方看到它们，请在此选择。"
-          }
-        }
-      }
-    },
-    "Talos keeps the address in the sidebar so pages get the whole window. If you’d rather always see it above the page, choose that here." : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talos hält die Adresse in der Seitenleiste, damit Seiten das ganze Fenster bekommen. Wenn du sie lieber immer über der Seite sehen möchtest, wähle das hier."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talos guarda la dirección en la barra lateral para que las páginas ocupen toda la ventana. Si prefieres verla siempre encima de la página, elígelo aquí."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talos garde l’adresse dans la barre latérale pour que les pages occupent toute la fenêtre. Si vous préférez toujours la voir au-dessus de la page, choisissez cette option ici."
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talos はアドレスをサイドバーに置くので、ページがウインドウ全体を使えます。常にページの上に表示したい場合はここで選んでください。"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "O Talos mantém o endereço na barra lateral para que as páginas ocupem toda a janela. Se preferir vê-lo sempre acima da página, escolha isso aqui."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talos 将地址放在边栏中，让页面占据整个窗口。如果你更希望始终在页面上方看到它，请在此选择。"
-          }
-        }
-      }
-    },
-    "Talos returned an invalid response." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talos hat eine ungültige Antwort zurückgegeben."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talos devolvió una respuesta no válida."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talos a renvoyé une réponse non valide."
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talosから無効な応答が返されました。"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "O Talos retornou uma resposta inválida."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talos 返回了无效响应。"
-          }
-        }
-      }
-    },
-    "Talos runs Chrome and Firefox web extensions." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talos führt Web-Erweiterungen für Chrome und Firefox aus."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talos ejecuta extensiones web de Chrome y Firefox."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talos exécute les extensions web de Chrome et Firefox."
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "TalosはChromeとFirefoxのウェブ拡張機能を実行できます。"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "O Talos executa extensões web do Chrome e do Firefox."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talos 可运行 Chrome 和 Firefox 的网页扩展。"
-          }
-        }
-      }
-    },
-    "Talos stores one key per provider in this Mac's Keychain. Keys are never sent to Talos." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talos sichert einen Schlüssel pro Anbieter im Schlüsselbund dieses Mac. Schlüssel werden nie an Talos gesendet."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talos guarda una clave por proveedor en el llavero de este Mac. Las claves nunca se envían a Talos."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talos conserve une clé par fournisseur dans le trousseau de ce Mac. Les clés ne sont jamais envoyées à Talos."
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talosはプロバイダごとに1つのキーをこのMacのキーチェーンに保存します。キーがTalosに送信されることはありません。"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "O Talos armazena uma chave por provedor no Chaveiro deste Mac. As chaves nunca são enviadas ao Talos."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talos 会将每个提供商的一个密钥存储在这台 Mac 的钥匙串中。密钥绝不会发送给 Talos。"
-          }
-        }
-      }
-    },
-    "Talos updated — see what's new" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talos aktualisiert — Neuheiten ansehen"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talos se ha actualizado — descubre las novedades"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talos a été mis à jour — découvrez les nouveautés"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talosがアップデートされました — 新機能を見る"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talos atualizado — veja as novidades"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talos 已更新 — 查看新功能"
-          }
-        }
-      }
-    },
-    "Talos's protection list is compiled into WebKit content rules once. A blocked request simply never happens — no script watches the pages you visit, and no extra work runs while you browse." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talos' Schutzliste wird einmalig in WebKit-Inhaltsregeln kompiliert. Eine blockierte Anfrage findet schlicht nie statt – kein Skript beobachtet die von Ihnen besuchten Seiten, und beim Surfen fällt keine zusätzliche Arbeit an."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "La lista de protección de Talos se compila una sola vez en reglas de contenido de WebKit. Una solicitud bloqueada simplemente nunca ocurre: ningún script observa las páginas que visitas y no se ejecuta trabajo adicional mientras navegas."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "La liste de protection de Talos est compilée une seule fois en règles de contenu WebKit. Une requête bloquée n'a tout simplement jamais lieu : aucun script ne surveille les pages que vous visitez et aucun travail supplémentaire ne s'exécute pendant votre navigation."
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talosの保護リストは一度だけWebKitのコンテンツルールにコンパイルされます。ブロックされたリクエストはそもそも発生しません。訪問したページを監視するスクリプトはなく、ブラウズ中に余分な処理も実行されません。"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "A lista de proteção do Talos é compilada uma única vez em regras de conteúdo do WebKit. Uma solicitação bloqueada simplesmente nunca acontece — nenhum script observa as páginas que você visita e nenhum trabalho extra é executado enquanto você navega."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talos 的保护列表只会编译一次为 WebKit 内容规则。被拦截的请求根本不会发生——没有脚本监视您访问的页面，浏览时也不会产生额外的工作。"
           }
         }
       }
@@ -6544,6 +5442,7 @@
       }
     },
     "Chat" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -6626,6 +5525,7 @@
     },
     "Check Again" : {
       "comment" : "Retries the subscription check.",
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -6666,6 +5566,7 @@
       }
     },
     "Check the billing portal via Manage for details." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -6706,6 +5607,7 @@
       }
     },
     "Checking the result…" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -6905,6 +5807,46 @@
         }
       }
     },
+    "Choose which passkey saved in Talos to sign in with." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wähle, mit welchem in Talos gesicherten Passkey du dich anmelden möchtest."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Elige con qué llave de acceso guardada en Talos quieres iniciar sesión."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choisissez la clé d’identification enregistrée dans Talos à utiliser pour vous connecter."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talosに保存されているどのパスキーでサインインするかを選択してください。"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Escolha com qual chave-senha salva no Talos deseja iniciar sessão."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "选择要用于登录的已存储在 Talos 中的通行密钥。"
+          }
+        }
+      }
+    },
     "Circle" : {
       "comment" : "Space icon picker: label for the 'circle' symbol.",
       "localizations" : {
@@ -6947,6 +5889,7 @@
       }
     },
     "City" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -7514,6 +6457,7 @@
       }
     },
     "Close image preview" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -7554,6 +6498,7 @@
       }
     },
     "Close Preview" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -7998,6 +6943,7 @@
       }
     },
     "Compare with another tab" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -8199,6 +7145,7 @@
       }
     },
     "Confirm this action?" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -8239,6 +7186,7 @@
       }
     },
     "Confirming subscription…" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -8320,6 +7268,7 @@
     },
     "Connection" : {
       "comment" : "Eli setting: how Eli connects (Talos Cloud or a personal API key).",
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -8440,6 +7389,7 @@
       }
     },
     "Continue with Apple" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -8480,6 +7430,7 @@
       }
     },
     "Continuing…" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -8800,6 +7751,7 @@
       }
     },
     "Could not connect to the local Talos Cloud." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -8840,6 +7792,7 @@
       }
     },
     "Could not start dictation." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -9000,6 +7953,7 @@
       }
     },
     "Country" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -9163,6 +8117,7 @@
     },
     "Curated current models for %@." : {
       "comment" : "Placeholder is an AI provider name.",
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -9245,6 +8200,7 @@
     },
     "Current %@ models available to your key." : {
       "comment" : "Placeholder is an AI provider name.",
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -9285,6 +8241,7 @@
       }
     },
     "Current Page" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -10051,6 +9008,7 @@
       }
     },
     "Describe what you were doing and what you expected to happen." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -10373,6 +9331,7 @@
       }
     },
     "Direct requests use this provider's API with your own credentials." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -10655,6 +9614,7 @@
       }
     },
     "Done." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -10816,6 +9776,7 @@
       }
     },
     "Draft a reply about %@" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -10856,6 +9817,7 @@
       }
     },
     "Draft a reply to this conversation" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -10896,6 +9858,7 @@
       }
     },
     "Draft a reply to this email" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -10936,6 +9899,7 @@
       }
     },
     "Draft an agenda for this meeting" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -11461,6 +10425,7 @@
     },
     "Eli can't use the direct %@ connection until you save a key." : {
       "comment" : "Placeholder is an AI provider name.",
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -11501,6 +10466,7 @@
       }
     },
     "Eli could not continue the browser task." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -11540,47 +10506,49 @@
         }
       }
     },
-    "Eli learns these from your conversations and fills them into forms you ask it to complete. You can correct or clear anything here, and blank fields stay blank on the page. Passwords, payment details, and government IDs are never stored." : {
+    "Eli hasn't learned any details yet — things you share in conversations show up here." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Eli lernt diese Angaben aus deinen Unterhaltungen und trägt sie in Formulare ein, die du ausfüllen lässt. Du kannst hier alles korrigieren oder löschen; leere Felder bleiben im Formular leer. Passwörter, Zahlungsdaten und Ausweisnummern werden nie gespeichert."
+            "value" : "Eli hat noch keine Angaben gelernt — was du in Unterhaltungen teilst, erscheint hier."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Eli aprende estos datos de tus conversaciones y los rellena en los formularios que le pidas completar. Aquí puedes corregir o borrar lo que quieras, y los campos vacíos se quedan en blanco en la página. Nunca se guardan contraseñas, datos de pago ni documentos de identidad."
+            "value" : "Eli aún no ha aprendido ningún dato: lo que compartas en tus conversaciones aparecerá aquí."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Eli apprend ces informations au fil de vos conversations et les saisit dans les formulaires que vous lui demandez de remplir. Vous pouvez tout corriger ou effacer ici, et les champs vides restent vides sur la page. Les mots de passe, les moyens de paiement et les pièces d’identité ne sont jamais enregistrés."
+            "value" : "Eli n’a encore rien appris — ce que vous partagez dans vos conversations apparaîtra ici."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Eli は会話からこれらの情報を学習し、入力を依頼されたフォームに記入します。ここで修正や削除ができ、未入力の項目はページ上でも空欄のままです。パスワード、支払い情報、公的な身分証番号が保存されることはありません。"
+            "value" : "Eli はまだ何も学習していません。会話で共有した情報がここに表示されます。"
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "O Eli aprende esses dados nas suas conversas e os preenche nos formulários que você pedir para completar. Você pode corrigir ou apagar qualquer coisa aqui, e campos vazios ficam em branco na página. Senhas, dados de pagamento e documentos de identidade nunca são guardados."
+            "value" : "O Eli ainda não aprendeu nenhum dado — o que você compartilhar nas conversas aparece aqui."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Eli 会从你的对话中学习这些信息，并在你让它填写表单时填入。你可以在此更正或清除任何内容；未填写的项目在页面上保持留空。密码、支付信息和政府身份证件号码绝不会被保存。"
+            "value" : "Eli 尚未学习任何信息——你在对话中分享的内容会显示在这里。"
           }
         }
       }
     },
     "Eli hit a problem reading this page and stopped. Please try again." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -11622,6 +10590,7 @@
     },
     "Eli is ready to activate \"%@\". This may make a consequential change to your account." : {
       "comment" : "Placeholder is a web page control label.",
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -11662,6 +10631,7 @@
       }
     },
     "Eli is ready to continue this task." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -11702,6 +10672,7 @@
       }
     },
     "Eli is ready to enter information in \"%@\". Fill This Page lets Eli complete the other fields here without asking again; sending the form still needs your approval." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -11743,6 +10714,7 @@
     },
     "Eli is ready to enter information in \"%@\". Review it before continuing." : {
       "comment" : "Placeholder is a web page field label.",
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -11784,6 +10756,7 @@
     },
     "Eli is ready to open \"%@\". Review the destination before continuing." : {
       "comment" : "Placeholder is a link label or destination.",
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -11824,6 +10797,7 @@
       }
     },
     "Eli is ready to press %@ in \"%@\". This may send the form." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -11865,6 +10839,7 @@
     },
     "Eli is ready to select \"%@\". Review this choice before continuing." : {
       "comment" : "Placeholder is a web page option label.",
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -11905,6 +10880,7 @@
       }
     },
     "Eli is temporarily unavailable." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -11945,6 +10921,7 @@
       }
     },
     "Eli is temporarily unavailable. Please try again later." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -11984,7 +10961,49 @@
         }
       }
     },
+    "Eli learns these from your conversations and fills them into forms you ask it to complete. You can correct or clear anything here, and blank fields stay blank on the page. Passwords, payment details, and government IDs are never stored." : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eli lernt diese Angaben aus deinen Unterhaltungen und trägt sie in Formulare ein, die du ausfüllen lässt. Du kannst hier alles korrigieren oder löschen; leere Felder bleiben im Formular leer. Passwörter, Zahlungsdaten und Ausweisnummern werden nie gespeichert."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eli aprende estos datos de tus conversaciones y los rellena en los formularios que le pidas completar. Aquí puedes corregir o borrar lo que quieras, y los campos vacíos se quedan en blanco en la página. Nunca se guardan contraseñas, datos de pago ni documentos de identidad."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eli apprend ces informations au fil de vos conversations et les saisit dans les formulaires que vous lui demandez de remplir. Vous pouvez tout corriger ou effacer ici, et les champs vides restent vides sur la page. Les mots de passe, les moyens de paiement et les pièces d’identité ne sont jamais enregistrés."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eli は会話からこれらの情報を学習し、入力を依頼されたフォームに記入します。ここで修正や削除ができ、未入力の項目はページ上でも空欄のままです。パスワード、支払い情報、公的な身分証番号が保存されることはありません。"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O Eli aprende esses dados nas suas conversas e os preenche nos formulários que você pedir para completar. Você pode corrigir ou apagar qualquer coisa aqui, e campos vazios ficam em branco na página. Senhas, dados de pagamento e documentos de identidade nunca são guardados."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eli 会从你的对话中学习这些信息，并在你让它填写表单时填入。你可以在此更正或清除任何内容；未填写的项目在页面上保持留空。密码、支付信息和政府身份证件号码绝不会被保存。"
+          }
+        }
+      }
+    },
     "Eli requires an active Talos subscription. Subscribe or restore your plan to continue." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -12025,6 +11044,7 @@
       }
     },
     "Eli returned an invalid response." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -12066,6 +11086,7 @@
     },
     "Eli sends direct requests with this key while %@ is selected." : {
       "comment" : "Placeholder is an AI provider name.",
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -12106,6 +11127,7 @@
       }
     },
     "Eli with Talos Pro" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -12146,6 +11168,7 @@
       }
     },
     "Email" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -12267,6 +11290,7 @@
     },
     "Enter a %@ API key before saving." : {
       "comment" : "Placeholder is an AI provider name.",
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -12347,6 +11371,7 @@
       }
     },
     "Enter an OpenAI API key before saving." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -12388,6 +11413,7 @@
     },
     "Entering information in %@…" : {
       "comment" : "Eli progress status; placeholder is a web page field label.",
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -12428,6 +11454,7 @@
       }
     },
     "Environment (Debug)" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -12588,6 +11615,7 @@
       }
     },
     "Explain how to get started with this project" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -12628,6 +11656,7 @@
       }
     },
     "Explain the changes in this pull request" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -12668,6 +11697,7 @@
       }
     },
     "Explain the changes to %@" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -12708,6 +11738,7 @@
       }
     },
     "Explain the key points" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -12748,6 +11779,7 @@
       }
     },
     "Explain this to me simply" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -12788,6 +11820,7 @@
       }
     },
     "Explain what this project does" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -13071,6 +12104,7 @@
       }
     },
     "Family name" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -13393,6 +12427,7 @@
     },
     "FILES" : {
       "comment" : "Uppercase section header in Eli's attachment picker for local files.",
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -13473,6 +12508,7 @@
       }
     },
     "Fill This Page" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -14565,6 +13601,7 @@
       }
     },
     "Give me the key facts" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -14605,6 +13642,7 @@
       }
     },
     "Given name" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -15007,6 +14045,7 @@
       }
     },
     "Help" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -15087,6 +14126,7 @@
       }
     },
     "Hide Eli Sidebar" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -15537,6 +14577,7 @@
       }
     },
     "How much the model thinks before answering. Low is fastest." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -15577,6 +14618,7 @@
       }
     },
     "I need you to handle something in this tab, then continue." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -15617,6 +14659,7 @@
       }
     },
     "I need your help before I can continue." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -15657,6 +14700,7 @@
       }
     },
     "I stopped because you switched to another tab." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -15697,6 +14741,7 @@
       }
     },
     "I stopped before making that change." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -15899,6 +14944,7 @@
     },
     "idle" : {
       "comment" : "Accessibility value of the subscribe control when nothing is in progress; read by VoiceOver, never displayed.",
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -16664,6 +15710,7 @@
       }
     },
     "It never includes the pages you visited, your tabs, or your history." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -16906,6 +15953,7 @@
       }
     },
     "Keep your Talos account with you" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -17028,6 +16076,7 @@
       }
     },
     "Keyboard shortcut: Command-E" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -17432,6 +16481,7 @@
       }
     },
     "List the key moments in this video" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -17472,6 +16522,7 @@
       }
     },
     "List the key points from this video's description" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -17512,6 +16563,7 @@
       }
     },
     "List the pros and cons of this product" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -17552,6 +16604,7 @@
       }
     },
     "Listening..." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -17834,6 +16887,7 @@
       }
     },
     "Looking at this page…" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -17997,6 +17051,7 @@
       }
     },
     "Manage" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -18077,6 +17132,7 @@
       }
     },
     "Manage payment details, invoices, or your plan in Stripe." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -18438,6 +17494,7 @@
       }
     },
     "Microphone access is not allowed." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -18680,6 +17737,7 @@
     },
     "Model" : {
       "comment" : "Eli setting: which AI model to use.",
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -18720,6 +17778,7 @@
       }
     },
     "Models available on your Talos plan. A browser task costs more than a message, because Eli works through several steps." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -19325,46 +18384,6 @@
         }
       }
     },
-    "New Talos Version Available" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Neue Talos-Version verfügbar"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nueva versión de Talos disponible"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nouvelle version de Talos disponible"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talosの新しいバージョンが利用可能です"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nova Versão do Talos Disponível"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "新版 Talos 可用"
-          }
-        }
-      }
-    },
     "New Folder" : {
       "localizations" : {
         "de" : {
@@ -19648,6 +18667,46 @@
         }
       }
     },
+    "New Talos Version Available" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Neue Talos-Version verfügbar"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nueva versión de Talos disponible"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nouvelle version de Talos disponible"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talosの新しいバージョンが利用可能です"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nova Versão do Talos Disponível"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "新版 Talos 可用"
+          }
+        }
+      }
+    },
     "New Window" : {
       "localizations" : {
         "de" : {
@@ -19729,6 +18788,7 @@
       }
     },
     "Next billing date isn’t available yet" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -19770,6 +18830,7 @@
     },
     "Next billing date: %@" : {
       "comment" : "Placeholder is a formatted date.",
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -19973,6 +19034,7 @@
     },
     "No %@ key on this Mac" : {
       "comment" : "Placeholder is an AI provider name.",
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -20013,6 +19075,7 @@
       }
     },
     "No active Talos subscription" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -20413,6 +19476,7 @@
       }
     },
     "No response." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -20696,6 +19760,7 @@
     },
     "Not Now" : {
       "comment" : "Declines sign-in for now and continues without an account.",
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -21059,6 +20124,7 @@
       }
     },
     "Okay, I stopped there." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -21302,6 +20368,7 @@
       }
     },
     "Open Eli to subscribe again and restore hosted models." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -21342,6 +20409,7 @@
       }
     },
     "Open Eli to subscribe to Talos Pro." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -21745,6 +20813,7 @@
       }
     },
     "OpenAI could not complete this request." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -21786,6 +20855,7 @@
     },
     "Opening %@…" : {
       "comment" : "Eli progress status; placeholder is a link label or destination.",
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -21826,6 +20896,7 @@
       }
     },
     "Organization" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -22268,6 +21339,7 @@
     },
     "Pasted Image" : {
       "comment" : "Name given to an image pasted into Eli's composer.",
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -22348,6 +21420,7 @@
       }
     },
     "Payment is past due" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -22631,6 +21704,7 @@
       }
     },
     "Personal API key" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -22753,6 +21827,7 @@
       }
     },
     "Pick the best result for this search" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -22996,6 +22071,7 @@
       }
     },
     "Point out trends in this data" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -23076,6 +22152,7 @@
       }
     },
     "Postal code" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -23116,6 +22193,7 @@
       }
     },
     "Press Command-E to open Eli and summarize, explain, compare, or identify next steps without leaving the page." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -23196,6 +22274,7 @@
       }
     },
     "Pressing %@ in %@…" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -23236,6 +22315,7 @@
       }
     },
     "Preview attached image" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -23276,6 +22356,7 @@
       }
     },
     "Preview Image" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -23801,6 +22882,7 @@
     },
     "Provider" : {
       "comment" : "Eli setting: which AI provider (OpenAI, Anthropic, Google) serves requests.",
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -24363,6 +23445,7 @@
     },
     "Reasoning" : {
       "comment" : "Eli setting: how much reasoning effort the AI model spends.",
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -24485,6 +23568,7 @@
       }
     },
     "Refresh" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -24525,6 +23609,7 @@
       }
     },
     "Refresh subscription details" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -24565,6 +23650,7 @@
       }
     },
     "Refreshing the page controls…" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -24805,6 +23891,7 @@
       }
     },
     "Remove Context" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -25245,6 +24332,7 @@
       }
     },
     "Replace" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -25286,6 +24374,7 @@
     },
     "Replace your %@ key" : {
       "comment" : "Placeholder is an AI provider name.",
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -25326,6 +24415,7 @@
       }
     },
     "Report an Issue" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -25366,6 +24456,7 @@
       }
     },
     "Report an Issue…" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -25686,6 +24777,7 @@
       }
     },
     "Resize Eli Sidebar" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -25766,6 +24858,7 @@
       }
     },
     "Response image" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -25886,6 +24979,7 @@
       }
     },
     "Restore your Talos account" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -25968,6 +25062,7 @@
       }
     },
     "Review this pull request for risks" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -26128,6 +25223,7 @@
       }
     },
     "Save" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -26169,6 +25265,7 @@
     },
     "Save a %@ API key" : {
       "comment" : "Placeholder is an AI provider name.",
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -26204,6 +25301,46 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "存储%@ API密钥"
+          }
+        }
+      }
+    },
+    "save a passkey for “%@”" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "einen Passkey für „%@“ zu sichern"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "guardar una llave de acceso para “%@”"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "enregistrer une clé d’identification pour « %@ »"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“%@”のパスキーを保存"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "salvar uma chave-senha para “%@”"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "存储“%@”的通行密钥"
           }
         }
       }
@@ -26452,6 +25589,7 @@
       }
     },
     "Scrolling the page…" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -27056,6 +26194,7 @@
     },
     "Selecting %@…" : {
       "comment" : "Eli progress status; placeholder is a web page option label.",
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -27177,6 +26316,7 @@
       }
     },
     "Send requests directly from this Mac to the selected provider." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -27218,6 +26358,7 @@
     },
     "Send to Eli" : {
       "comment" : "Context-menu command that sends the selection to the Eli assistant.",
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -27538,46 +26679,6 @@
         }
       }
     },
-    "Set Talos as the default browser in macOS." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Legen Sie Talos als Standardbrowser in macOS fest."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Establece Talos como navegador predeterminado en macOS."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Définissez Talos comme navigateur par défaut dans macOS."
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "TalosをmacOSのデフォルトブラウザに設定します。"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Defina o Talos como o navegador padrão no macOS."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "将Talos设为macOS的默认浏览器。"
-          }
-        }
-      }
-    },
     "Set in Settings > Shortcuts" : {
       "localizations" : {
         "de" : {
@@ -27654,6 +26755,46 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "设定快捷键"
+          }
+        }
+      }
+    },
+    "Set Talos as the default browser in macOS." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Legen Sie Talos als Standardbrowser in macOS fest."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Establece Talos como navegador predeterminado en macOS."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Définissez Talos comme navigateur par défaut dans macOS."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "TalosをmacOSのデフォルトブラウザに設定します。"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Defina o Talos como o navegador padrão no macOS."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "将Talos设为macOS的默认浏览器。"
           }
         }
       }
@@ -28343,6 +27484,7 @@
       }
     },
     "Show Eli Sidebar" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -28783,6 +27925,46 @@
         }
       }
     },
+    "Show website colors" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Website-Farben anzeigen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mostrar los colores del sitio web"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Afficher les couleurs du site web"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ウェブサイトの色を表示"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mostrar cores do site"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "显示网站颜色"
+          }
+        }
+      }
+    },
     "Show you notifications" : {
       "localizations" : {
         "de" : {
@@ -29025,6 +28207,7 @@
       }
     },
     "Sign in to use Eli" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -29065,6 +28248,7 @@
       }
     },
     "Sign In with Apple" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -29105,6 +28289,7 @@
       }
     },
     "Sign in with Apple before subscribing." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -29144,47 +28329,8 @@
         }
       }
     },
-    "Sign in with Apple to restore your Talos subscription on this Mac." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Melden Sie sich mit Apple an, um Ihr Talos-Abonnement auf diesem Mac wiederherzustellen."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Inicia sesión con Apple para restaurar tu suscripción a Talos en este Mac."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Connectez-vous avec Apple pour restaurer votre abonnement Talos sur ce Mac."
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Appleでサインインして、このMacでTalosサブスクリプションを復元してください。"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Inicie sessão com a Apple para restaurar sua assinatura do Talos neste Mac."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "通过Apple登录以在这台 Mac 上恢复你的 Talos 订阅。"
-          }
-        }
-      }
-    },
     "Sign in with Apple to restore your subscription and use Eli on any Mac." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -29224,7 +28370,49 @@
         }
       }
     },
+    "Sign in with Apple to restore your Talos subscription on this Mac." : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Melden Sie sich mit Apple an, um Ihr Talos-Abonnement auf diesem Mac wiederherzustellen."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inicia sesión con Apple para restaurar tu suscripción a Talos en este Mac."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connectez-vous avec Apple pour restaurer votre abonnement Talos sur ce Mac."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Appleでサインインして、このMacでTalosサブスクリプションを復元してください。"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inicie sessão com a Apple para restaurar sua assinatura do Talos neste Mac."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "通过Apple登录以在这台 Mac 上恢复你的 Talos 订阅。"
+          }
+        }
+      }
+    },
     "Sign in with Apple to use your subscription on this or another Mac." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -29265,6 +28453,7 @@
       }
     },
     "Sign in with Apple was canceled." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -29305,6 +28494,7 @@
       }
     },
     "Sign Out" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -29386,6 +28576,7 @@
       }
     },
     "Signed in with Apple" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -29426,6 +28617,7 @@
       }
     },
     "Signed out" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -29466,6 +28658,7 @@
       }
     },
     "Signing In" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -29506,6 +28699,7 @@
       }
     },
     "Signing In…" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -29547,6 +28741,7 @@
     },
     "signing-in" : {
       "comment" : "Accessibility value of the sign-in control while sign-in runs; read by VoiceOver, never displayed.",
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -30232,6 +29427,7 @@
       }
     },
     "Speech recognition is not allowed." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -30272,6 +29468,7 @@
       }
     },
     "Speech recognition is unavailable." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -30839,6 +30036,7 @@
       }
     },
     "State or province" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -30960,6 +30158,7 @@
       }
     },
     "Stop Dictation" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -31080,6 +30279,7 @@
       }
     },
     "Street address" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -31201,6 +30401,7 @@
       }
     },
     "Subscribe" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -31241,6 +30442,7 @@
       }
     },
     "Subscribe to Talos to use Eli." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -31282,6 +30484,7 @@
     },
     "subscribing" : {
       "comment" : "Accessibility value of the subscribe control while checkout runs; read by VoiceOver, never displayed.",
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -31322,6 +30525,7 @@
       }
     },
     "Subscribing" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -31362,6 +30566,7 @@
       }
     },
     "Subscribing…" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -31402,6 +30607,7 @@
       }
     },
     "Subscription ended" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -31443,6 +30649,7 @@
     },
     "Subscription ended %@" : {
       "comment" : "Placeholder is a formatted date.",
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -31484,6 +30691,7 @@
     },
     "Subscription ends %@" : {
       "comment" : "Placeholder is a formatted date.",
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -31524,6 +30732,7 @@
       }
     },
     "Subscription is scheduled to end" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -31565,6 +30774,7 @@
     },
     "Subscription status: %@" : {
       "comment" : "Placeholder is a status word like 'past due'.",
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -31605,6 +30815,7 @@
       }
     },
     "Subscriptions and hosted services follow your Apple-linked Talos account." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -31645,6 +30856,7 @@
       }
     },
     "Suggest edits to this document" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -31685,6 +30897,7 @@
       }
     },
     "Suggest next steps for this issue" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -31725,6 +30938,7 @@
       }
     },
     "Summarize my upcoming events" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -31765,6 +30979,7 @@
       }
     },
     "Summarize pages, answer questions, and let Eli research and take action across the web." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -31805,6 +31020,7 @@
       }
     },
     "Summarize the conversation about %@" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -31845,6 +31061,7 @@
       }
     },
     "Summarize the data about %@" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -31885,6 +31102,7 @@
       }
     },
     "Summarize the data in this spreadsheet" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -31925,6 +31143,7 @@
       }
     },
     "Summarize the document about %@" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -31965,6 +31184,7 @@
       }
     },
     "Summarize the email thread about %@" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -32005,6 +31225,7 @@
       }
     },
     "Summarize the issue about %@" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -32045,6 +31266,7 @@
       }
     },
     "Summarize the results for this search" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -32085,6 +31307,7 @@
       }
     },
     "Summarize the reviews for this product" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -32125,6 +31348,7 @@
       }
     },
     "Summarize the video about %@" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -32165,6 +31389,7 @@
       }
     },
     "Summarize this conversation" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -32205,6 +31430,7 @@
       }
     },
     "Summarize this document" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -32245,6 +31471,7 @@
       }
     },
     "Summarize this email thread" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -32285,6 +31512,7 @@
       }
     },
     "Summarize this issue" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -32325,6 +31553,7 @@
       }
     },
     "Summarize this page" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -32365,6 +31594,7 @@
       }
     },
     "Summarize this PDF" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -32405,6 +31635,7 @@
       }
     },
     "Summarize this video" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -32608,6 +31839,7 @@
     },
     "TABS" : {
       "comment" : "Uppercase section header in Eli's attachment picker for open browser tabs.",
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -32768,6 +32000,983 @@
         }
       }
     },
+    "Talos %@ is available" : {
+      "comment" : "Update banner title; placeholder is a version number like '0.2.0'.",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talos %@ ist verfügbar"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talos %@ está disponible"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talos %@ est disponible"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talos %@が利用可能です"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O Talos %@ está disponível"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talos %@ 已可用"
+          }
+        }
+      }
+    },
+    "Talos %@ is installing and will relaunch shortly" : {
+      "comment" : "Update banner status; placeholder is a version number.",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talos %@ wird installiert und startet in Kürze neu"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talos %@ se está instalando y se reiniciará en breve"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talos %@ s’installe et redémarrera dans un instant"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talos %@をインストール中です。まもなく再起動します"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O Talos %@ está sendo instalado e será reaberto em breve"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talos %@ 正在安装，稍后将重新启动"
+          }
+        }
+      }
+    },
+    "Talos checkout is temporarily unavailable." : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der Talos-Bezahlvorgang ist vorübergehend nicht verfügbar."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El proceso de compra de Talos no está disponible temporalmente."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le paiement Talos est temporairement indisponible."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talosのチェックアウトは一時的に利用できません。"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O checkout do Talos está temporariamente indisponível."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talos 结账服务暂时不可用。"
+          }
+        }
+      }
+    },
+    "Talos Cloud" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talos Cloud"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talos Cloud"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talos Cloud"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talos Cloud"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talos Cloud"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talos Cloud"
+          }
+        }
+      }
+    },
+    "Talos could not complete Sign in with Apple." : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talos konnte „Mit Apple anmelden“ nicht abschließen."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talos no pudo completar Iniciar sesión con Apple."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talos n’a pas pu terminer « Se connecter avec Apple »."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "TalosはAppleでサインインを完了できませんでした。"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O Talos não pôde concluir o Iniciar Sessão com a Apple."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talos 无法完成通过Apple登录。"
+          }
+        }
+      }
+    },
+    "Talos could not complete that request." : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talos konnte diese Anfrage nicht abschließen."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talos no pudo completar esa solicitud."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talos n’a pas pu traiter cette demande."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talosはそのリクエストを完了できませんでした。"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O Talos não pôde concluir essa solicitação."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talos 无法完成该请求。"
+          }
+        }
+      }
+    },
+    "Talos could not save the API key in Keychain." : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talos konnte den API-Schlüssel nicht im Schlüsselbund sichern."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talos no pudo guardar la clave de API en el llavero."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talos n’a pas pu enregistrer la clé d’API dans le trousseau."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "TalosはAPIキーをキーチェーンに保存できませんでした。"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O Talos não pôde salvar a chave de API no Chaveiro."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talos 无法将 API 密钥存储到钥匙串中。"
+          }
+        }
+      }
+    },
+    "Talos could not save your session in Keychain." : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talos konnte Ihre Sitzung nicht im Schlüsselbund sichern."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talos no pudo guardar tu sesión en el llavero."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talos n’a pas pu enregistrer votre session dans le trousseau."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talosはセッションをキーチェーンに保存できませんでした。"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O Talos não pôde salvar sua sessão no Chaveiro."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talos 无法将你的会话存储到钥匙串中。"
+          }
+        }
+      }
+    },
+    "Talos couldn’t access %@’s default profile. You can choose another profile manually." : {
+      "comment" : "Placeholder is a browser name (Chrome, Safari).",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talos konnte nicht auf das Standardprofil von %@ zugreifen. Sie können manuell ein anderes Profil auswählen."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talos no pudo acceder al perfil predeterminado de %@. Puedes elegir otro perfil manualmente."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talos n’a pas pu accéder au profil par défaut de %@. Vous pouvez choisir un autre profil manuellement."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talosは%@のデフォルトプロファイルにアクセスできませんでした。別のプロファイルを手動で選択できます。"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O Talos não conseguiu acessar o perfil padrão do %@. Você pode escolher outro perfil manualmente."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talos 无法访问 %@ 的默认个人资料。你可以手动选择其他个人资料。"
+          }
+        }
+      }
+    },
+    "Talos couldn’t find %@ bookmark data in that folder." : {
+      "comment" : "Placeholder is a browser name.",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talos konnte in diesem Ordner keine Lesezeichendaten von %@ finden."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talos no encontró datos de marcadores de %@ en esa carpeta."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talos n’a pas trouvé de données de signets %@ dans ce dossier."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "そのフォルダに%@のブックマークデータが見つかりませんでした。"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O Talos não encontrou dados de marcadores do %@ nessa pasta."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talos 在该文件夹中找不到 %@ 的书签数据。"
+          }
+        }
+      }
+    },
+    "Talos couldn’t find your account on this Mac." : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talos konnte Ihren Account auf diesem Mac nicht finden."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talos no encontró tu cuenta en este Mac."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talos n’a pas trouvé votre compte sur ce Mac."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "このMacでTalosアカウントが見つかりませんでした。"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O Talos não encontrou sua conta neste Mac."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talos 在这台 Mac 上找不到你的账户。"
+          }
+        }
+      }
+    },
+    "Talos couldn’t open checkout. Please try again." : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talos konnte den Bezahlvorgang nicht öffnen. Bitte versuchen Sie es erneut."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talos no pudo abrir el proceso de compra. Inténtalo de nuevo."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talos n’a pas pu ouvrir la page de paiement. Veuillez réessayer."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "チェックアウトを開けませんでした。もう一度お試しください。"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O Talos não conseguiu abrir o checkout. Tente novamente."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talos 无法打开结账页面。请重试。"
+          }
+        }
+      }
+    },
+    "Talos couldn’t read that bookmarks file." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talos konnte diese Lesezeichendatei nicht lesen."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talos no pudo leer ese archivo de marcadores."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talos n’a pas pu lire ce fichier de signets."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "そのブックマークファイルを読み込めませんでした。"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O Talos não conseguiu ler esse arquivo de marcadores."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talos 无法读取该书签文件。"
+          }
+        }
+      }
+    },
+    "Talos couldn’t verify your account before checkout." : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talos konnte Ihren Account vor dem Bezahlvorgang nicht überprüfen."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talos no pudo verificar tu cuenta antes de la compra."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talos n’a pas pu vérifier votre compte avant le paiement."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "チェックアウトの前にアカウントを確認できませんでした。"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O Talos não conseguiu verificar sua conta antes do checkout."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talos 无法在结账前验证你的账户。"
+          }
+        }
+      }
+    },
+    "Talos has its own themes, so Chrome and Firefox themes don't install here. Pick a look in Settings ▸ Spaces." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talos hat eigene Themes, deshalb lassen sich Chrome- und Firefox-Themes hier nicht installieren. Wähle einen Look unter Einstellungen ▸ Spaces."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talos tiene sus propios temas, así que los de Chrome y Firefox no se instalan aquí. Elige un aspecto en Ajustes ▸ Espacios."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talos a ses propres thèmes : ceux de Chrome et Firefox ne s’installent pas ici. Choisissez une allure dans Réglages ▸ Espaces."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talos には独自のテーマがあるため、Chrome や Firefox のテーマはインストールできません。設定 ▸ スペースで外観を選んでください。"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O Talos tem os próprios temas, então temas do Chrome e do Firefox não são instalados aqui. Escolha um visual em Ajustes ▸ Espaços."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talos 有自己的主题，因此无法在此安装 Chrome 或 Firefox 主题。请在“设置 ▸ 空间”中选择外观。"
+          }
+        }
+      }
+    },
+    "Talos is still confirming your subscription. Try again in a moment." : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talos bestätigt Ihr Abonnement noch. Versuchen Sie es gleich erneut."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talos todavía está confirmando tu suscripción. Vuelve a intentarlo en un momento."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talos confirme encore votre abonnement. Réessayez dans un instant."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "サブスクリプションを確認中です。しばらくしてからもう一度お試しください。"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O Talos ainda está confirmando sua assinatura. Tente novamente em instantes."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talos 仍在确认你的订阅。请稍后重试。"
+          }
+        }
+      }
+    },
+    "Talos is the default browser in macOS." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talos ist der Standardbrowser in macOS."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talos es el navegador predeterminado en macOS."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talos est le navigateur par défaut dans macOS."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "TalosはmacOSのデフォルトブラウザです。"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O Talos é o navegador padrão no macOS."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talos是macOS的默认浏览器。"
+          }
+        }
+      }
+    },
+    "Talos keeps the address and its controls in the sidebar so pages get the whole window. If you’d rather always see them above the page, choose that here." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talos hält die Adresse und ihre Bedienelemente in der Seitenleiste, damit Seiten das ganze Fenster bekommen. Wenn du sie lieber immer über der Seite sehen möchtest, wähle das hier."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talos guarda la dirección y sus controles en la barra lateral para que las páginas ocupen toda la ventana. Si prefieres verlos siempre encima de la página, elígelo aquí."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talos garde l’adresse et ses commandes dans la barre latérale pour que les pages occupent toute la fenêtre. Si vous préférez toujours les voir au-dessus de la page, choisissez cette option ici."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talos はアドレスとそのコントロールをサイドバーに置くので、ページがウインドウ全体を使えます。常にページの上に表示したい場合はここで選んでください。"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O Talos mantém o endereço e seus controles na barra lateral para que as páginas ocupem toda a janela. Se preferir vê-los sempre acima da página, escolha isso aqui."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talos 将地址及其控件放在边栏中，让页面占据整个窗口。如果你更希望始终在页面上方看到它们，请在此选择。"
+          }
+        }
+      }
+    },
+    "Talos keeps the address in the sidebar so pages get the whole window. If you’d rather always see it above the page, choose that here." : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talos hält die Adresse in der Seitenleiste, damit Seiten das ganze Fenster bekommen. Wenn du sie lieber immer über der Seite sehen möchtest, wähle das hier."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talos guarda la dirección en la barra lateral para que las páginas ocupen toda la ventana. Si prefieres verla siempre encima de la página, elígelo aquí."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talos garde l’adresse dans la barre latérale pour que les pages occupent toute la fenêtre. Si vous préférez toujours la voir au-dessus de la page, choisissez cette option ici."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talos はアドレスをサイドバーに置くので、ページがウインドウ全体を使えます。常にページの上に表示したい場合はここで選んでください。"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O Talos mantém o endereço na barra lateral para que as páginas ocupem toda a janela. Se preferir vê-lo sempre acima da página, escolha isso aqui."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talos 将地址放在边栏中，让页面占据整个窗口。如果你更希望始终在页面上方看到它，请在此选择。"
+          }
+        }
+      }
+    },
+    "Talos returned an invalid response." : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talos hat eine ungültige Antwort zurückgegeben."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talos devolvió una respuesta no válida."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talos a renvoyé une réponse non valide."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talosから無効な応答が返されました。"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O Talos retornou uma resposta inválida."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talos 返回了无效响应。"
+          }
+        }
+      }
+    },
+    "Talos runs Chrome and Firefox web extensions." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talos führt Web-Erweiterungen für Chrome und Firefox aus."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talos ejecuta extensiones web de Chrome y Firefox."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talos exécute les extensions web de Chrome et Firefox."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "TalosはChromeとFirefoxのウェブ拡張機能を実行できます。"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O Talos executa extensões web do Chrome e do Firefox."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talos 可运行 Chrome 和 Firefox 的网页扩展。"
+          }
+        }
+      }
+    },
+    "Talos stores one key per provider in this Mac's Keychain. Keys are never sent to Talos." : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talos sichert einen Schlüssel pro Anbieter im Schlüsselbund dieses Mac. Schlüssel werden nie an Talos gesendet."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talos guarda una clave por proveedor en el llavero de este Mac. Las claves nunca se envían a Talos."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talos conserve une clé par fournisseur dans le trousseau de ce Mac. Les clés ne sont jamais envoyées à Talos."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talosはプロバイダごとに1つのキーをこのMacのキーチェーンに保存します。キーがTalosに送信されることはありません。"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O Talos armazena uma chave por provedor no Chaveiro deste Mac. As chaves nunca são enviadas ao Talos."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talos 会将每个提供商的一个密钥存储在这台 Mac 的钥匙串中。密钥绝不会发送给 Talos。"
+          }
+        }
+      }
+    },
+    "Talos updated — see what's new" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talos aktualisiert — Neuheiten ansehen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talos se ha actualizado — descubre las novedades"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talos a été mis à jour — découvrez les nouveautés"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talosがアップデートされました — 新機能を見る"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talos atualizado — veja as novidades"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talos 已更新 — 查看新功能"
+          }
+        }
+      }
+    },
+    "Talos's protection list is compiled into WebKit content rules once. A blocked request simply never happens — no script watches the pages you visit, and no extra work runs while you browse." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talos' Schutzliste wird einmalig in WebKit-Inhaltsregeln kompiliert. Eine blockierte Anfrage findet schlicht nie statt – kein Skript beobachtet die von Ihnen besuchten Seiten, und beim Surfen fällt keine zusätzliche Arbeit an."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La lista de protección de Talos se compila una sola vez en reglas de contenido de WebKit. Una solicitud bloqueada simplemente nunca ocurre: ningún script observa las páginas que visitas y no se ejecuta trabajo adicional mientras navegas."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La liste de protection de Talos est compilée une seule fois en règles de contenu WebKit. Une requête bloquée n'a tout simplement jamais lieu : aucun script ne surveille les pages que vous visitez et aucun travail supplémentaire ne s'exécute pendant votre navigation."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talosの保護リストは一度だけWebKitのコンテンツルールにコンパイルされます。ブロックされたリクエストはそもそも発生しません。訪問したページを監視するスクリプトはなく、ブラウズ中に余分な処理も実行されません。"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A lista de proteção do Talos é compilada uma única vez em regras de conteúdo do WebKit. Uma solicitação bloqueada simplesmente nunca acontece — nenhum script observa as páginas que você visita e nenhum trabalho extra é executado enquanto você navega."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talos 的保护列表只会编译一次为 WebKit 内容规则。被拦截的请求根本不会发生——没有脚本监视您访问的页面，浏览时也不会产生额外的工作。"
+          }
+        }
+      }
+    },
     "Target" : {
       "comment" : "Space icon picker: label for the 'target' symbol.",
       "localizations" : {
@@ -32810,6 +33019,7 @@
       }
     },
     "Tell Eli what to do..." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -32851,6 +33061,7 @@
     },
     "Text files" : {
       "comment" : "Attachment-type description in Eli's file picker.",
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -32891,6 +33102,7 @@
       }
     },
     "Thank you." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -32931,6 +33143,7 @@
       }
     },
     "That browser tab is no longer available." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -32971,6 +33184,7 @@
       }
     },
     "That browser tab is no longer open." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -33293,6 +33507,7 @@
       }
     },
     "The exact charge amount appears in the billing portal via Manage." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -33413,6 +33628,7 @@
       }
     },
     "The reset date isn’t available yet." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -33575,6 +33791,7 @@
     },
     "They reset on %@." : {
       "comment" : "'They' refers to Talos credits; placeholder is a formatted date.",
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -33695,6 +33912,7 @@
       }
     },
     "This Apple account is already connected to another Talos account." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -34015,6 +34233,7 @@
       }
     },
     "This model isn't available on your current plan. Choose another model in Talos Settings." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -34296,6 +34515,7 @@
       }
     },
     "Toggle Eli Sidebar" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -34662,6 +34882,7 @@
     },
     "Trial ends %@" : {
       "comment" : "Placeholder is a formatted date.",
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -34702,6 +34923,7 @@
       }
     },
     "Trial in progress" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -34903,6 +35125,7 @@
       }
     },
     "Type @ to mention a tab" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -34984,6 +35207,7 @@
     },
     "Type to filter" : {
       "comment" : "Ghost hint shown after typing @ in Eli's composer.",
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -35550,6 +35774,7 @@
       }
     },
     "Update your payment method in the billing portal to keep your plan and credits." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -35591,6 +35816,7 @@
     },
     "Updated %@." : {
       "comment" : "Freshness stamp; placeholder is a relative time like '2 minutes ago'.",
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -35631,6 +35857,7 @@
       }
     },
     "Upload file from computer" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -35671,6 +35898,7 @@
       }
     },
     "Uploaded file" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -35751,6 +35979,7 @@
       }
     },
     "Usage is measured in provider-neutral Talos credits, not raw tokens." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -35831,6 +36060,7 @@
       }
     },
     "Use your Talos subscription with server-managed credentials." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -35912,6 +36142,7 @@
     },
     "Using %@…" : {
       "comment" : "Eli progress status; placeholder is a web page control label.",
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -35993,6 +36224,7 @@
       }
     },
     "Waiting for the first update from Talos Cloud." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -36033,6 +36265,7 @@
       }
     },
     "Waiting for you" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -36558,6 +36791,46 @@
         }
       }
     },
+    "What Command-T and the sidebar's New Tab button show." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Was Befehl-T und die Neuer-Tab-Taste der Seitenleiste zeigen."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lo que muestran Comando-T y el botón de nueva pestaña de la barra lateral."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ce qu’affichent Commande-T et le bouton Nouvel onglet de la barre latérale."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Command-Tとサイドバーの新規タブボタンで表示される内容。"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O que Comando-T e o botão Nova Aba da barra lateral mostram."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Command-T 和边栏“新建标签页”按钮显示的内容。"
+          }
+        }
+      }
+    },
     "What Talos keeps" : {
       "comment" : "Section heading in the Privacy Report about data retention; the answer is 'Nothing'.",
       "localizations" : {
@@ -36599,47 +36872,8 @@
         }
       }
     },
-    "What Command-T and the sidebar's New Tab button show." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Was Befehl-T und die Neuer-Tab-Taste der Seitenleiste zeigen."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Lo que muestran Comando-T y el botón de nueva pestaña de la barra lateral."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ce qu’affichent Commande-T et le bouton Nouvel onglet de la barre latérale."
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Command-Tとサイドバーの新規タブボタンで表示される内容。"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "O que Comando-T e o botão Nova Aba da barra lateral mostram."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Command-T 和边栏“新建标签页”按钮显示的内容。"
-          }
-        }
-      }
-    },
     "What went wrong?" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -37166,6 +37400,7 @@
       }
     },
     "You’re signed in with Apple." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -37207,6 +37442,7 @@
     },
     "You’ve used all of this period’s credits. %@ %@" : {
       "comment" : "Placeholders are two full sentences: when credits reset, then how the plan works.",
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -37407,208 +37643,6 @@
         }
       }
     },
-    "Your Talos session has expired." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ihre Talos-Sitzung ist abgelaufen."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tu sesión de Talos ha caducado."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Votre session Talos a expiré."
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talosのセッションの有効期限が切れました。"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sua sessão do Talos expirou."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "你的 Talos 会话已过期。"
-          }
-        }
-      }
-    },
-    "Your Talos session has expired. Sign in again to continue." : {
-      "comment" : "Shown in Eli chat when the account session was expired or revoked server-side.",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ihre Talos-Sitzung ist abgelaufen. Melden Sie sich erneut an, um fortzufahren."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tu sesión de Talos ha caducado. Inicia sesión de nuevo para continuar."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Votre session Talos a expiré. Reconnectez-vous pour continuer."
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talosのセッションの有効期限が切れました。続けるにはもう一度サインインしてください。"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sua sessão do Talos expirou. Inicie sessão novamente para continuar."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "你的 Talos 会话已过期。请重新登录以继续。"
-          }
-        }
-      }
-    },
-    "Your Talos session has expired. Sign in with Apple to restore your account." : {
-      "comment" : "Shown in settings and onboarding after an Apple-linked session was expired or revoked, next to a Sign In with Apple button.",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ihre Talos-Sitzung ist abgelaufen. Melden Sie sich mit Apple an, um Ihr Konto wiederherzustellen."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tu sesión de Talos ha caducado. Inicia sesión con Apple para restaurar tu cuenta."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Votre session Talos a expiré. Connectez-vous avec Apple pour restaurer votre compte."
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talosのセッションの有効期限が切れました。Appleでサインインしてアカウントを復元してください。"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sua sessão do Talos expirou. Inicie sessão com a Apple para restaurar sua conta."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "你的 Talos 会话已过期。请通过 Apple 登录以恢复你的账户。"
-          }
-        }
-      }
-    },
-    "Your Talos subscription has been restored." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ihr Talos-Abonnement wurde wiederhergestellt."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Se ha restaurado tu suscripción a Talos."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Votre abonnement Talos a été restauré."
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talosサブスクリプションが復元されました。"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sua assinatura do Talos foi restaurada."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "你的 Talos 订阅已恢复。"
-          }
-        }
-      }
-    },
-    "Your Talos subscription is active." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ihr Talos-Abonnement ist aktiv."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tu suscripción a Talos está activa."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Votre abonnement Talos est actif."
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Talosサブスクリプションは有効です。"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sua assinatura do Talos está ativa."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "你的 Talos 订阅目前有效。"
-          }
-        }
-      }
-    },
     "Your connection to this site is private." : {
       "localizations" : {
         "de" : {
@@ -37730,6 +37764,7 @@
       }
     },
     "Your paid subscription starts when the trial ends. The exact charge appears in the billing portal." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -37770,6 +37805,7 @@
       }
     },
     "Your plan stays active until then, and credits won’t renew afterward. Use Manage to resume it." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -37810,6 +37846,7 @@
       }
     },
     "Your report could not be sent. Check your connection and try again." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -37850,6 +37887,7 @@
       }
     },
     "Your report includes Talos's version and your macOS version." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -37890,6 +37928,7 @@
       }
     },
     "Your report is on its way." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -38006,6 +38045,213 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "你的空间和标签页已保存，将在下次启动时恢复。"
+          }
+        }
+      }
+    },
+    "Your Talos session has expired." : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ihre Talos-Sitzung ist abgelaufen."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tu sesión de Talos ha caducado."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Votre session Talos a expiré."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talosのセッションの有効期限が切れました。"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sua sessão do Talos expirou."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你的 Talos 会话已过期。"
+          }
+        }
+      }
+    },
+    "Your Talos session has expired. Sign in again to continue." : {
+      "comment" : "Shown in Eli chat when the account session was expired or revoked server-side.",
+      "extractionState" : "stale",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ihre Talos-Sitzung ist abgelaufen. Melden Sie sich erneut an, um fortzufahren."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tu sesión de Talos ha caducado. Inicia sesión de nuevo para continuar."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Votre session Talos a expiré. Reconnectez-vous pour continuer."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talosのセッションの有効期限が切れました。続けるにはもう一度サインインしてください。"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sua sessão do Talos expirou. Inicie sessão novamente para continuar."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你的 Talos 会话已过期。请重新登录以继续。"
+          }
+        }
+      }
+    },
+    "Your Talos session has expired. Sign in with Apple to restore your account." : {
+      "comment" : "Shown in settings and onboarding after an Apple-linked session was expired or revoked, next to a Sign In with Apple button.",
+      "extractionState" : "stale",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ihre Talos-Sitzung ist abgelaufen. Melden Sie sich mit Apple an, um Ihr Konto wiederherzustellen."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tu sesión de Talos ha caducado. Inicia sesión con Apple para restaurar tu cuenta."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Votre session Talos a expiré. Connectez-vous avec Apple pour restaurer votre compte."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talosのセッションの有効期限が切れました。Appleでサインインしてアカウントを復元してください。"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sua sessão do Talos expirou. Inicie sessão com a Apple para restaurar sua conta."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你的 Talos 会话已过期。请通过 Apple 登录以恢复你的账户。"
+          }
+        }
+      }
+    },
+    "Your Talos subscription has been restored." : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ihr Talos-Abonnement wurde wiederhergestellt."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Se ha restaurado tu suscripción a Talos."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Votre abonnement Talos a été restauré."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talosサブスクリプションが復元されました。"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sua assinatura do Talos foi restaurada."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你的 Talos 订阅已恢复。"
+          }
+        }
+      }
+    },
+    "Your Talos subscription is active." : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ihr Talos-Abonnement ist aktiv."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tu suscripción a Talos está activa."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Votre abonnement Talos est actif."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talosサブスクリプションは有効です。"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sua assinatura do Talos está ativa."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你的 Talos 订阅目前有效。"
           }
         }
       }
