@@ -5,9 +5,11 @@ import UniformTypeIdentifiers
 /// Settings ▸ Extensions, in Safari's master-detail shape: the installed
 /// list with enable checkboxes on the left, and the selected extension's
 /// detail — description, Uninstall, private-browsing consent, and a
-/// plain-language permissions summary — on the right. Surfaces Safari shows
-/// but Talos can't act on yet (per-site editing, shortcuts, syncing) are
-/// omitted rather than shown inert. The WKWebExtension APIs need macOS 15.4;
+/// plain-language permissions summary, and the shortcuts its manifest
+/// declares — on the right. Surfaces Safari shows but Talos can't act on yet
+/// (per-site editing, syncing) are omitted rather than shown inert; the
+/// shortcuts are rebound in the Shortcuts pane, with the browser's own. The
+/// WKWebExtension APIs need macOS 15.4;
 /// on older systems the pane says so instead of showing controls.
 internal struct ExtensionsSettingsPane: View {
     var body: some View {
@@ -197,6 +199,7 @@ private struct ExtensionsSettingsContent: View {
 
                     privateBrowsingSection(installation)
                     permissionsSection(installation)
+                    shortcutsSection(installation)
                 } else {
                     emptyDetail
                 }
@@ -287,6 +290,40 @@ private struct ExtensionsSettingsContent: View {
                         .foregroundStyle(.secondary)
                         .padding(.leading, 12)
                 }
+            }
+        }
+    }
+
+    /// The commands this extension's manifest declares and the keys they
+    /// answer to today, with the way to the pane that changes them.
+    @ViewBuilder
+    private func shortcutsSection(_ installation: WebExtensionInstallation) -> some View {
+        let _ = manager.commandsRefreshToken
+        let commands = manager.commandDescriptors().filter { $0.installationID == installation.id }
+        if !commands.isEmpty {
+            VStack(alignment: .leading, spacing: 8) {
+                Text(String(localized: "Keyboard Shortcuts:"))
+                    .font(.system(size: 13, weight: .semibold))
+
+                VStack(alignment: .leading, spacing: 6) {
+                    ForEach(commands) { command in
+                        HStack(spacing: 10) {
+                            Text(command.title)
+                                .font(.system(size: 12))
+                            Spacer(minLength: 12)
+                            Text(command.displayShortcut)
+                                .font(.system(size: 12, weight: .medium, design: .rounded))
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+                .padding(.leading, 12)
+
+                Button(String(localized: "Change in Shortcuts…")) {
+                    SettingsPaneRequest.request(.shortcuts)
+                }
+                .controlSize(.small)
+                .padding(.leading, 12)
             }
         }
     }

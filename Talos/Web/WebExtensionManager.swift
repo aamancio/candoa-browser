@@ -32,7 +32,14 @@ final class WebExtensionManager: NSObject, ObservableObject {
     /// enablement), so action surfaces re-render.
     @Published private(set) var actionRefreshToken = UUID()
 
+    /// Bumped whenever a command's shortcut changes or an extension with
+    /// commands loads or unloads, so the Shortcuts pane re-renders.
+    @Published private(set) var commandsRefreshToken = UUID()
+
     private var contextsByInstallationID: [UUID: WKWebExtensionContext] = [:]
+    /// What each command's manifest suggested, keyed by its storage key, so
+    /// Reset can put it back after the person rebinds.
+    private var defaultCommandShortcuts: [String: String] = [:]
     private var windowAdapters: [ObjectIdentifier: WebExtensionWindowAdapter] = [:]
     private var windowCancellables: [ObjectIdentifier: Set<AnyCancellable>] = [:]
     private var windowObservers: [ObjectIdentifier: [any NSObjectProtocol]] = [:]
@@ -143,6 +150,120 @@ final class WebExtensionManager: NSObject, ObservableObject {
         return windowAdapter.adapter(for: activeTabID)
     }
 
+    // MARK: - Commands
+
+    /// A command an extension's manifest declares ("Toggle Claude side
+    /// panel"), with the key it answers to, for the Shortcuts pane.
+    struct CommandDescriptor: Identifiable {
+        let id: String
+        let installationID: UUID
+        let title: String
+        let extensionName: String
+        let icon: NSImage?
+        /// "" while the manifest's suggestion stands, the removed marker,
+        /// or the person's own binding.
+        let storedShortcut: String
+        /// What the manifest suggested, "None" when it suggested nothing.
+        let defaultShortcut: String
+
+        var isRemoved: Bool { storedShortcut == WebExtensionShortcut.removedValue }
+
+        var displayShortcut: String {
+            if isRemoved { return "None" }
+            return storedShortcut.isEmpty ? defaultShortcut : storedShortcut
+        }
+    }
+
+    /// Where a command's binding lives: one key per extension and command,
+    /// in the same spelling as `ShortcutDefinition.storageKey`.
+    static func commandStorageKey(installationID: UUID, commandID: String) -> String {
+        "TalosExtensionShortcut.\(installationID.uuidString).\(commandID)"
+    }
+
+    /// Every loaded extension's commands, in installation order.
+    func commandDescriptors() -> [CommandDescriptor] {
+        installations.flatMap { installation -> [CommandDescriptor] in
+            guard let context = contextsByInstallationID[installation.id] else { return [] }
+            let icon = context.webExtension.icon(for: CGSize(width: 32, height: 32))
+            return context.commands.map { command in
+                let key = Self.commandStorageKey(installationID: installation.id, commandID: command.id)
+                return CommandDescriptor(
+                    id: key,
+                    installationID: installation.id,
+                    title: command.title,
+                    extensionName: installation.displayName,
+                    icon: icon,
+                    storedShortcut: UserDefaults.standard.string(forKey: key) ?? "",
+                    defaultShortcut: defaultCommandShortcuts[key] ?? "None"
+                )
+            }
+        }
+    }
+
+    /// Rebinds a command: a shortcut string to use it, the removed marker
+    /// to take its key away, or "" to go back to the manifest's suggestion.
+    func setShortcut(_ stored: String, forCommand descriptorID: String) {
+        if stored.isEmpty {
+            UserDefaults.standard.removeObject(forKey: descriptorID)
+        } else {
+            UserDefaults.standard.set(stored, forKey: descriptorID)
+        }
+        for installation in installations {
+            guard let context = contextsByInstallationID[installation.id] else { continue }
+            applyStoredShortcuts(to: context, installationID: installation.id)
+        }
+        commandsRefreshToken = UUID()
+    }
+
+    /// Offers a key event to the loaded extensions' commands, the way
+    /// Chrome fires `commands.onCommand` for a manifest shortcut. True when
+    /// one of them took it. In a private window only extensions granted
+    /// private access get the chance.
+    func performCommand(for event: NSEvent) -> Bool {
+        let isPrivateWindow = focusedWindowAdapter?.store?.isPrivate ?? false
+        for installation in installations {
+            guard !isPrivateWindow || installation.allowsPrivateBrowsing else { continue }
+            guard let context = contextsByInstallationID[installation.id] else { continue }
+            if context.performCommand(for: event) {
+                return true
+            }
+        }
+        return false
+    }
+
+    /// Records what the manifest suggested for each command the first time
+    /// its context loads, then puts the person's own bindings on it.
+    private func applyStoredShortcuts(to context: WKWebExtensionContext, installationID: UUID) {
+        for command in context.commands {
+            let key = Self.commandStorageKey(installationID: installationID, commandID: command.id)
+            if defaultCommandShortcuts[key] == nil {
+                defaultCommandShortcuts[key] = WebExtensionShortcut.string(
+                    activationKey: command.activationKey,
+                    modifierFlags: command.modifierFlags
+                )
+            }
+            let stored = UserDefaults.standard.string(forKey: key) ?? ""
+            let target = stored.isEmpty ? defaultCommandShortcuts[key] ?? "None" : stored
+            let components = WebExtensionShortcut.components(from: target)
+            if command.activationKey != components.activationKey {
+                command.activationKey = components.activationKey
+            }
+            if command.modifierFlags != components.modifierFlags {
+                command.modifierFlags = components.modifierFlags
+            }
+        }
+    }
+
+    /// Forgets an uninstalled extension's bindings, so a reinstall starts
+    /// from its manifest again.
+    private func forgetShortcuts(of context: WKWebExtensionContext, installationID: UUID) {
+        for command in context.commands {
+            let key = Self.commandStorageKey(installationID: installationID, commandID: command.id)
+            UserDefaults.standard.removeObject(forKey: key)
+            defaultCommandShortcuts.removeValue(forKey: key)
+        }
+    }
+
     // MARK: - Install / remove / enable
 
     enum InstallOutcome {
@@ -205,6 +326,9 @@ final class WebExtensionManager: NSObject, ObservableObject {
             Task { await loadPersistedExtension(installation) }
         } else if let context = contextsByInstallationID.removeValue(forKey: installationID) {
             try? controller.unload(context)
+            if !context.commands.isEmpty {
+                commandsRefreshToken = UUID()
+            }
         }
     }
 
@@ -217,8 +341,12 @@ final class WebExtensionManager: NSObject, ObservableObject {
                 guard let self, let record else { return }
                 self.controller.removeData(ofTypes: dataTypes, from: [record]) {}
             }
+            forgetShortcuts(of: context, installationID: installationID)
             try? controller.unload(context)
             contextsByInstallationID.removeValue(forKey: installationID)
+            if !context.commands.isEmpty {
+                commandsRefreshToken = UUID()
+            }
         }
         try? FileManager.default.removeItem(at: WebExtensionRecords.directoryURL(for: installationID))
         installations.removeAll { $0.id == installationID }
@@ -280,6 +408,10 @@ final class WebExtensionManager: NSObject, ObservableObject {
         }
         try controller.load(context)
         contextsByInstallationID[installation.id] = context
+        if !context.commands.isEmpty {
+            applyStoredShortcuts(to: context, installationID: installation.id)
+            commandsRefreshToken = UUID()
+        }
     }
 
     /// Chrome's install dialog, in Talos's words: what the extension can do,

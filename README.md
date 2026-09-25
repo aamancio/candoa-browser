@@ -107,6 +107,11 @@ Talos reserves familiar macOS browser shortcuts for comparable features.
 - `Cmd+R`: Reload
 - `Cmd+F`: Find in page
 
+Every one of these can be rebound or removed in Settings › Shortcuts. An
+extension's own shortcuts (the `commands` in its manifest, such as Claude's
+`Cmd+E`) work too and are listed there under Extensions; when one matches a
+Talos shortcut or a menu key, Talos's wins.
+
 ## For Contributors
 
 The app is organized around a small native browser core:

@@ -415,7 +415,56 @@ struct KeyboardShortcutMonitor: NSViewRepresentable {
                 return nil
             }
 
+            // Extensions' own shortcuts (a manifest's `commands`, such as
+            // Claude's ⌘E) come last, so the browser's keys above and the
+            // menu bar's always win a clash, and the extension gets the key
+            // even while the page holds first responder, as in Chrome.
+            if #available(macOS 15.4, *),
+               Self.couldBeExtensionCommand(event),
+               !Self.mainMenuOwnsKeyEquivalent(event),
+               WebExtensionManager.shared.performCommand(for: event) {
+                return nil
+            }
+
             return event
+        }
+
+        /// Manifest shortcuts always carry Command, Control, or Option, so
+        /// plain typing and Shift-only keys never reach the extensions.
+        private static func couldBeExtensionCommand(_ event: NSEvent) -> Bool {
+            !normalizedModifiers(for: event).intersection([.command, .control, .option]).isEmpty
+        }
+
+        /// Whether any menu bar item already answers to this key, in which
+        /// case the extension must not swallow it (Print, Empty Caches…).
+        private static func mainMenuOwnsKeyEquivalent(_ event: NSEvent) -> Bool {
+            guard
+                let menu = NSApp.mainMenu,
+                let characters = event.charactersIgnoringModifiers?.lowercased(),
+                !characters.isEmpty
+            else {
+                return false
+            }
+            return menuOwns(menu, characters: characters, modifiers: normalizedModifiers(for: event))
+        }
+
+        private static func menuOwns(_ menu: NSMenu, characters: String, modifiers: NSEvent.ModifierFlags) -> Bool {
+            for item in menu.items {
+                if let submenu = item.submenu, menuOwns(submenu, characters: characters, modifiers: modifiers) {
+                    return true
+                }
+                guard !item.keyEquivalent.isEmpty else { continue }
+                var mask = item.keyEquivalentModifierMask.intersection(.deviceIndependentFlagsMask)
+                let key = item.keyEquivalent
+                // AppKit spells a shifted key equivalent as its uppercase.
+                if key != key.lowercased() {
+                    mask.insert(.shift)
+                }
+                if key.lowercased() == characters, mask == modifiers {
+                    return true
+                }
+            }
+            return false
         }
 
         private static func isCommandT(_ event: NSEvent) -> Bool {

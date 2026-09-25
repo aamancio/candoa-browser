@@ -48,10 +48,145 @@ struct ShortcutSettingsView: View {
                     }
                 }
 
+                if #available(macOS 15.4, *) {
+                    ExtensionShortcutSettingsSection(searchText: searchText)
+                }
+
                 Text("Custom shortcut capture is local to this Mac.")
                     .font(.system(size: 12))
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, 14)
+            }
+        }
+    }
+}
+
+/// The shortcuts installed extensions declare in their manifests (Claude's
+/// "Toggle Claude side panel" on ⌘E, say), rebindable like the browser's
+/// own. Absent until an extension with commands is loaded.
+@available(macOS 15.4, *)
+private struct ExtensionShortcutSettingsSection: View {
+    let searchText: String
+
+    @ObservedObject private var manager = WebExtensionManager.shared
+
+    private var filteredDescriptors: [WebExtensionManager.CommandDescriptor] {
+        let descriptors = manager.commandDescriptors()
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return descriptors }
+        return descriptors.filter {
+            $0.title.localizedCaseInsensitiveContains(query) ||
+                $0.extensionName.localizedCaseInsensitiveContains(query) ||
+                $0.displayShortcut.localizedCaseInsensitiveContains(query)
+        }
+    }
+
+    var body: some View {
+        // Reading the token ties this view to every rebinding and load.
+        let _ = manager.commandsRefreshToken
+        let descriptors = filteredDescriptors
+        if !descriptors.isEmpty {
+            VStack(alignment: .leading, spacing: 8) {
+                SettingsSectionTitle(String(localized: "Extensions"))
+
+                SettingsCard {
+                    ForEach(Array(descriptors.enumerated()), id: \.element.id) { index, descriptor in
+                        ExtensionShortcutSettingsRow(descriptor: descriptor)
+
+                        if index < descriptors.count - 1 {
+                            SettingsDivider()
+                                .padding(.leading, 58)
+                        }
+                    }
+                }
+
+                Text("When an extension's shortcut matches one of Talos's, Talos's wins.")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 14)
+            }
+        }
+    }
+}
+
+@available(macOS 15.4, *)
+private struct ExtensionShortcutSettingsRow: View {
+    let descriptor: WebExtensionManager.CommandDescriptor
+
+    @State private var isRecording = false
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Group {
+                if let icon = descriptor.icon {
+                    Image(nsImage: icon)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 16, height: 16)
+                } else {
+                    Image(systemName: "puzzlepiece.extension")
+                        .foregroundStyle(.secondary)
+                        .font(.system(size: 14, weight: .medium))
+                }
+            }
+            .frame(width: 30)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(descriptor.title)
+                    .font(.system(size: 13))
+
+                Text(descriptor.extensionName)
+                    .font(.system(size: 11.5))
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer()
+
+            Button {
+                isRecording = true
+            } label: {
+                Text(isRecording ? "Press Keys" : descriptor.displayShortcut)
+                    .font(.system(size: 12, weight: .medium, design: .rounded))
+                    .frame(minWidth: 132)
+            }
+            .buttonTreatment(.secondary)
+            .controlSize(.small)
+            .help("Set Shortcut")
+
+            Button {
+                WebExtensionManager.shared.setShortcut(
+                    descriptor.isRemoved ? "" : WebExtensionShortcut.removedValue,
+                    forCommand: descriptor.id
+                )
+            } label: {
+                Image(systemName: descriptor.isRemoved ? "plus" : "minus")
+                    .frame(width: 16, height: 16)
+            }
+            .buttonTreatment(.chrome)
+            .controlSize(.small)
+            .help(descriptor.isRemoved ? "Restore Shortcut" : "Remove Shortcut")
+
+            Button {
+                WebExtensionManager.shared.setShortcut("", forCommand: descriptor.id)
+            } label: {
+                Image(systemName: "arrow.counterclockwise")
+                    .frame(width: 16, height: 16)
+            }
+            .buttonTreatment(.chrome)
+            .controlSize(.small)
+            .disabled(descriptor.storedShortcut.isEmpty)
+            .help("Reset to Default")
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 9)
+        .background {
+            if isRecording {
+                ShortcutCaptureView { shortcut in
+                    WebExtensionManager.shared.setShortcut(shortcut, forCommand: descriptor.id)
+                    isRecording = false
+                } onCancel: {
+                    isRecording = false
+                }
             }
         }
     }

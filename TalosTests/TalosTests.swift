@@ -240,6 +240,113 @@ final class ProviderSearchResultsURLTests: XCTestCase {
     }
 }
 
+/// An extension's manifest shortcut round-trips through the stored string
+/// the Shortcuts pane records, so a rebinding lands on the command exactly
+/// as WebKit expects it (activation key plus modifier flags).
+final class WebExtensionShortcutTests: XCTestCase {
+    func testManifestKeyReadsAsTheStoredSpelling() {
+        XCTAssertEqual(WebExtensionShortcut.string(activationKey: "e", modifierFlags: .command), "Command-E")
+        XCTAssertEqual(
+            WebExtensionShortcut.string(activationKey: "y", modifierFlags: [.command, .shift, .option]),
+            "Option-Shift-Command-Y"
+        )
+        XCTAssertEqual(
+            WebExtensionShortcut.string(
+                activationKey: String(UnicodeScalar(UInt32(NSUpArrowFunctionKey))!),
+                modifierFlags: [.control]
+            ),
+            "Control-Up"
+        )
+        XCTAssertEqual(WebExtensionShortcut.string(activationKey: nil, modifierFlags: .command), "None")
+        XCTAssertEqual(WebExtensionShortcut.string(activationKey: "", modifierFlags: []), "None")
+    }
+
+    func testStoredSpellingBecomesTheCommandsKey() {
+        let rebinding = WebExtensionShortcut.components(from: "Shift-Command-E")
+        XCTAssertEqual(rebinding.activationKey, "e")
+        XCTAssertEqual(rebinding.modifierFlags, [.shift, .command])
+
+        let named = WebExtensionShortcut.components(from: "Control-F5")
+        XCTAssertEqual(named.activationKey, String(UnicodeScalar(UInt32(NSF5FunctionKey))!))
+        XCTAssertEqual(named.modifierFlags, [.control])
+
+        let dash = WebExtensionShortcut.components(from: "Command--")
+        XCTAssertEqual(dash.activationKey, "-")
+        XCTAssertEqual(dash.modifierFlags, [.command])
+    }
+
+    func testRemovedAndUnreadableSpellingsClearTheKey() {
+        for stored in ["", "None", WebExtensionShortcut.removedValue, "Hyper-E", "Command-Escape", "E"] {
+            let components = WebExtensionShortcut.components(from: stored)
+            XCTAssertNil(components.activationKey, stored)
+            XCTAssertEqual(components.modifierFlags, [], stored)
+        }
+    }
+
+    /// WebKit parses a manifest's `suggested_key` into the command; the
+    /// pane must read that back as the spelling it would record itself.
+    @MainActor
+    func testManifestSuggestedKeyReadsBackAsTheStoredSpelling() async throws {
+        guard #available(macOS 15.4, *) else { return }
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("talos-command-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let manifest = """
+        {"manifest_version": 3, "name": "Fixture", "version": "1.0",
+         "commands": {"toggle-side-panel": {"suggested_key": {"default": "Ctrl+E", "mac": "Command+E"},
+                                            "description": "Toggle the panel"}}}
+        """
+        try manifest.write(to: root.appendingPathComponent("manifest.json"), atomically: true, encoding: .utf8)
+
+        let webExtension = try await WKWebExtension(resourceBaseURL: root)
+        let context = WKWebExtensionContext(for: webExtension)
+        let command = try XCTUnwrap(context.commands.first { $0.id == "toggle-side-panel" })
+        XCTAssertEqual(command.title, "Toggle the panel")
+        XCTAssertEqual(
+            WebExtensionShortcut.string(activationKey: command.activationKey, modifierFlags: command.modifierFlags),
+            "Command-E"
+        )
+
+        // A rebinding lands on the command in the form WebKit matches events against.
+        let rebinding = WebExtensionShortcut.components(from: "Shift-Command-E")
+        command.activationKey = rebinding.activationKey
+        command.modifierFlags = rebinding.modifierFlags
+        XCTAssertEqual(command.activationKey, "e")
+        XCTAssertEqual(command.modifierFlags, [.shift, .command])
+
+        // Loaded, the command claims exactly its key event — the check the
+        // window's key monitor relies on — and no other.
+        let controller = WKWebExtensionController(configuration: .default())
+        try controller.load(context)
+        defer { try? controller.unload(context) }
+        func keyEvent(_ characters: String, _ modifiers: NSEvent.ModifierFlags) -> NSEvent {
+            NSEvent.keyEvent(
+                with: .keyDown, location: .zero, modifierFlags: modifiers, timestamp: 0,
+                windowNumber: 0, context: nil, characters: characters,
+                charactersIgnoringModifiers: characters, isARepeat: false, keyCode: 14
+            )!
+        }
+        XCTAssertTrue(context.performCommand(for: keyEvent("E", [.shift, .command])))
+        XCTAssertFalse(context.performCommand(for: keyEvent("e", [.command])))
+        XCTAssertFalse(context.performCommand(for: keyEvent("E", [.shift, .option])))
+
+        command.activationKey = nil
+        XCTAssertFalse(context.performCommand(for: keyEvent("E", [.shift, .command])))
+    }
+
+    func testEveryNamedKeyRoundTrips() {
+        for name in ["Tab", "Space", "Left", "Right", "Up", "Down", "Home", "End", "PageUp", "PageDown", "F1", "F12"] {
+            let stored = "Option-Command-\(name)"
+            let components = WebExtensionShortcut.components(from: stored)
+            XCTAssertEqual(
+                WebExtensionShortcut.string(activationKey: components.activationKey, modifierFlags: components.modifierFlags),
+                stored
+            )
+        }
+    }
+}
+
 /// The command palette teaches shortcuts by mapping each row's action back to
 /// its rebindable `ShortcutDefinition` (issue #370). Pure logic: no palette
 /// UI or persistence involved.
