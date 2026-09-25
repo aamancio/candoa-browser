@@ -1,7 +1,7 @@
 import Link from "next/link"
 import { ArrowRight } from "lucide-react"
 
-import { AppScreenshot } from "@/components/app-screenshot"
+import { AppShowcase } from "@/components/app-showcase"
 import { buttonVariants } from "@/components/ui/button"
 import { latestRelease, RELEASES_URL } from "@/lib/releases"
 import { cn } from "@/lib/utils"
@@ -106,7 +106,7 @@ export default function Page() {
           </p>
         </div>
         <div className="w-full pt-6">
-          <AppScreenshot />
+          <AppShowcase />
         </div>
       </section>
 

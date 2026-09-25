@@ -18,9 +18,11 @@ What the release workflow writes here, and what the app reads:
 - `content/releases.json` — one entry per release, newest first; the
   What's New page is built from it.
 
-- `public/screenshots/talos-{light,dark}.webp` — the window in the hero,
-  captured by `../Scripts/site-screenshots.sh` from the `site-showcase`
-  UI-testing fixture (a clean Work/Personal workspace, no personal data).
+- `public/screenshots/talos-{light,dark}.mp4` and `.webp` — the hero's
+  silent feature loop and its poster, recorded by
+  `../Scripts/site-screenshots.sh` from the `site-showcase` UI-testing
+  fixture (a clean Work/Personal workspace, no personal data). The still is
+  what people who reduce motion see.
 
 Everything else is hand-written. Pages come out as folders with an
 `index.html` (`trailingSlash`), so `/whats-new/` and `/downloads/…` keep the
