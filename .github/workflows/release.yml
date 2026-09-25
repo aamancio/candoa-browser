@@ -1,10 +1,13 @@
 name: Release
 
 # Every push to main that changes the app ships a release: build, sign,
-# notarize, attach the DMG to a GitHub Release, sign the Sparkle appcast, and
-# commit the appcast, latest.json, and What's New entry into site/ (which the
-# Pages workflow then publishes). Gated on the TALOS_RELEASES_ENABLED
-# repository variable so the pipeline stays quiet until signing is ready.
+# notarize, attach the DMG to a GitHub Release, sign the Sparkle appcast,
+# commit the appcast, latest.json, and What's New entry into site/, and then
+# dispatch the Pages workflow to publish them (a push made with the workflow
+# token never triggers other workflows on its own). Gated on the
+# TALOS_RELEASES_ENABLED repository variable so the pipeline stays quiet until
+# signing is ready. A change to this file alone does not ship a version; run
+# it by hand from the Actions tab when that is what you want.
 
 on:
   push:
@@ -15,10 +18,12 @@ on:
       - "**.md"
       - ".github/workflows/pages.yml"
       - ".github/workflows/ci.yml"
+      - ".github/workflows/release.yml"
   workflow_dispatch:
 
 permissions:
   contents: write
+  actions: write
 
 concurrency:
   group: release
@@ -302,5 +307,10 @@ jobs:
       - name: Commit the site changes
         run: |
           git add site/downloads/appcast.xml site/downloads/latest.json site/whats-new/index.html
-          git commit -m "release: Talos $APP_VERSION appcast and notes [skip ci]"
+          git commit -m "release: Talos $APP_VERSION appcast and notes"
           git push origin HEAD:main
+
+      - name: Publish the site
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run pages.yml --ref main

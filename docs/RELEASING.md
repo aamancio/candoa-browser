@@ -15,9 +15,10 @@ Every merge to `main` ships automatically. There is no manual release step.
 4. Tags `vX.Y.Z`, creates the GitHub Release with `Talos-X.Y.Z.dmg` attached,
    signs the Sparkle appcast (download URLs point at the release asset), and
    commits `site/downloads/appcast.xml`, `site/downloads/latest.json`, and a
-   new entry in `site/whats-new/index.html`. The Pages workflow then publishes
-   `site/`. Nothing is hosted anywhere else; the old candoa-cloud publishing
-   step is gone.
+   new entry in `site/whats-new/index.html`, then dispatches the Pages
+   workflow to publish `site/` (a push made by the workflow never triggers
+   other workflows by itself). Nothing is hosted anywhere else; the old
+   candoa-cloud publishing step is gone.
 5. That tag is the anchor for the next version bump.
 
 ## Switching releases on
